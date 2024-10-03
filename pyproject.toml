@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "difusco"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "jsalvasoler", email = "jsalvasoler@hotmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "torch==2.3.1",
+  "ninja",
+  "pytorch-lightning",
+  "scipy",
+  "torch-geometric",
+  "wandb",
+  "ipython",
+  "scikit-learn",
+  "cython",
+  "setuptools",
+]
+[project.urls]
+Documentation = "https://github.com/jsalvasoler/difusco#readme"
+Issues = "https://github.com/jsalvasoler/difusco/issues"
+Source = "https://github.com/jsalvasoler/difusco"
+
+[tool.hatch.version]
+path = "src/difusco/__about__.py"
+
+[tool.hatch.envs.default.scripts]
+interactive = "ipython"
+train = "python3 -m difusco {args}"
+
+[tool.hatch.envs.default]
+python = "3.12"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/difusco tests}"
+
+[tool.coverage.run]
+source_pkgs = ["difusco", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/difusco/__about__.py",
+]
+
+[tool.coverage.paths]
+difusco = ["src/difusco", "*/difusco/src/difusco"]
+tests = ["tests", "*/difusco/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]

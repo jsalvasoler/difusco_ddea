@@ -1,59 +1,30 @@
-# DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization
+# difusco
 
-See ["DIFUSCO: Graph-based Diffusion Solvers for Combinatorial Optimization"](https://arxiv.org/abs/2302.08224) for the paper associated with this codebase.
+[![PyPI - Version](https://img.shields.io/pypi/v/difusco.svg)](https://pypi.org/project/difusco)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/difusco.svg)](https://pypi.org/project/difusco)
 
-![Alt text](tsp_illustration.png?raw=true "TSP Illustration of DIFUSCO")
+-----
 
-<div align="center">
-    <img src="gaussian_difusco_demo_v2.gif" alt="Gaussian" width="256px">
-  <img src="bernouli_difusco_demo.gif" alt="Bernouli" width="256px">
-</div>
+## Table of Contents
 
-## Setup
+- [Installation](#installation)
+- [License](#license)
 
-```bash
-conda env create -f environment.yml
-conda activate difusco
-```
+## Dependencies
 
-Running TSP experiments requires installing the additional cython package for merging the diffusion heatmap results:
+This project uses [hatch](https://hatch.pypa.io/) as a project manager. To install it, just `pip install hatch`. 
+
+Unfortunately, two dependencies (`torch-scatter` and `torch-sparse`) require `torch` as an runtime dependency. The usual `hatch` dependency sync will not work for these two packages. To install them, do:
 
 ```bash
-cd difusco/utils/cython_merge
-python setup.py build_ext --inplace
-cd -
+hatch run true # to create the environment and install basic dependencies
+
+hatch shell # to enter the environment
+
+pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.1+cpu.html
 ```
+You only need to install `torch-scatter` and `torch-sparse` once. After that, you can use `hatch run` as usual to run the project, and dependencies will sync automatically (without removing the two packages).
 
-## Codebase Structure
+## License
 
-* `difusco/pl_meta_model.py`: the code for a meta pytorch-lightning model for training and evaluation.
-* `difusco/pl_tsp_model.py`: the code for the TSP problem
-* `difusco/pl_mis_model.py`: the code for the MIS problem
-* `difusco/trian.py`: the handler for training and evaluation
-
-## Data
-
-Please check the `data` folder.
-
-## Reproduction
-
-Please check the [reproducing_scripts](reproducing_scripts.md) for more details.
-
-## Pretrained Checkpoints
-
-Please download the pretrained model checkpoints from [here](https://drive.google.com/drive/folders/1IjaWtkqTAs7lwtFZ24lTRspE0h1N6sBH?usp=sharing).
-
-## Reference
-
-If you found this codebase useful, please consider citing the paper:
-
-```
-@inproceedings{
-    sun2023difusco,
-    title={{DIFUSCO}: Graph-based Diffusion Solvers for Combinatorial Optimization},
-    author={Zhiqing Sun and Yiming Yang},
-    booktitle={Thirty-seventh Conference on Neural Information Processing Systems},
-    year={2023},
-    url={https://openreview.net/forum?id=JV8Ff0lgVV}
-}
-```
+`difusco` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
