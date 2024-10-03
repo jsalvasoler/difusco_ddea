@@ -1,5 +1,6 @@
 import time
 
+import fire
 import numpy as np
 import torch
 from difusco_edward_sun.difusco.utils.cython_merge.cython_merge import merge_cython

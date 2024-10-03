@@ -76,3 +76,24 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.ruff.lint]
+extend-select = [
+    "I", # isort
+    "F", # PyFlakes
+    "E", # pycodestyle
+    "ANN", # flake8-annotations
+    "B", # flake8-bugbear
+    "ASYNC", # flake8-async
+    "UP", # pyupgrade
+    "N", # pep8-naming
+    "FBT", # flake8-boolean-trap
+    "A", # flake8-builtins
+    "C4", # flake8-comprehensions
+]
+ignore = [
+    "T201",
+    "ANN101",
+    "ANN003",
+    "S101"
+]
