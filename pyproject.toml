@@ -35,6 +35,7 @@ dependencies = [
   "scikit-learn",
   "cython",
   "setuptools",
+  "pre-commit",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"
@@ -97,3 +98,6 @@ ignore = [
     "ANN003",
     "S101"
 ]
+
+[tool.ruff]
+exclude = ["src/difusco_edward_sun/**"]
