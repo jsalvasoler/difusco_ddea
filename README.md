@@ -53,7 +53,7 @@ difusco/
 
 The data for the TSP comes from different sources. 
  - Files tsp{50,100}_{test,train}_concorde.txt come from [chaitjo/learning-tsp](https://github.com/chaitjo/learning-tsp) (Resources section).
- - Files tsp{500,1000,10000}_test_concorde.txt come from [Spider-scnu/TSP](https://github.com/Spider-scnu/TSP).
+ - Files tsp{500,1000,10000}_test_concorde.txt come from [Spider-scnu/TSP](https://github.com/Spider-scnu/TSP) (Dataset section).
  - Files tsp{500,1000,10000}_train_concorde.txt are generated using the following commands:
 
 ```bash
