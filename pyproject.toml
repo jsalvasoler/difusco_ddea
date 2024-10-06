@@ -36,6 +36,8 @@ dependencies = [
   "cython",
   "setuptools",
   "pre-commit",
+  "lkh",
+  "tsplib95",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"
@@ -45,12 +47,19 @@ Source = "https://github.com/jsalvasoler/difusco"
 [tool.hatch.version]
 path = "src/difusco/__about__.py"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.envs.default.scripts]
 interactive = "ipython"
-train = "python3 -m difusco {args}"
+difusco = "python3 -m difusco {args}"
 
 [tool.hatch.envs.default]
 python = "3.12"
+
+[tool.hatch.envs.experimental]
+python = "3.10"
+
 
 [tool.hatch.envs.types]
 extra-dependencies = [
@@ -94,8 +103,10 @@ extend-select = [
 ]
 ignore = [
     "T201",
+    "T203",
     "ANN101",
     "ANN003",
+    "PLR2004",
     "S101"
 ]
 
