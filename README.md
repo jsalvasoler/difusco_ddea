@@ -1,13 +1,15 @@
-# difusco
+# DIFUSCO
 
-[![PyPI - Version](https://img.shields.io/pypi/v/difusco.svg)](https://pypi.org/project/difusco)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/difusco.svg)](https://pypi.org/project/difusco)
+This repository contains the code of my Master Thesis, which is based on the work of [Difusco - Sun et al. (2023)](https://arxiv.org/abs/2302.08224).
 
 -----
 
 ## Table of Contents
 
-- [Installation](#installation)
+- [Dependencies](#dependencies)
+- [Data](#data)
+  - [Traveling Salesman Problem](#traveling-salesman-problem)
+- [Models](#models)
 - [License](#license)
 
 ## Dependencies
@@ -88,7 +90,19 @@ hatch run difusco generate_tsp_data \
   --seed 1234 \
   --lkh_path "/path/to/lkh"
 ```
+## Models
 
+Trained models by the work of [Difusco - Sun et al. (2023)](https://github.com/Edward-Sun/DIFUSCO) can be found here: [Difusco Models](https://drive.google.com/drive/folders/1IjaWtkqTAs7lwtFZ24lTRspE0h1N6sBH).
+
+We recommend saving the models in the following directory structure:
+
+```bash
+difusco/
+├── models/                    # Directory for models
+│   ├── tsp/                   # TSP models
+│   ├── mis/                   # MIS models
+│   └── etc/                   # Other models
+```
 
 ## License
 

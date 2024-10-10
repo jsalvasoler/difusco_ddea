@@ -1,5 +1,6 @@
 # Directories
 data/
+models/
 
 # Python pycache
 __pycache__/
