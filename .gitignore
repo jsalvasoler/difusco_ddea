@@ -4,3 +4,6 @@ models/
 
 # Python pycache
 __pycache__/
+
+# Run scripts
+run.sh
