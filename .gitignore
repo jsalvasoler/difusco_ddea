@@ -7,3 +7,7 @@ __pycache__/
 
 # Run scripts
 run.sh
+
+# IDE
+.idea/
+.vscode/
