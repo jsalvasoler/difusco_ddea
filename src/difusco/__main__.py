@@ -1,8 +1,6 @@
 import sys
 
-from difusco_edward_sun.difusco.train import arg_parser
-from difusco_edward_sun.difusco.train import main as difusco_main
-
+from difusco.train import main_difusco
 from difusco.tsp.generate_tsp_data import main_tsp_data_generation
 
 AVAILABLE_COMMANDS = ["difusco", "generate_tsp_data"]
@@ -17,8 +15,7 @@ def main() -> None:
 
     match command:
         case "difusco":
-            args = arg_parser()
-            difusco_main(args)
+            main_difusco()
         case "generate_tsp_data":
             main_tsp_data_generation()
         case _:

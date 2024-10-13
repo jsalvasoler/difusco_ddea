@@ -20,17 +20,17 @@ class TSPModel(COMetaModel):
     super(TSPModel, self).__init__(param_args=param_args, node_feature_only=False)
 
     self.train_dataset = TSPGraphDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.training_split),
+        data_file=os.path.join(self.args.data_path, self.args.training_split),
         sparse_factor=self.args.sparse_factor,
     )
 
     self.test_dataset = TSPGraphDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.test_split),
+        data_file=os.path.join(self.args.data_path, self.args.test_split),
         sparse_factor=self.args.sparse_factor,
     )
 
     self.validation_dataset = TSPGraphDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.validation_split),
+        data_file=os.path.join(self.args.data_path, self.args.validation_split),
         sparse_factor=self.args.sparse_factor,
     )
 

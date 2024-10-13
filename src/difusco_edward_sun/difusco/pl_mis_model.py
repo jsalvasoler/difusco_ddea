@@ -21,19 +21,19 @@ class MISModel(COMetaModel):
 
     data_label_dir = None
     if self.args.training_split_label_dir is not None:
-      data_label_dir = os.path.join(self.args.storage_path, self.args.training_split_label_dir)
+      data_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
 
     self.train_dataset = MISDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.training_split),
+        data_file=os.path.join(self.args.data_path, self.args.training_split),
         data_label_dir=data_label_dir,
     )
 
     self.test_dataset = MISDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.test_split),
+        data_file=os.path.join(self.args.data_path, self.args.test_split),
     )
 
     self.validation_dataset = MISDataset(
-        data_file=os.path.join(self.args.storage_path, self.args.validation_split),
+        data_file=os.path.join(self.args.data_path, self.args.validation_split),
     )
 
   def forward(self, x, t, edge_index):
