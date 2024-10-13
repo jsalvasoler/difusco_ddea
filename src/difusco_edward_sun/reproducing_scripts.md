@@ -21,7 +21,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp50_train_concorde.txt" \
   --validation_split "/your/tsp50_valid_concorde.txt" \
   --test_split "/your/tsp50_test_concorde.txt" \
@@ -51,7 +51,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
     --training_split "/your/tsp100_train_concorde.txt" \
     --validation_split "/your/tsp100_valid_concorde.txt" \
     --test_split "/your/tsp100_test_concorde.txt" \
@@ -81,7 +81,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp500_train_concorde.txt" \
   --validation_split "/your/tsp500_valid_concorde.txt" \
   --test_split "/your/tsp500_test_concorde.txt" \
@@ -112,7 +112,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp1000_train_concorde.txt" \
   --validation_split "/your/tsp1000_valid_concorde.txt" \
   --test_split "/your/tsp1000_test_concorde.txt" \
@@ -144,7 +144,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp10000_train_concorde.txt" \
   --validation_split "/your/tsp10000_valid_concorde.txt" \
   --test_split "/your/tsp10000_test_concorde.txt" \
@@ -177,7 +177,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/train_mis_sat/*gpickle" \
   --validation_split "/your/test_mis_sat/*gpickle" \
   --test_split "/your/test_mis_sat/*gpickle" \
@@ -208,7 +208,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/data_er/train/*gpickle" \
   --training_split_label_dir "/your/data_er/train_annotations/" \
   --validation_split "/your/data_er/train/validation/*gpickle" \
@@ -239,7 +239,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp100_train_concorde.txt" \
   --validation_split "/your/tsp100_valid_concorde.txt" \
   --test_split "/your/tsp100_test_concorde.txt" \
@@ -265,7 +265,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp500_train_concorde.txt" \
   --validation_split "/your/tsp500_valid_concorde.txt" \
   --test_split "/your/tsp500_test_concorde.txt" \
@@ -294,7 +294,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/tsp10000_train_concorde.txt" \
   --validation_split "/your/tsp10000_valid_concorde.txt" \
   --test_split "/your/tsp10000_test_concorde.txt" \
@@ -324,7 +324,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/train_mis_sat/*gpickle" \
   --validation_split "/your/test_mis_sat/*gpickle" \
   --test_split "/your/test_mis_sat/*gpickle" \
@@ -351,7 +351,7 @@ python -u difusco/train.py \
   --learning_rate 0.0002 \
   --weight_decay 0.0001 \
   --lr_scheduler "cosine-decay" \
-  --storage_path "/your/storage/path" \
+  --data_path "/your/storage/path" \
   --training_split "/your/data_er/train/*gpickle" \
   --training_split_label_dir "/your/data_er/train_annotations/" \
   --validation_split "/your/data_er/train/validation/*gpickle" \
