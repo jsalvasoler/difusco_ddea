@@ -20,6 +20,7 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--data_path", type=str, required=True)
     parser.add_argument("--models_path", type=str, required=True)
+    parser.add_argument("--logs_path", type=str, required=True)
     parser.add_argument("--training_split", type=str, default="data/tsp/tsp50_train_concorde.txt")
     parser.add_argument(
         "--training_split_label_dir",
@@ -93,11 +94,12 @@ def difusco(args: Namespace) -> None:
     model = model_class(param_args=args)
 
     wandb_id = os.getenv("WANDB_RUN_ID") or wandb.util.generate_id()
+    print(args.wandb_logger_name)
     wandb_logger = WandbLogger(
         name=args.wandb_logger_name,
         project=project_name,
         entity=args.wandb_entity,
-        save_dir=os.path.join(args.data_path, "models"),
+        save_dir=args.logs_path,
         id=args.resume_id or wandb_id,
     )
     rank_zero_info(f"Logging to {wandb_logger.save_dir}/{wandb_logger.name}/{wandb_logger.version}")

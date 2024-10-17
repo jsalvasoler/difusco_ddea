@@ -257,10 +257,13 @@ class TSPModel(COMetaModel):
   def run_save_numpy_heatmap(self, adj_mat, np_points, real_batch_idx, split):
     if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
       raise NotImplementedError("Save numpy heatmap only support single sampling")
-    exp_save_dir = os.path.join(self.logger.save_dir, self.logger.name, self.logger.version)
-    heatmap_path = os.path.join(exp_save_dir, 'numpy_heatmap')
+
+    heatmap_path = os.path.join(self.logger.save_dir, self.args.wandb_logger_name, self.logger.version,
+                                "numpy_heatmap")
+
     rank_zero_info(f"Saving heatmap to {heatmap_path}")
     os.makedirs(heatmap_path, exist_ok=True)
+
     real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
     np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
     np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
