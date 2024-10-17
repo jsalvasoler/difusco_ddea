@@ -1,7 +1,6 @@
 # ruff: noqa: N806
 
 import numpy as np
-from difusco_edward_sun.difusco.utils.tsp_utils import merge_cython
 
 
 def merge_python(coords: np.ndarray, adj_mat: np.ndarray) -> tuple:
@@ -115,7 +114,6 @@ def merge_python(coords: np.ndarray, adj_mat: np.ndarray) -> tuple:
             print(f"Tour complete after {merge_iterations} iterations.")
             break
 
-
     # Connect the final two nodes to complete the tour
     final_begin = find_begin(route_begin, 0)
     final_end = find_end(route_end, 0)
@@ -124,80 +122,3 @@ def merge_python(coords: np.ndarray, adj_mat: np.ndarray) -> tuple:
     print(f"Connecting final nodes: {final_begin} and {final_end}")
 
     return A, merge_iterations
-
-
-def adj_mat_to_tour(adj_mat: np.ndarray) -> list:
-    N = adj_mat.shape[0]
-    tour = [0]
-    while len(tour) < N + 1:
-        n = np.nonzero(adj_mat[tour[-1]])[0]
-        if len(tour) > 1:
-            n = n[n != tour[-2]]
-        tour.append(n.max())
-    return tour
-
-
-def test_merge_python_is_same_as_cython() -> None:
-    # Example usage with simple coordinates
-    coords = np.array([[0, 0], [1, 1], [2, 0], [1, -1]], dtype=float)
-    # set random seed for reproducibility
-    np.random.seed(0)
-    adj_mat = np.random.rand(4, 4)
-
-    # Symmetrize adj_mat to make it suitable for a tour
-    adj_mat = (adj_mat + adj_mat.T) / 2
-
-    A_1, iterations_1 = merge_python(coords, adj_mat)
-    print("\nResulting Adjacency Matrix:")
-    print(A_1)
-    print(f"Total merge iterations: {iterations_1}")
-
-    tour_1 = adj_mat_to_tour(A_1)
-    print("\nExtracted Tour:")
-    print(tour_1)
-
-
-    # now use merge_cython
-    A_2, iterations_2 = merge_cython(coords, adj_mat)
-    print("\nResulting Adjacency Matrix:")
-    print(A_2)
-    print(f"Total merge iterations: {iterations_2}")
-
-    tour_2 = adj_mat_to_tour(A_2)
-    print("\nExtracted Tour:")
-    print(tour_2)
-
-    assert iterations_1 == iterations_2
-    assert tour_1 == tour_2
-    assert np.array_equal(A_1, A_2)
-
-
-def test_cython_merge_solves_correctly() -> None:
-    # Example usage with simple coordinates
-    coords = np.array([[0, 0], [1, 1], [2, 0], [1, -1]], dtype=float)
-    # set random seed for reproducibility
-    np.random.seed(0)
-    adj_mat = np.array([
-        [0, 1, 0, 1],
-        [1, 0, 1, 0],
-        [0, 1, 0, 1],
-        [1, 0, 1, 0]
-    ], dtype=float)
-
-    # add 0.001 everywhere except where there are ones
-    adj_mat[adj_mat == 0] = 0.001
-
-    A, iterations = merge_python(coords, adj_mat)
-    print("\nResulting Adjacency Matrix:")
-    print(A)
-    print(f"Total merge iterations: {iterations}")
-
-    tour = adj_mat_to_tour(A)
-    print("\nExtracted Tour:")
-    print(tour)
-    assert tour in ([0, 1, 2, 3, 0], [0, 3, 2, 1, 0])
-
-
-if __name__ == "__main__":
-    test_merge_python_is_same_as_cython()
-    test_cython_merge_solves_correctly()

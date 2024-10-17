@@ -1,6 +1,13 @@
 # Directories
 data/
 models/
+logs/
+results/
+
+# cython
+build/
+*.so
+cython_merge.c
 
 # Python pycache
 __pycache__/
