@@ -1,10 +1,10 @@
 import numpy as np
 
-
 # import tsp utils
 from difusco_edward_sun.difusco.utils.tsp_utils import TSPEvaluator
 
-def test_numpy_heatmaps():
+
+def test_numpy_heatmaps() -> None:
     file = "tests/resources/test-heatmap-size50.npy"
     heatmap = np.load(file)
     print(heatmap.shape)
@@ -15,7 +15,7 @@ def test_numpy_heatmaps():
     assert heatmap.shape == (1, 50, 50)
 
 
-def test_numpy_points():
+def test_numpy_points() -> None:
     file = "tests/resources/test-points-size50.npy"
     points = np.load(file)
     print(points.shape)
@@ -26,17 +26,17 @@ def test_numpy_points():
     assert points.shape == (50, 2)
 
 
-def test_tsp_evaluator():
+def test_tsp_evaluator() -> None:
     file = "tests/resources/test-points-size50.npy"
     points = np.load(file)
     tsp_eval = TSPEvaluator(points)
     route = list(range(50))
     cost = tsp_eval.evaluate(route)
-    
+
     # calculated cost
     calc_cost = 0
     for i in range(len(route) - 1):
-      calc_cost += tsp_eval.dist_mat[route[i], route[i + 1]]
+        calc_cost += tsp_eval.dist_mat[route[i], route[i + 1]]
 
     assert cost == calc_cost
 

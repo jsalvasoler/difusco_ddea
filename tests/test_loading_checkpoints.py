@@ -15,9 +15,8 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 
 from difusco.train import get_arg_parser
 
-print(f'PyTorch version: {torch.__version__}')
-print(f'PyTorch Lightning version: {pl.__version__}')
-
+print(f"PyTorch version: {torch.__version__}")
+print(f"PyTorch Lightning version: {pl.__version__}")
 
 
 def test_loading_checkpoint() -> None:
