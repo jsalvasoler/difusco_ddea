@@ -3,6 +3,7 @@
 import os
 from argparse import Namespace
 
+import pytorch_lightning as pl
 import torch
 import wandb
 from difusco_edward_sun.difusco.pl_tsp_model import TSPModel
@@ -13,6 +14,10 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
 from difusco.train import get_arg_parser
+
+print(f'PyTorch version: {torch.__version__}')
+print(f'PyTorch Lightning version: {pl.__version__}')
+
 
 
 def test_loading_checkpoint() -> None:
@@ -31,6 +36,7 @@ def test_loading_checkpoint() -> None:
     args.num_epochs = 25
     args.inference_schedule = "cosine"
     args.inference_diffusion_steps = 50
+    args.resume_weight_only = True
 
     lr_callback = LearningRateMonitor(logging_interval="step")
 
@@ -50,7 +56,7 @@ def test_loading_checkpoint() -> None:
         save_last=True,
         dirpath=os.path.join(
             wandb_logger.save_dir,
-            "tsp_diffusion_graph_categorical_tsp100_test",
+            "tsp_diffusion_graph_categorical_tsp50_test",
             wandb_logger._id,  # noqa: SLF001
             "checkpoints",
         ),
@@ -67,9 +73,9 @@ def test_loading_checkpoint() -> None:
         precision=32,
     )
 
+    ckpt_path = "/home/e12223411/repos/difusco/models/tsp/tsp50_categorical.ckpt"
     model = TSPModel(param_args=args)
 
-    ckpt_path = "/home/e12223411/repos/difusco/models/tsp/tsp50_categorical.bak"
     trainer.validate(model, ckpt_path=ckpt_path)
     trainer.test(model, ckpt_path=ckpt_path)
 
