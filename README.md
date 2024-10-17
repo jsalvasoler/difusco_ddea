@@ -33,6 +33,13 @@ You only need to install `torch-scatter`, `torch-sparse` once. After that, you c
 Generating the data for the TSP instances requires the `lkh` solver, which is run via the python wrapper `lkh`. To install it, use the [official LKH-3 site](
 http://akira.ruc.dk/~keld/research/LKH-3/). Make sure to specify the ``--lkh_path`` argument pointing to the LKH-3 binary when generating the data with this solver.
 
+Finally, we need to compile the `cython` code for the TSP heuristics. To do so, run the following command:
+
+```bash
+cd src/difusco/tsp/cython_merge
+python setup.py build_ext --inplace
+```
+
 
 ## Data
 
