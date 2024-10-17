@@ -41,7 +41,23 @@ def test_tsp_evaluator() -> None:
     assert cost == calc_cost
 
 
+def test_tsp_evaluator_with_np_array() -> None:
+    file = "tests/resources/test-points-size50.npy"
+    points = np.load(file)
+    tsp_eval = TSPEvaluator(points)
+    route = np.array(list(range(50)))
+    cost = tsp_eval.evaluate(route)
+
+    # calculated cost
+    calc_cost = 0
+    for i in range(len(route) - 1):
+        calc_cost += tsp_eval.dist_mat[route[i], route[i + 1]]
+
+    assert cost == calc_cost
+
+
 if __name__ == "__main__":
     # test_numpy_heatmaps()
     # test_numpy_points()
     test_tsp_evaluator()
+    test_tsp_evaluator_with_np_array()
