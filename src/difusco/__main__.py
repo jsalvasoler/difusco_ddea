@@ -13,13 +13,12 @@ def main() -> None:
 
     command = sys.argv[1]
 
-    match command:
-        case "difusco":
-            main_difusco()
-        case "generate_tsp_data":
-            main_tsp_data_generation()
-        case _:
-            print(f"Unknown command: {command}.")
+    if command == "difusco":
+        main_difusco()
+    elif command == "generate_tsp_data":
+        main_tsp_data_generation()
+    else:
+        print(f"Unknown command: {command}.")
 
 
 if __name__ == "__main__":

@@ -149,7 +149,7 @@ def difusco(args: Namespace) -> None:
 
 
 def main_difusco() -> None:
-    args = get_arg_parser()
+    args = parse_args()
     difusco(args)
 
 
