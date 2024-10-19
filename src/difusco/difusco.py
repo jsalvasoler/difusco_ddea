@@ -21,13 +21,13 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--data_path", type=str, required=True)
     parser.add_argument("--models_path", type=str, required=True)
     parser.add_argument("--logs_path", type=str, required=True)
-    parser.add_argument("--training_split", type=str, default="data/tsp/tsp50_train_concorde.txt")
     parser.add_argument(
         "--training_split_label_dir",
         type=str,
         default=None,
         help="Directory containing labels for training split (used for MIS).",
     )
+    parser.add_argument("--training_split", type=str, default="data/tsp/tsp50_train_concorde.txt")
     parser.add_argument("--validation_split", type=str, default="data/tsp/tsp50_test_concorde.txt")
     parser.add_argument("--test_split", type=str, default="data/tsp/tsp50_test_concorde.txt")
     parser.add_argument("--validation_examples", type=int, default=64)
@@ -72,9 +72,31 @@ def get_arg_parser() -> ArgumentParser:
     return parser
 
 
+def validate_args(args: Namespace) -> None:
+    assert args.task in ["tsp", "mis"]
+    assert args.diffusion_type in ["gaussian", "categorical"]
+    assert args.diffusion_schedule in ["linear", "cosine"]
+
+    for dir_path in [args.data_path, args.models_path, args.logs_path]:
+        assert os.path.exists(dir_path), f"Path {dir_path} does not exist."
+
+    for split in ["training_split", "validation_split", "test_split"]:
+        full_path = os.path.join(args.data_path, getattr(args, split))
+        assert os.path.exists(full_path), f"Path {getattr(args, split)} does not exist."
+    
+    assert args.project_name == f"{args.task}_diffusion"
+    
+    # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
+    assert args.wandb_logger_name.startswith(f"{args.task}_diffusion_graph_{args.diffusion_type}_")
+
+    if args.ckpt_path:
+        assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
+
+
 def parse_args() -> Namespace:
     parser = get_arg_parser()
     args, _ = parser.parse_known_args()
+    validate_args(args)
     return args
 
 

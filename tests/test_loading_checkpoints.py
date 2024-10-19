@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks.progress import TQDMProgressBar
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
-from difusco.train import get_arg_parser
+from difusco.difusco import get_arg_parser
 
 print(f"PyTorch version: {torch.__version__}")
 print(f"PyTorch Lightning version: {pl.__version__}")

@@ -1,6 +1,6 @@
 import sys
 
-from difusco.train import main_difusco
+from difusco.difusco import main_difusco
 from difusco.tsp.generate_tsp_data import main_tsp_data_generation
 
 AVAILABLE_COMMANDS = ["difusco", "generate_tsp_data"]
