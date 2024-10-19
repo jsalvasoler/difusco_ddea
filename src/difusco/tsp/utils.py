@@ -109,9 +109,19 @@ def merge_tours(
     edge_index_np: np.ndarray,
     sparse_graph: bool = False,
     parallel_sampling: int = 1,
-) -> Tuple[np.ndarray, float]:  # noqa: FA100
+) -> Tuple[list, float]:  # noqa: FA100
     """
     Merge tours using the cython implementation of the merge function.
+
+    Args:
+        ajd_mat: P x N x N array of adjacency matrices. P parallel samples, N number of nodes.
+        np_points: N x 2 array of node coordinates.
+        edge_index_np: 2 x E array of edges. Only used if sparse_graph is True.
+        parallel_sampling: Number of parallel samples to run (= P).
+
+    Returns:
+        tours: List of tours. Each tour is a list of node indices.
+        merge_iterations: Average number of merge iterations across all samples.
     """
     splitted_adj_mat = np.split(adj_mat, parallel_sampling, axis=0)
 

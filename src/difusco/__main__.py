@@ -2,6 +2,7 @@ import sys
 
 from difusco.difusco import main_difusco
 from difusco.tsp.generate_tsp_data import main_tsp_data_generation
+from difusco.tsp.run_tsp_heuristics import run_tsp_heuristics
 
 AVAILABLE_COMMANDS = ["difusco", "generate_tsp_data"]
 
@@ -17,6 +18,8 @@ def main() -> None:
         main_difusco()
     elif command == "generate_tsp_data":
         main_tsp_data_generation()
+    elif command == "run_tsp_heuristics":
+        run_tsp_heuristics()
     else:
         print(f"Unknown command: {command}.")
 
