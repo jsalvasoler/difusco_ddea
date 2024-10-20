@@ -59,7 +59,7 @@ def get_arg_parser() -> ArgumentParser:
 
     # Arguments for heuristic evaluation
     parser.add_argument("--heuristic_eval", action="store_true")
-    parser.add_argument("--strategy", type=str, default="construction")
+    parser.add_argument("--strategy", type=str, default=None)
 
     return parser
 
@@ -102,6 +102,8 @@ def validate_args(args: Namespace) -> None:
         assert args.results_path, "Must provide results path for heuristic evaluation."
         valid_strategies = ["construction", "construction+2opt"]
         assert args.strategy in valid_strategies, f"Heuristic evaluation strategy must be in {valid_strategies}."
+        if args.strategy == "construction+2opt":
+            assert args.two_opt_iterations > 0, "Number of 2-opt iterations must be greater than 0."
 
 
 def parse_args() -> Namespace:

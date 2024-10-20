@@ -6,13 +6,17 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from difusco_edward_sun.difusco.co_datasets.tsp_graph_dataset import TSPGraphDataset
+from tqdm import tqdm
 
 from difusco.arg_parser import parse_args
-from difusco.tsp.utils import TSPEvaluator, merge_tours
+from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 
 def run_tsp_heuristics() -> None:
     args = parse_args()
+    assert args.strategy in ["construction", "construction+2opt"]
+
+    print(f"Running heuristic evaluation with strategy: {args.strategy}")
 
     # load the dataset
     dataset = TSPGraphDataset(
@@ -28,27 +32,42 @@ def run_tsp_heuristics() -> None:
     # stack as many heatmaps as args.parallel_sampling
     heatmaps = np.stack([heatmap] * args.parallel_sampling, axis=0)
 
+    # add noise to the heatmaps except first one
+    for i in range(1, args.parallel_sampling):
+        heatmaps[i] -= np.random.normal(0, 1, size=(n, n))
+
     scores = []
     gt_scores = []
 
     start_time = time.time()
     # Run the construction heuristic for all graphs in the dataset
-    for sample in dataset:
+    for sample in tqdm(dataset):
         idx, points, adj_matrix, gt_tour = sample
         points = points.numpy()
 
+        # 1. Construction heuristic
         tours, _ = merge_tours(heatmaps, points, None, sparse_graph=False, parallel_sampling=args.parallel_sampling)
 
-        print(f"{len(tours)} tours for graph {idx.item()}")
-
         evaluator = TSPEvaluator(points)
+
         best_score = float("inf")
         for i in range(args.parallel_sampling):
             tour = tours[i]
-            print(f"Tour {i}: {tour}")
-            print(f"Tour length: {evaluator.evaluate(tour)}")
             best_score = min(best_score, evaluator.evaluate(tour))
-            print(f"Ground truth tour: {evaluator.evaluate(gt_tour.numpy())}")
+
+        if args.strategy == "construction+2opt":
+            # 2. 2-opt heuristic
+            tours, _ = batched_two_opt_torch(
+                points.astype("float64"),
+                np.array(tours).astype("int64"),
+                max_iterations=args.two_opt_iterations,
+                device="cpu",
+            )
+
+            best_score = float("inf")
+            for i in range(args.parallel_sampling):
+                tour = tours[i]
+                best_score = min(best_score, evaluator.evaluate(tour))
 
         scores.append(best_score)
         gt_scores.append(evaluator.evaluate(gt_tour.numpy()))
@@ -65,7 +84,7 @@ def run_tsp_heuristics() -> None:
         "relative_improvement": np.mean(scores) / np.mean(gt_scores) - 1,
         "n_samples": len(scores),
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "strategy": "construction",
+        "strategy": args.strategy,
         "runtime": time.time() - start_time,
     }
     write_results(args, results)
