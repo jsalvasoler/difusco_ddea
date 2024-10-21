@@ -24,7 +24,6 @@ hatch run true # to create the environment and install basic dependencies
 hatch shell # to enter the environment
 
 pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.1+cpu.html
-pip install numpy==1.23.5 --only-binary=:all:
 # pip install 'pyconcorde @ git+https://github.com/jvkersch/pyconcorde' -> currently not working
 
 ```
