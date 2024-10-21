@@ -45,7 +45,7 @@ def solve_tsp(nodes_coord: list, opts: argparse.Namespace) -> list:
         # solver = TSPSolver.from_data(nodes_coord[:, 0] * scale, nodes_coord[:, 1] * scale, norm="EUC_2D")
         # solution = solver.solve(verbose=False)
         # tour = solution.tour
-    elif opts.solver == "lkh":  # noqa: RET506
+    if opts.solver == "lkh":
         scale = 1e6
         problem = StandardProblem(
             name="TSP",
@@ -56,12 +56,10 @@ def solve_tsp(nodes_coord: list, opts: argparse.Namespace) -> list:
         )
 
         solution = lkh.solve(opts.lkh_path, problem=problem, max_trials=opts.lkh_trials, runs=10)
-        tour = [n - 1 for n in solution[0]]
-    else:
-        error_message = f"Unknown solver: {opts.solver}"
-        raise ValueError(error_message)
+        return [n - 1 for n in solution[0]]
 
-    return tour
+    error_message = f"Unknown solver: {opts.solver}"
+    raise ValueError(error_message)
 
 
 def generate_tsp_data(opts: argparse.Namespace) -> None:

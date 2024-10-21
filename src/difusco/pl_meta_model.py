@@ -1,5 +1,3 @@
-# ruff: noqa: N806
-
 """A meta PyTorch Lightning model for training and evaluating DIFUSCO models."""
 
 from argparse import Namespace

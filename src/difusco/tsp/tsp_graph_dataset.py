@@ -1,12 +1,16 @@
 """TSP (Traveling Salesman Problem) Graph Dataset"""
 
-import os
-from typing import Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from sklearn.neighbors import KDTree
 from torch_geometric.data import Data as GraphData
+
+if TYPE_CHECKING:
+    import os
 
 
 class TSPGraphDataset(torch.utils.data.Dataset):
@@ -22,7 +26,7 @@ class TSPGraphDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self.file_lines)
 
-    def get_example(self, idx: int) -> Tuple[np.array, np.array]:  # noqa: FA100
+    def get_example(self, idx: int) -> tuple[np.array, np.array]:
         # Select sample
         line = self.file_lines[idx]
 
@@ -44,10 +48,10 @@ class TSPGraphDataset(torch.utils.data.Dataset):
 
     def __getitem__(
         self, idx: int
-    ) -> Union[  # noqa: FA100
-        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],  # noqa: FA100
-        Tuple[torch.Tensor, GraphData, torch.Tensor, torch.Tensor, torch.Tensor],  # noqa: FA100
-    ]:
+    ) -> (
+        tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+        | tuple[torch.Tensor, GraphData, torch.Tensor, torch.Tensor, torch.Tensor]
+    ):
         points, tour = self.get_example(idx)
         if self.sparse_factor <= 0:
             # Return a densely connected graph

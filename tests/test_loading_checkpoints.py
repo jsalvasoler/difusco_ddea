@@ -1,8 +1,10 @@
 """The handler for training and evaluation."""
 
 import os
+import sys
 from argparse import Namespace
 
+import pytest
 import pytorch_lightning as pl
 import torch
 import wandb
@@ -18,8 +20,6 @@ from difusco.arg_parser import get_arg_parser
 print(f"PyTorch version: {torch.__version__}")
 print(f"PyTorch Lightning version: {pl.__version__}")
 
-import pytest
-import sys
 
 @pytest.mark.skipif(sys.version_info >= (3, 10), reason="Checkpoints are supported in old versions of PyTorch")
 def test_loading_checkpoint() -> None:

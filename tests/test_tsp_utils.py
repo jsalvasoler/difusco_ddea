@@ -1,5 +1,3 @@
-# ruff: noqa: N806
-
 from itertools import permutations
 
 import numpy as np

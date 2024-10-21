@@ -1,9 +1,7 @@
-# ruff: noqa: N806
+from __future__ import annotations
 
 from multiprocessing import Pool
-
-# from typing import Literal        # TODO: fix when upgrading python version
-from typing import Tuple
+from typing import Literal  # TODO: fix when upgrading python version
 
 import numpy as np
 import scipy.sparse
@@ -13,8 +11,8 @@ from difusco_edward_sun.difusco.utils.cython_merge.cython_merge import merge_cyt
 
 
 def batched_two_opt_torch(
-    points: np.ndarray, tour: np.ndarray, max_iterations: int = 1000, device: str = "cpu"
-) -> Tuple[np.ndarray, int]:  # noqa: FA100
+    points: np.ndarray, tour: np.ndarray, max_iterations: int = 1000, device: Literal["cpu", "gpu"] = "cpu"
+) -> tuple[np.ndarray, int]:
     """
     Apply the 2-opt algorithm to a batch of tours.
     Tours have N + 1 elements, i.e., the first city is repeated at the end.
@@ -65,7 +63,7 @@ def batched_two_opt_torch(
     return tour, iterator
 
 
-def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> Tuple[np.ndarray, int]:  # noqa: FA100
+def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
     """Currently unused. Supposed to be a numpy implementation of the cython merge function."""
     dists = np.linalg.norm(points[:, None] - points, axis=-1)
 
@@ -95,7 +93,7 @@ def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> Tuple[np.ndarray, in
     return real_adj_mat, merge_iterations
 
 
-def cython_merge(points: np.ndarray, adj_mat: np.ndarray) -> Tuple[np.ndarray, int]:  # noqa: FA100
+def cython_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
     # with warnings.catch_warnings():
     #     warnings.simplefilter("ignore")
     real_adj_mat, merge_iterations = merge_cython(points.astype("double"), adj_mat.astype("double"))
@@ -109,7 +107,7 @@ def merge_tours(
     edge_index_np: np.ndarray,
     sparse_graph: bool = False,
     parallel_sampling: int = 1,
-) -> Tuple[list, float]:  # noqa: FA100
+) -> tuple[list, float]:
     """
     Merge tours using the cython implementation of the merge function.
 
