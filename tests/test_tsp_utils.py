@@ -3,9 +3,9 @@
 from itertools import permutations
 
 import numpy as np
-from resources.tsp_merge_python import merge_python
 
-from difusco.tsp.utils import batched_two_opt_torch, merge_cython
+from difusco.tsp.utils import batched_two_opt_torch, cython_merge
+from tests.resources.tsp_merge_python import merge_python
 
 
 def adj_mat_to_tour(adj_mat: np.ndarray) -> list:
@@ -39,7 +39,7 @@ def test_merge_python_is_same_as_cython() -> None:
     print(tour_1)
 
     # now use merge_cython
-    A_2, iterations_2 = merge_cython(coords, adj_mat)
+    A_2, iterations_2 = cython_merge(coords, adj_mat)
     print("\nResulting Adjacency Matrix:")
     print(A_2)
     print(f"Total merge iterations: {iterations_2}")
@@ -120,5 +120,5 @@ def test_batched_two_opt_torch() -> None:
 
 if __name__ == "__main__":
     test_merge_python_is_same_as_cython()
-    # test_cython_merge_solves_correctly()
-    # test_batched_two_opt_torch()
+    test_cython_merge_solves_correctly()
+    test_batched_two_opt_torch()
