@@ -190,10 +190,11 @@ class TSPModel(COMetaModel):
         batch: tuple,
         batch_idx: int,  # noqa: ARG002
         split: str = "test",
-    ) -> dict:
+    ) -> None:
         edge_index = None
         np_edge_index = None
         device = batch[-1].device
+
         if not self.sparse:
             real_batch_idx, points, adj_matrix, gt_tour = batch
             np_points = points.cpu().numpy()[0]
@@ -299,7 +300,8 @@ class TSPModel(COMetaModel):
         for k, v in metrics.items():
             self.log(k, v, on_epoch=True, sync_dist=True)
         self.log(f"{split}/solved_cost", best_solved_cost, prog_bar=True, on_epoch=True, sync_dist=True)
-        return metrics
+
+        self.test_outputs.append(metrics)
 
     def run_save_numpy_heatmap(
         self, adj_mat: torch.Tensor, np_points: np.ndarray, real_batch_idx: torch.Tensor, split: Literal["val", "test"]

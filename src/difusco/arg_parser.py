@@ -73,6 +73,9 @@ def validate_args(args: Namespace) -> None:
         if dir_path:
             assert os.path.exists(dir_path), f"Path {dir_path} does not exist."
 
+    if args.do_test or args.do_train or args.do_valid_only:
+        assert all(x for x in [args.data_path, args.models_path, args.logs_path])
+
     for split in ["training_split", "validation_split", "test_split"]:
         if not getattr(args, split):
             continue

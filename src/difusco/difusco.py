@@ -6,7 +6,6 @@ from argparse import Namespace
 import torch
 import wandb
 from difusco_edward_sun.difusco.pl_mis_model import MISModel
-from difusco_edward_sun.difusco.pl_tsp_model import TSPModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
@@ -15,6 +14,7 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_info
 
 from difusco.arg_parser import parse_args
+from difusco.tsp.pl_tsp_model import TSPModel
 
 
 def difusco(args: Namespace) -> None:
@@ -70,7 +70,7 @@ def difusco(args: Namespace) -> None:
 
     rank_zero_info(f"{'-' * 100}\n" f"{model.model!s}\n" f"{'-' * 100}\n")
 
-    ckpt_path = os.path.join(args.models_path, args.ckpt_path)
+    ckpt_path = os.path.join(args.models_path, args.ckpt_path) if args.ckpt_path else None
 
     if args.do_train:
         if args.resume_weight_only:

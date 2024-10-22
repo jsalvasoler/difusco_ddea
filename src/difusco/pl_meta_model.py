@@ -11,7 +11,7 @@ from difusco_edward_sun.difusco.utils.diffusion_schedulers import CategoricalDif
 from difusco_edward_sun.difusco.utils.lr_schedulers import get_schedule_fn
 from pytorch_lightning.utilities import rank_zero_info
 from torch.nn.functional import one_hot
-from torch_geometric.data import DataLoader as GraphDataLoader
+from torch_geometric.loader import DataLoader
 
 
 class COMetaModel(pl.LightningModule):
@@ -22,6 +22,8 @@ class COMetaModel(pl.LightningModule):
         self.diffusion_schedule = self.args.diffusion_schedule
         self.diffusion_steps = self.args.diffusion_steps
         self.sparse = self.args.sparse_factor > 0 or node_feature_only
+
+        self.test_outputs = []
 
         if self.diffusion_type == "gaussian":
             out_channels = 1
@@ -44,9 +46,12 @@ class COMetaModel(pl.LightningModule):
         )
         self.num_training_steps_cached = None
 
-    def test_epoch_end(self, outputs: list) -> None:
+    def on_test_epoch_end(self) -> None:
+        if len(self.test_outputs) == 0:
+            error_msg = "No test outputs to log."
+            raise ValueError(error_msg)
         unmerged_metrics = {}
-        for metrics in outputs:
+        for metrics in self.test_outputs:
             for k, v in metrics.items():
                 if k not in unmerged_metrics:
                     unmerged_metrics[k] = []
@@ -172,7 +177,7 @@ class COMetaModel(pl.LightningModule):
 
     def train_dataloader(self):  # noqa: ANN201
         batch_size = self.args.batch_size
-        return GraphDataLoader(
+        return DataLoader(
             self.train_dataset,
             batch_size=batch_size,
             shuffle=True,
@@ -185,10 +190,13 @@ class COMetaModel(pl.LightningModule):
     def test_dataloader(self):  # noqa: ANN201
         batch_size = 1
         print("Test dataset size:", len(self.test_dataset))
-        return GraphDataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
+        return DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
 
     def val_dataloader(self):  # noqa: ANN201
         batch_size = 1
+        if len(self.validation_dataset) < self.args.validation_examples:
+            error_msg = "Validation dataset is smaller than the number of validation examples."
+            raise ValueError(error_msg)
         val_dataset = torch.utils.data.Subset(self.validation_dataset, range(self.args.validation_examples))
         print("Validation dataset size:", len(val_dataset))
-        return GraphDataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+        return DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
