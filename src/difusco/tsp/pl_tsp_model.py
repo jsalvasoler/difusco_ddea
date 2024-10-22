@@ -5,17 +5,19 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import torch
 import torch.utils.data
 from difusco_edward_sun.difusco.utils.diffusion_schedulers import InferenceSchedule
+from pytorch_lightning.utilities import rank_zero_info
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
 from difusco.pl_meta_model import COMetaModel
 from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
+from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 if TYPE_CHECKING:
     from argparse import Namespace
@@ -44,6 +46,17 @@ class TSPModel(COMetaModel):
         return self.model(x, t, adj, edge_index)
 
     def categorical_training_step(self, batch: tuple, batch_idx: int) -> torch.Tensor:  # noqa: ARG002
+        """
+        In the case of not self.sparse:
+            batch = (sample_idx, points, adj_matrix, gt_tour)
+            Dimensions:
+                real_batch_idx: (batch_size,)
+                points: (batch_size, num_points, 2)
+                adj_matrix: (batch_size, num_points, num_points)
+                gt_tour: (batch_size, num_points + 1)
+        In the case of self.sparse:
+            TODO: identify the dimensions of the input batch
+        """
         edge_index = None
         if not self.sparse:
             _, points, adj_matrix, _ = batch
@@ -176,8 +189,8 @@ class TSPModel(COMetaModel):
         self,
         batch: tuple,
         batch_idx: int,  # noqa: ARG002
-        split: str = "test",  # noqa: ARG002
-    ) -> None:
+        split: str = "test",
+    ) -> dict:
         edge_index = None
         np_edge_index = None
         device = batch[-1].device
@@ -245,4 +258,66 @@ class TSPModel(COMetaModel):
                     xt = self.categorical_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
 
             if self.diffusion_type == "gaussian":
-                adj_mat = xt.cpu().detach().numpy() * 0.5 + 0.0
+                adj_mat = xt.cpu().detach().numpy() * 0.5 + 0.5
+            else:
+                adj_mat = xt.float().cpu().detach().numpy() + 1e-6
+
+            if self.args.save_numpy_heatmap:
+                self.run_save_numpy_heatmap(adj_mat, np_points, real_batch_idx, split)
+
+            tours, merge_iterations = merge_tours(
+                adj_mat,
+                np_points,
+                np_edge_index,
+                sparse_graph=self.sparse,
+                parallel_sampling=self.args.parallel_sampling,
+            )
+
+        # Refine using 2-opt
+        solved_tours, ns = batched_two_opt_torch(
+            np_points.astype("float64"),
+            np.array(tours).astype("int64"),
+            max_iterations=self.args.two_opt_iterations,
+            device=device,
+        )
+        stacked_tours.append(solved_tours)
+
+        solved_tours = np.concatenate(stacked_tours, axis=0)
+
+        tsp_solver = TSPEvaluator(np_points)
+        gt_cost = tsp_solver.evaluate(np_gt_tour)
+
+        total_sampling = self.args.parallel_sampling * self.args.sequential_sampling
+        all_solved_costs = [tsp_solver.evaluate(solved_tours[i]) for i in range(total_sampling)]
+        best_solved_cost = np.min(all_solved_costs)
+
+        metrics = {
+            f"{split}/gt_cost": gt_cost,
+            f"{split}/2opt_iterations": ns,
+            f"{split}/merge_iterations": merge_iterations,
+        }
+        for k, v in metrics.items():
+            self.log(k, v, on_epoch=True, sync_dist=True)
+        self.log(f"{split}/solved_cost", best_solved_cost, prog_bar=True, on_epoch=True, sync_dist=True)
+        return metrics
+
+    def run_save_numpy_heatmap(
+        self, adj_mat: torch.Tensor, np_points: np.ndarray, real_batch_idx: torch.Tensor, split: Literal["val", "test"]
+    ) -> None:
+        if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
+            msg = "Save numpy heatmap only support single sampling"
+            raise NotImplementedError(msg)
+
+        heatmap_path = os.path.join(
+            self.logger.save_dir, self.args.wandb_logger_name, self.logger.version, "numpy_heatmap"
+        )
+
+        rank_zero_info(f"Saving heatmap to {heatmap_path}")
+        os.makedirs(heatmap_path, exist_ok=True)
+
+        real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
+        np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
+        np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
+
+    def validation_step(self, batch: tuple, batch_idx: int) -> dict:
+        return self.test_step(batch, batch_idx, split="val")
