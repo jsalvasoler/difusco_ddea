@@ -1,7 +1,5 @@
 from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 
-# from difusco_edward_sun.difusco.co_datasets.tsp_graph_dataset import TSPGraphDataset
-
 
 def test_tsp_dataset_is_loaded() -> None:
     dataset = TSPGraphDataset(
