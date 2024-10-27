@@ -114,6 +114,7 @@ ignore = [
     "FBT001",
     "DTZ005",
     "N806",
+    "N803",
 ]
 
 [tool.ruff]
