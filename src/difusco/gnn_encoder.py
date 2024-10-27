@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 import functools
-import math
+from math import pi
 from typing import TYPE_CHECKING
 
 import torch
 import torch.utils.checkpoint as activation_checkpoint
-from difusco_edward_sun.difusco.models.nn import (
-    timestep_embedding,
-)
 from torch import nn
 from torch.nn.functional import relu
 from torch_sparse import SparseTensor
 from torch_sparse import max as sparse_max
 from torch_sparse import mean as sparse_mean
 from torch_sparse import sum as sparse_sum
+
+from difusco.nn_utils import normalization, timestep_embedding, zero_module
 
 if TYPE_CHECKING:
     import torch_sparse
@@ -233,7 +232,7 @@ class PositionEmbeddingSine(nn.Module):
             error_msg = "Normalize should be True if scale is passed"
             raise ValueError(error_msg)
         if scale is None:
-            scale = 2 * math.pi
+            scale = 2 * pi
         self.scale = scale
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -266,7 +265,7 @@ class ScalarEmbeddingSine(nn.Module):
             error_msg = "Normalize should be True if scale is passed"
             raise ValueError(error_msg)
         if scale is None:
-            scale = 2 * math.pi
+            scale = 2 * pi
         self.scale = scale
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -290,7 +289,7 @@ class ScalarEmbeddingSine1D(nn.Module):
             error_msg = "Normalize should be True if scale is passed"
             raise ValueError(error_msg)
         if scale is None:
-            scale = 2 * math.pi
+            scale = 2 * pi
         self.scale = scale
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -363,9 +362,7 @@ class GNNEncoder(nn.Module):
             nn.Linear(time_embed_dim, time_embed_dim),
         )
         self.out = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
-            nn.Conv2d(hidden_dim, out_channels, kernel_size=1, bias=True),
+            normalization(hidden_dim), nn.ReLU(), nn.Conv2d(hidden_dim, out_channels, kernel_size=1, bias=True)
         )
 
         self.layers = nn.ModuleList(
@@ -387,12 +384,11 @@ class GNNEncoder(nn.Module):
                 nn.Sequential(
                     nn.LayerNorm(hidden_dim, elementwise_affine=learn_norm),
                     nn.SiLU(),
-                    nn.Linear(hidden_dim, hidden_dim),
+                    zero_module(nn.Linear(hidden_dim, hidden_dim)),
                 )
                 for _ in range(n_layers)
             ]
         )
-
         self.use_activation_checkpoint = use_activation_checkpoint
 
     def dense_forward(
@@ -426,6 +422,7 @@ class GNNEncoder(nn.Module):
                 x = x + time_layer(time_emb)[:, None, :]
             x = x_in + x
             e = e_in + out_layer(e)
+
         return self.out(e.permute((0, 3, 1, 2)))
 
     def sparse_forward(
