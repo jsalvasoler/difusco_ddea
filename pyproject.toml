@@ -39,6 +39,7 @@ dependencies = [
   "tsplib95",
   "pytest",
   "pandas",
+  "logzero",
   "wandb",
 ]
 [project.urls]
