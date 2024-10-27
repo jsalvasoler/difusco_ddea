@@ -111,9 +111,16 @@ def test_mis_real_train_sample() -> None:
 
     dataset = MISDataset(
         data_file=f"{root_dir}/data/mis/er_train/*.gpickle",
-        data_label_dir=f"{root_dir}/data/mis/er_train/preprocessed/kamis",
+        data_label_dir=f"{root_dir}/data/mis/er_train__annotations",
     )
     assert len(dataset) == 163840
+
+    # Now go to the example dataset. Here we are sure that we generated the ground truth
+    dataset = MISDataset(
+        data_file="tests/resources/er_example_dataset/*.gpickle",
+        data_label_dir="tests/resources/er_example_dataset_annotations",
+    )
+    assert len(dataset) == 2
 
     sample = dataset.__getitem__(0)
 

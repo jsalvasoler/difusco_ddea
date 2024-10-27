@@ -16,7 +16,9 @@ from torch_geometric.data import Data as GraphData
 class MISDataset(torch.utils.data.Dataset):
     def __init__(self, data_file: str | os.PathLike, data_label_dir: str | os.PathLike | None = None) -> None:
         self.data_file = data_file
+        assert os.path.exists(os.path.dirname(self.data_file)), f"Data file {data_file} does not exist"
         self.file_lines = glob.glob(data_file)
+        assert len(self.file_lines) > 0, f"No files found in {data_file}"
         self.data_label_dir = data_label_dir
         print(f'Loaded "{data_file}" with {len(self.file_lines)} examples')
 
@@ -36,7 +38,7 @@ class MISDataset(torch.utils.data.Dataset):
             else:
                 node_labels = np.zeros(num_nodes, dtype=np.int64)
         else:
-            base_label_file = os.path.basename(self.file_lines[idx]).replace(".gpickle", "_unweighted.graph")
+            base_label_file = os.path.basename(self.file_lines[idx]).replace(".gpickle", "_unweighted.result")
             node_label_file = os.path.join(self.data_label_dir, base_label_file)
             with open(node_label_file) as f:
                 node_labels = [int(_) for _ in f.read().splitlines()]
