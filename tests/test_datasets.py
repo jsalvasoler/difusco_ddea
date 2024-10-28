@@ -8,7 +8,7 @@ from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 
 def test_tsp_dataset_is_loaded() -> None:
     dataset = TSPGraphDataset(
-        data_file="tests/resources/tsp50_example_dataset.txt",
+        data_dir="tests/resources/tsp50_example_dataset.txt",
         sparse_factor=0.5,
     )
     assert len(dataset) == 30
@@ -16,7 +16,7 @@ def test_tsp_dataset_is_loaded() -> None:
 
 def test_tsp_dataset_sample() -> None:
     dataset = TSPGraphDataset(
-        data_file="tests/resources/tsp50_example_dataset.txt",
+        data_dir="tests/resources/tsp50_example_dataset.txt",
         sparse_factor=0,
     )
 
@@ -38,14 +38,14 @@ def test_tsp_dataset_sample() -> None:
 
 def test_mis_dataset_is_loaded() -> None:
     dataset = MISDataset(
-        data_file="tests/resources/er_example_dataset/*.gpickle",
+        data_dir="tests/resources/er_example_dataset",
     )
     assert len(dataset) == 2
 
 
 def test_mis_dataset_sample() -> None:
     dataset = MISDataset(
-        data_file="tests/resources/er_example_dataset/*.gpickle",
+        data_dir="tests/resources/er_example_dataset",
     )
 
     sample = dataset.__getitem__(0)
@@ -69,14 +69,12 @@ def test_mis_dataset_sample() -> None:
     assert sample[2].shape == (1,)
     assert sample[2].item() == n
 
-    return sample
-
 
 def test_mis_real_test_sample() -> None:
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     dataset = MISDataset(
-        data_file=f"{root_dir}/data/mis/er_test/*.gpickle",
+        data_dir=f"{root_dir}/data/mis/er_test",
     )
     assert len(dataset) == 128
 
@@ -103,21 +101,19 @@ def test_mis_real_test_sample() -> None:
     assert sample[2].shape == (1,)
     assert sample[2].item() == n
 
-    return sample
-
 
 def test_mis_real_train_sample() -> None:
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     dataset = MISDataset(
-        data_file=f"{root_dir}/data/mis/er_train/*.gpickle",
+        data_dir=f"{root_dir}/data/mis/er_train",
         data_label_dir=f"{root_dir}/data/mis/er_train__annotations",
     )
     assert len(dataset) == 163840
 
     # Now go to the example dataset. Here we are sure that we generated the ground truth
     dataset = MISDataset(
-        data_file="tests/resources/er_example_dataset/*.gpickle",
+        data_dir="tests/resources/er_example_dataset",
         data_label_dir="tests/resources/er_example_dataset_annotations",
     )
     assert len(dataset) == 2
@@ -144,8 +140,6 @@ def test_mis_real_train_sample() -> None:
     # Third element is the size indicator
     assert sample[2].shape == (1,)
     assert sample[2].item() == n
-
-    return sample
 
 
 if __name__ == "__main__":

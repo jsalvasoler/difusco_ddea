@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import glob
 import os
 
 # import pickle5 as pickle  # TODO: I changed this like wrt Edward Sun code. Check if it works.
 import pickle
+import time
 
 import numpy as np
 import torch
@@ -14,19 +14,21 @@ from torch_geometric.data import Data as GraphData
 
 
 class MISDataset(torch.utils.data.Dataset):
-    def __init__(self, data_file: str | os.PathLike, data_label_dir: str | os.PathLike | None = None) -> None:
-        self.data_file = data_file
-        assert os.path.exists(os.path.dirname(self.data_file)), f"Data file {data_file} does not exist"
-        self.file_lines = glob.glob(data_file)
-        assert len(self.file_lines) > 0, f"No files found in {data_file}"
+    def __init__(self, data_dir: str | os.PathLike, data_label_dir: str | os.PathLike | None = None) -> None:
+        self.data_dir = data_dir
+        assert os.path.exists(os.path.dirname(self.data_dir)), f"Data file {data_dir} does not exist"
+
+        start_time = time.time()
+        self.sample_files = [os.path.join(self.data_dir, f) for f in os.listdir(self.data_dir)]
+        assert len(self.sample_files) > 0, f"No files found in {data_dir}"
         self.data_label_dir = data_label_dir
-        print(f'Loaded "{data_file}" with {len(self.file_lines)} examples')
+        print(f'Loaded "{data_dir}" with {len(self.sample_files)} examples in {time.time() - start_time:.2f}s')
 
     def __len__(self) -> int:
-        return len(self.file_lines)
+        return len(self.sample_files)
 
     def get_example(self, idx: int) -> tuple[int, np.ndarray, np.ndarray]:
-        with open(self.file_lines[idx], "rb") as f:
+        with open(self.sample_files[idx], "rb") as f:
             graph = pickle.load(f)  # noqa: S301
 
         num_nodes = graph.number_of_nodes()
@@ -38,7 +40,7 @@ class MISDataset(torch.utils.data.Dataset):
             else:
                 node_labels = np.zeros(num_nodes, dtype=np.int64)
         else:
-            base_label_file = os.path.basename(self.file_lines[idx]).replace(".gpickle", "_unweighted.result")
+            base_label_file = os.path.basename(self.sample_files[idx]).replace(".gpickle", "_unweighted.result")
             node_label_file = os.path.join(self.data_label_dir, base_label_file)
             with open(node_label_file) as f:
                 node_labels = [int(_) for _ in f.read().splitlines()]
