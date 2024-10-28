@@ -103,7 +103,7 @@ def main(args):
   lr_callback = LearningRateMonitor(logging_interval='step')
 
   trainer = Trainer(
-      accelerator="cpu",
+      accelerator="auto",
       devices=torch.cuda.device_count() if torch.cuda.is_available() else 4,
       max_epochs=epochs,
       callbacks=[TQDMProgressBar(refresh_rate=20), checkpoint_callback, lr_callback],

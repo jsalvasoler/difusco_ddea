@@ -23,8 +23,7 @@ hatch run true # to create the environment and install basic dependencies
 
 hatch shell # to enter the environment
 
-pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.1+cpu.html
-# pip install 'pyconcorde @ git+https://github.com/jvkersch/pyconcorde' -> currently not working
+pip install torch-scatter torch-sparse -f https://pytorch-geometric.com/whl/torch-2.3.1+cu121.html
 
 ```
 You only need to install `torch-scatter`, `torch-sparse` once. After that, you can use `hatch run` as usual to run the project, and dependencies will sync automatically (without removing the extra installed packages).

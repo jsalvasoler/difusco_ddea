@@ -41,6 +41,7 @@ dependencies = [
   "pandas",
   "logzero",
   "wandb",
+  "pyinstrument",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"

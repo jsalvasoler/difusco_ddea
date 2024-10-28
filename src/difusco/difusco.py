@@ -5,7 +5,7 @@ from argparse import Namespace
 
 import torch
 import wandb
-from difusco_edward_sun.difusco.pl_mis_model import MISModel
+from pyinstrument import Profiler
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
@@ -14,6 +14,7 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_info
 
 from difusco.arg_parser import parse_args
+from difusco.mis.pl_mis_model import MISModel
 from difusco.tsp.pl_tsp_model import TSPModel
 
 
@@ -58,7 +59,7 @@ def difusco(args: Namespace) -> None:
     lr_callback = LearningRateMonitor(logging_interval="step")
 
     trainer = Trainer(
-        accelerator="cpu",
+        accelerator="gpu",
         devices=torch.cuda.device_count() if torch.cuda.is_available() else 4,
         max_epochs=epochs,
         callbacks=[TQDMProgressBar(refresh_rate=20), checkpoint_callback, lr_callback],
@@ -91,7 +92,13 @@ def difusco(args: Namespace) -> None:
 
 def main_difusco() -> None:
     args = parse_args()
-    difusco(args)
+
+    if args.profiler:
+        with Profiler() as p:
+            difusco(args)
+        print(p.output_text(unicode=True, color=True))
+    else:
+        difusco(args)
 
 
 if __name__ == "__main__":

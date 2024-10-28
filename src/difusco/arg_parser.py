@@ -30,7 +30,7 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--use_activation_checkpoint", action="store_true")
 
-    parser.add_argument("--diffusion_type", type=str, default="gaussian")
+    parser.add_argument("--diffusion_type", type=str, default="categorical")
     parser.add_argument("--diffusion_schedule", type=str, default="linear")
     parser.add_argument("--diffusion_steps", type=int, default=1000)
     parser.add_argument("--inference_diffusion_steps", type=int, default=1000)
@@ -46,7 +46,7 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--two_opt_iterations", type=int, default=1000)
     parser.add_argument("--save_numpy_heatmap", action="store_true")
 
-    parser.add_argument("--project_name", type=str, default="tsp_diffusion")
+    parser.add_argument("--project_name", type=str, default="difusco")
     parser.add_argument("--wandb_entity", type=str, default=None)
     parser.add_argument("--wandb_logger_name", type=str, default=None)
     parser.add_argument("--resume_id", type=str, default=None, help="Resume training on wandb.")
@@ -56,6 +56,7 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--do_train", action="store_true")
     parser.add_argument("--do_test", action="store_true")
     parser.add_argument("--do_valid_only", action="store_true")
+    parser.add_argument("--profiler", action="store_true")
 
     # Arguments for heuristic evaluation
     parser.add_argument("--heuristic_eval", action="store_true")
@@ -82,7 +83,7 @@ def validate_args(args: Namespace) -> None:
         full_path = os.path.join(args.data_path, getattr(args, split))
         assert os.path.exists(full_path), f"Path {getattr(args, split)} does not exist."
 
-    assert args.project_name == f"{args.task}_diffusion"
+    assert args.project_name == "difusco", "Project name must be of the form <task>_diffusion."
 
     # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
     if args.wandb_logger_name:
