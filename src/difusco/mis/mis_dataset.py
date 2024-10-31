@@ -19,7 +19,7 @@ class MISDataset(torch.utils.data.Dataset):
         assert os.path.exists(os.path.dirname(self.data_dir)), f"Data file {data_dir} does not exist"
 
         start_time = time.time()
-        self.sample_files = [os.path.join(self.data_dir, f) for f in os.listdir(self.data_dir)]
+        self.sample_files = [os.path.join(self.data_dir, f) for f in os.listdir(self.data_dir) if f.endswith(".gpickle")]
         assert len(self.sample_files) > 0, f"No files found in {data_dir}"
         self.data_label_dir = data_label_dir
         print(f'Loaded "{data_dir}" with {len(self.sample_files)} examples in {time.time() - start_time:.2f}s')

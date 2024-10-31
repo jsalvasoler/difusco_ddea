@@ -8,7 +8,7 @@ from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 
 def test_tsp_dataset_is_loaded() -> None:
     dataset = TSPGraphDataset(
-        data_dir="tests/resources/tsp50_example_dataset.txt",
+        data_file="tests/resources/tsp50_example_dataset.txt",
         sparse_factor=0.5,
     )
     assert len(dataset) == 30
@@ -16,7 +16,7 @@ def test_tsp_dataset_is_loaded() -> None:
 
 def test_tsp_dataset_sample() -> None:
     dataset = TSPGraphDataset(
-        data_dir="tests/resources/tsp50_example_dataset.txt",
+        data_file="tests/resources/tsp50_example_dataset.txt",
         sparse_factor=0,
     )
 
