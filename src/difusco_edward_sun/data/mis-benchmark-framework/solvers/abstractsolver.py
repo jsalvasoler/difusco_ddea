@@ -35,7 +35,7 @@ class MWISSolver(ABC):
         )
 
         imap_unordered_bar(prepare_instance, resolved_graph_paths,
-                           n_processes=64)
+                           n_processes=20)
 
     @abstractmethod
     def train(self, train_data_path: pathlib.Path, results_path: pathlib.Path, parameters):

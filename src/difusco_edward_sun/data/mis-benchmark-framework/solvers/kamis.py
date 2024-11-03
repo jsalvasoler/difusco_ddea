@@ -96,7 +96,7 @@ class KaMIS(MWISSolver):
             results_path=results_path,
             parameters=parameters)
 
-        res_list = imap_unordered_bar(argumented_solve_graph, solve_data_path.rglob("*.gpickle"), n_processes=64)
+        res_list = imap_unordered_bar(argumented_solve_graph, solve_data_path.rglob("*.gpickle"), n_processes=8)
 
         results = {}
         for res in res_list:
