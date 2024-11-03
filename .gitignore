@@ -1,8 +1,8 @@
 # Directories
-data/
-models/
-logs/
-results/
+/data/
+/models/
+/logs/
+/results/
 
 # cython
 build/
