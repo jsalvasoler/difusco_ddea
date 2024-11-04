@@ -18,7 +18,7 @@ from difusco_edward_sun.difusco.utils.mis_utils import mis_decode_np
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
-from difusco.mis.mis_dataset import MISDataset
+from difusco.node_selection.mis_dataset import MISDataset
 from difusco.pl_meta_model import COMetaModel
 
 if TYPE_CHECKING:

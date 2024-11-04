@@ -3,7 +3,7 @@ import sys
 from difusco.difusco import main_difusco
 from difusco.tsp.generate_tsp_data import main_tsp_data_generation
 from difusco.tsp.run_tsp_heuristics import run_tsp_heuristics
-from difusco.mis.generate_node_degree_labels import generate_node_degree_labels_main
+from difusco.node_selection.generate_node_degree_labels import generate_node_degree_labels_main
 
 AVAILABLE_COMMANDS = ["difusco", "generate_tsp_data", "generate_mis_degree_labels"]
 

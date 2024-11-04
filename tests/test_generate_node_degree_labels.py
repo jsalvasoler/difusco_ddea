@@ -2,7 +2,7 @@ import os
 from argparse import Namespace
 import pytest
 
-from difusco.mis.generate_node_degree_labels import generate_node_degree_labels
+from difusco.node_selection.generate_node_degree_labels import generate_node_degree_labels
 
 @pytest.fixture
 def setup_and_teardown():

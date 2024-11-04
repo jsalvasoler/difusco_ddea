@@ -14,7 +14,7 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_info
 
 from difusco.arg_parser import parse_args
-from difusco.mis.pl_mis_model import MISModel
+from difusco.node_selection.pl_mis_model import MISModel
 from difusco.tsp.pl_tsp_model import TSPModel
 
 

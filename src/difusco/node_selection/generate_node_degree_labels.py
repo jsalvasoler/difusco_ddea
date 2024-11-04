@@ -7,7 +7,7 @@ from torch_geometric.data import Data as GraphData
 from torch_geometric.utils import degree
 from tqdm import tqdm
 
-from difusco.mis.mis_dataset import MISDataset
+from difusco.node_selection.mis_dataset import MISDataset
 
 
 def parse_arguments() -> argparse.Namespace:

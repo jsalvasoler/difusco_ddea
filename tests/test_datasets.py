@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from difusco.mis.mis_dataset import MISDataset
+from difusco.node_selection.mis_dataset import MISDataset
 from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 
 

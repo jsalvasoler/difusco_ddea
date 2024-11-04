@@ -4,8 +4,8 @@ import torch
 from torch_geometric.data import Batch
 
 from difusco.arg_parser import get_arg_parser
-from difusco.mis.mis_dataset import MISDataset
-from difusco.mis.pl_mis_model import MISModel
+from difusco.node_selection.mis_dataset import MISDataset
+from difusco.node_selection.pl_mis_model import MISModel
 
 
 def test_mis_test_step() -> None:
