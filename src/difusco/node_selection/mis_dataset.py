@@ -47,7 +47,9 @@ class MISDataset(torch.utils.data.Dataset):
             with open(node_label_file) as f:
                 node_labels = [int(_) for _ in f.read().splitlines()]
             node_labels = np.array(node_labels, dtype=np.int64)
-            assert node_labels.shape[0] == num_nodes
+            assert (
+                node_labels.shape[0] == num_nodes
+            ), f"Node labels shape mismatch: {node_labels.shape[0]} != {num_nodes}"
 
         edges = np.array(graph.edges, dtype=np.int64)
         edges = np.concatenate([edges, edges[:, ::-1]], axis=0)
