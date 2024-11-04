@@ -58,6 +58,5 @@ def generate_node_degree_labels_main() -> None:
     generate_node_degree_labels(opts)
 
 
-
 if __name__ == "__main__":
     generate_node_degree_labels_main()

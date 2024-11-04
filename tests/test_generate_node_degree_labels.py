@@ -1,11 +1,14 @@
 import os
 from argparse import Namespace
+from typing import Any, Generator
+
 import pytest
 
 from difusco.node_selection.generate_node_degree_labels import generate_node_degree_labels
 
+
 @pytest.fixture
-def setup_and_teardown():
+def setup_and_teardown() -> Generator[Any, Any, Any]:
     opts = Namespace()
     opts.train_graphs_dir = "tests/resources/er_example_dataset"
     opts.output_dir = "tests/resources/tmp_annotations"
@@ -14,7 +17,7 @@ def setup_and_teardown():
     os.system(f"rm -r {opts.output_dir}")
 
 
-def test_generate_labels_content(setup_and_teardown) -> None:
+def test_generate_labels_content(setup_and_teardown: Generator) -> None:
     opts = setup_and_teardown
 
     generate_node_degree_labels(opts)
@@ -26,10 +29,8 @@ def test_generate_labels_content(setup_and_teardown) -> None:
         assert os.path.isfile(os.path.join(opts.output_dir, file))
 
     for file in os.listdir(opts.output_dir):
-        with open(os.path.join(opts.output_dir, file), "r") as f:
+        with open(os.path.join(opts.output_dir, file)) as f:
             lines = f.readlines()
             assert len(lines) in [732, 770]
-            assert all([line.strip().isdigit() for line in lines])
-            assert set(line.strip() for line in lines).issubset({"0", "1"})
-        
-            
+            assert all(line.strip().isdigit() for line in lines)
+            assert {line.strip() for line in lines}.issubset({"0", "1"})
