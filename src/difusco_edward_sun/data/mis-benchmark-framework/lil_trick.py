@@ -5,7 +5,7 @@ import shutil
 from tqdm import tqdm
 
 
-def main():
+def transfer_to_31oct():
     base = '/home/e12223411/repos/difusco/data/mis'
 
     train = os.path.join(base, 'er_train')
@@ -34,6 +34,25 @@ def main():
     print('train_31oct:', len(os.listdir(train_31oct)))
     print('train_31oct_ann:', len(os.listdir(train_31oct_ann)))
 
+
+def rename_train_degree_labels():
+    base = '/home/e12223411/repos/difusco/data/mis'
+    train_ann = os.path.join(base, 'er_train_degree_labels')
+
+    example = os.path.join(base, "er_train_annotations_31oct")
+    files = {'_'.join(x.removesuffix('_unweighted.result').split('_')[:-1]) for x in os.listdir(example)}
+    print(files)
+    prefix = files.pop()
+
+    # add the prefix to all files in train_ann
+
+    for f in tqdm(os.listdir(train_ann)):
+        if f.endswith('.txt'):
+            new_f = f"{prefix}_{f.removesuffix('.txt')}_unweighted.result"
+            assert 0 <= int(f.removesuffix('.txt')) <= 170000
+            os.rename(os.path.join(train_ann, f), os.path.join(train_ann, new_f))
+
+
 if __name__ == '__main__':
-    main()
-    # move files from er_train_annotations_28oct to er_train_annotations_31oct
+    # transfer_to_31oct()
+    rename_train_degree_labels()
