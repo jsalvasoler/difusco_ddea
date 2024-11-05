@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from difusco.diffusion_schedulers import InferenceSchedule
 
+from difusco.diffusion_schedulers import InferenceSchedule
 from difusco.node_selection.pl_mis_model import MISModel
 
 if TYPE_CHECKING:
@@ -70,20 +70,27 @@ class HighDegreeSelection(MISModel):
 
         predict_labels = np.concatenate(stacked_predict_labels, axis=0)
         all_sampling = self.args.sequential_sampling * self.args.parallel_sampling
-        assert all_sampling == 1, "High degree selection only supports 1-sequential sampling"
+        assert self.args.parallel_sampling == 1, "High degree selection does not support parallel sampling"
 
         splitted_predict_labels = np.split(predict_labels, all_sampling)
         solved_solutions = [high_degree_decode_np(predict_labels) for predict_labels in splitted_predict_labels]
+        node_labels = node_labels.cpu().numpy()
 
-        # compute the number of wrong predictions (FP + FN)
-        diff = node_labels.cpu().numpy() - solved_solutions[0]
-        accuracy = 1 - np.abs(diff).sum() / diff.size
+        accuracy = self.compute_accuracy(solved_solutions, node_labels)
 
         metrics = {
             f"{split}/accuracy": accuracy,
         }
         self.test_outputs.append(metrics)
         self.log(f"{split}/accuracy", accuracy, prog_bar=True, on_epoch=True, sync_dist=True)
+
+    @staticmethod
+    def compute_accuracy(solved_solutions: np.ndarray, node_labels: np.ndarray) -> float:
+        total_abs_diff = np.zeros_like(solved_solutions[0])
+        for solution in solved_solutions:
+            total_abs_diff += np.abs(node_labels - solution)
+
+        return 1 - total_abs_diff.sum() / (total_abs_diff.size * len(solved_solutions))
 
 
 def high_degree_decode_np(predictions: np.ndarray) -> np.ndarray:

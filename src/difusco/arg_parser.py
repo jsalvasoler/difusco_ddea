@@ -90,7 +90,6 @@ def validate_args(args: Namespace) -> None:
         assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
 
     if args.task == "high_degree_selection":
-        assert args.sequential_sampling == 1, "Sequential sampling must be 1 for high degree selection."
         assert args.parallel_sampling == 1, "Parallel sampling must be 1 for high degree selection."
 
     # Heuristic evaluation
