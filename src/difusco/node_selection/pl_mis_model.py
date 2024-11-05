@@ -8,17 +8,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 import torch.utils.data
-
-# TODO: migrate diffusion schedulers
-from difusco_edward_sun.difusco.utils.diffusion_schedulers import InferenceSchedule
-
-# TODO: migrate mis_decode_np
-from difusco_edward_sun.difusco.utils.mis_utils import mis_decode_np
 from scipy.sparse import coo_matrix
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
+from difusco.diffusion_schedulers import InferenceSchedule
 from difusco.node_selection.mis_dataset import MISDataset
+from difusco.node_selection.utils import mis_decode_np
 from difusco.pl_meta_model import COMetaModel
 
 if TYPE_CHECKING:
@@ -29,7 +25,7 @@ class MISModel(COMetaModel):
     def __init__(self, param_args: Namespace | None = None) -> None:
         super().__init__(param_args=param_args, node_feature_only=True)
 
-        train_label_dir, test_label_dir = None, None
+        train_label_dir, test_label_dir, validation_label_dir = None, None, None
 
         if self.args.training_split_label_dir is not None:
             train_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
