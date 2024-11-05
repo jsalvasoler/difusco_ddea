@@ -1,7 +1,7 @@
 import numpy as np
 
 # import tsp utils
-from difusco_edward_sun.difusco.utils.tsp_utils import TSPEvaluator
+from difusco.tsp.utils import TSPEvaluator
 
 
 def test_numpy_heatmaps() -> None:
