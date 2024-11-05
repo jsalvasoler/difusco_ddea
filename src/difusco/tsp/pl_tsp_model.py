@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import torch
 import torch.utils.data
-from difusco.diffusion_schedulers import InferenceSchedule
 from pytorch_lightning.utilities import rank_zero_info
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
+from difusco.diffusion_schedulers import InferenceSchedule
 from difusco.pl_meta_model import COMetaModel
 from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours

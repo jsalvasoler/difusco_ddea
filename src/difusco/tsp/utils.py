@@ -7,6 +7,7 @@ import numpy as np
 import scipy.sparse
 import scipy.spatial
 import torch
+
 from difusco.tsp.cython_merge.cython_merge import merge_cython
 
 

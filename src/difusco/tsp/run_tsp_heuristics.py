@@ -5,10 +5,10 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 from tqdm import tqdm
 
 from difusco.arg_parser import parse_args
+from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 
