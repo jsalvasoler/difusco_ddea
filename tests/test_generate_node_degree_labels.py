@@ -7,6 +7,7 @@ import pytest
 from difusco.node_selection.generate_node_degree_labels import generate_node_degree_labels
 from difusco.node_selection.mis_dataset import MISDataset
 
+
 @pytest.fixture
 def setup_and_teardown() -> Generator[Any, Any, Any]:
     opts = Namespace()
@@ -16,6 +17,7 @@ def setup_and_teardown() -> Generator[Any, Any, Any]:
     os.makedirs(opts.output_dir, exist_ok=True)
     yield opts
     os.system(f"rm -r {opts.output_dir}")
+
 
 @pytest.fixture
 def setup_and_teardown_2() -> Generator[Any, Any, Any]:
@@ -46,7 +48,7 @@ def test_generate_labels_on_examples(setup_and_teardown: Generator) -> None:
         assert file.startswith(pref)
         # remove prefix and suffix
         idx = file[len(pref) : -len(suff)]
-        assert 0 <= int(idx) <= 170,000
+        assert 0 <= int(idx) <= 170, 000
         with open(os.path.join(opts.output_dir, file)) as f:
             lines = f.readlines()
             assert len(lines) in [732, 770]
@@ -68,7 +70,7 @@ def test_generate_labels_on_ten_and_test_mis_dataset(setup_and_teardown_2: Gener
         data_dir=opts.train_graphs_dir,
         data_label_dir=opts.output_dir,
     )
-    
+
     assert len(dataset) == len(input_files)
 
     for idx in range(len(dataset)):
