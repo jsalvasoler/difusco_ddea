@@ -30,6 +30,8 @@ def generate_node_degree_labels(opts: argparse.Namespace) -> None:
     files = os.listdir(opts.train_graphs_dir)
 
     for file in tqdm(files):
+        if not file.endswith(".gpickle"):
+            continue
         with open(os.path.join(opts.train_graphs_dir, file), "rb") as f:
             graph = pickle.load(f)  # noqa: S301
 
