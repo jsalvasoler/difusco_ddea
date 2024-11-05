@@ -6,9 +6,9 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from difusco_edward_sun.difusco.models.gnn_encoder import GNNEncoder
-from difusco_edward_sun.difusco.utils.diffusion_schedulers import CategoricalDiffusion, GaussianDiffusion
-from difusco_edward_sun.difusco.utils.lr_schedulers import get_schedule_fn
+from difusco.gnn_encoder import GNNEncoder
+from difusco.diffusion_schedulers import CategoricalDiffusion, GaussianDiffusion
+from difusco.lr_schedulers import get_schedule_fn
 from pytorch_lightning.utilities import rank_zero_info
 from torch.nn.functional import one_hot
 from torch_geometric.loader import DataLoader

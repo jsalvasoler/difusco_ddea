@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from difusco_edward_sun.difusco.utils.diffusion_schedulers import InferenceSchedule
+from difusco.diffusion_schedulers import InferenceSchedule
 
 from difusco.node_selection.pl_mis_model import MISModel
 

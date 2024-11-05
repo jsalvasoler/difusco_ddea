@@ -7,7 +7,7 @@ import numpy as np
 import scipy.sparse
 import scipy.spatial
 import torch
-from difusco_edward_sun.difusco.utils.cython_merge.cython_merge import merge_cython
+from difusco.tsp.cython_merge.cython_merge import merge_cython
 
 
 def batched_two_opt_torch(
