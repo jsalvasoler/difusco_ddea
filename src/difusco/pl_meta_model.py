@@ -13,6 +13,8 @@ from pytorch_lightning.utilities import rank_zero_info
 from torch.nn.functional import one_hot
 from torch_geometric.loader import DataLoader
 
+torch.set_float32_matmul_precision("medium")
+
 
 class COMetaModel(pl.LightningModule):
     def __init__(self, param_args: Namespace, node_feature_only: bool = False) -> None:

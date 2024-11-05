@@ -6,7 +6,6 @@ import os
 from typing import TYPE_CHECKING
 
 import numpy as np
-import scipy.sparse
 import torch
 import torch.utils.data
 
@@ -15,6 +14,7 @@ from difusco_edward_sun.difusco.utils.diffusion_schedulers import InferenceSched
 
 # TODO: migrate mis_decode_np
 from difusco_edward_sun.difusco.utils.mis_utils import mis_decode_np
+from scipy.sparse import coo_matrix
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
@@ -29,21 +29,28 @@ class MISModel(COMetaModel):
     def __init__(self, param_args: Namespace | None = None) -> None:
         super().__init__(param_args=param_args, node_feature_only=True)
 
-        data_label_dir = None
+        train_label_dir, test_label_dir = None, None
+
         if self.args.training_split_label_dir is not None:
-            data_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
+            train_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
+        if self.args.test_split_label_dir is not None:
+            test_label_dir = os.path.join(self.args.data_path, self.args.test_split_label_dir)
+        if self.args.validation_split_label_dir is not None:
+            validation_label_dir = os.path.join(self.args.data_path, self.args.validation_split_label_dir)
 
         self.train_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.training_split),
-            data_label_dir=data_label_dir,
+            data_label_dir=train_label_dir,
         )
 
         self.test_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.test_split),
+            data_label_dir=test_label_dir,
         )
 
         self.validation_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.validation_split),
+            data_label_dir=validation_label_dir,
         )
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
@@ -185,7 +192,7 @@ class MISModel(COMetaModel):
         stacked_predict_labels = []
         edge_index = edge_index.to(node_labels.device).reshape(2, -1)
         edge_index_np = edge_index.cpu().numpy()
-        adj_mat = scipy.sparse.coo_matrix(
+        adj_mat = coo_matrix(
             (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
         )
 

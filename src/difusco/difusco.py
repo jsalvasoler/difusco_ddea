@@ -14,6 +14,7 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_info
 
 from difusco.arg_parser import parse_args
+from difusco.node_selection.pl_high_degree_model import HighDegreeSelection
 from difusco.node_selection.pl_mis_model import MISModel
 from difusco.tsp.pl_tsp_model import TSPModel
 
@@ -25,9 +26,15 @@ def difusco(args: Namespace) -> None:
     if args.task == "tsp":
         model_class = TSPModel
         saving_mode = "min"
+        monitor = "val/solved_cost"
     elif args.task == "mis":
         model_class = MISModel
         saving_mode = "max"
+        monitor = "val/solved_cost"
+    elif args.task == "high_degree_selection":
+        model_class = HighDegreeSelection
+        saving_mode = "min"
+        monitor = "val/accuracy"
     else:
         raise NotImplementedError
 
@@ -45,7 +52,7 @@ def difusco(args: Namespace) -> None:
     rank_zero_info(f"Logging to {wandb_logger.save_dir}/{wandb_logger.name}/{wandb_logger.version}")
 
     checkpoint_callback = ModelCheckpoint(
-        monitor="val/solved_cost",
+        monitor=monitor,
         mode=saving_mode,
         save_top_k=3,
         save_last=True,

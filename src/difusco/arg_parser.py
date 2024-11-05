@@ -3,21 +3,18 @@ from argparse import ArgumentParser, Namespace
 
 
 def get_arg_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Train a Pytorch-Lightning diffusion model on a TSP dataset.")
+    parser = ArgumentParser(description="Train a Pytorch-Lightning diffusion model graph COP dataset.")
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--data_path", type=str, required=True)
     parser.add_argument("--models_path", type=str, default=None)
     parser.add_argument("--logs_path", type=str, default=None)
     parser.add_argument("--results_path", type=str, default=None)
-    parser.add_argument(
-        "--training_split_label_dir",
-        type=str,
-        default=None,
-        help="Directory containing labels for training split (used for MIS).",
-    )
+    parser.add_argument("--training_split_label_dir", type=str, default=None)
     parser.add_argument("--training_split", type=str, default=None)
-    parser.add_argument("--validation_split", type=str, default=None)
     parser.add_argument("--test_split", type=str, default=None)
+    parser.add_argument("--test_split_label_dir", type=str, default=None)
+    parser.add_argument("--validation_split", type=str, default=None)
+    parser.add_argument("--validation_split_label_dir", type=str, default=None)
     parser.add_argument("--validation_examples", type=int, default=64)
 
     parser.add_argument("--batch_size", type=int, default=64)
@@ -66,7 +63,7 @@ def get_arg_parser() -> ArgumentParser:
 
 
 def validate_args(args: Namespace) -> None:
-    assert args.task in ["tsp", "mis"]
+    assert args.task in ["tsp", "mis", "high_degree_selection"]
     assert args.diffusion_type in ["gaussian", "categorical"]
     assert args.diffusion_schedule in ["linear", "cosine"]
 
@@ -91,6 +88,10 @@ def validate_args(args: Namespace) -> None:
 
     if args.ckpt_path:
         assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
+
+    if args.task == "high_degree_selection":
+        assert args.sequential_sampling == 1, "Sequential sampling must be 1 for high degree selection."
+        assert args.parallel_sampling == 1, "Parallel sampling must be 1 for high degree selection."
 
     # Heuristic evaluation
     if args.heuristic_eval:

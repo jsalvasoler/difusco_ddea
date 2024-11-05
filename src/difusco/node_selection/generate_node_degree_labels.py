@@ -4,9 +4,9 @@ import pickle
 
 import numpy as np
 import torch
+from torch_geometric.data import Data as GraphData
 from torch_geometric.utils import degree
 from tqdm import tqdm
-from torch_geometric.data import Data as GraphData
 
 
 def parse_arguments() -> argparse.Namespace:
