@@ -12,6 +12,7 @@ def transfer_to_31oct():
     train_28oct_ann = os.path.join(base, 'er_train_annotations_28oct')
     train_ann = os.path.join(base, 'er_train_annotations_31oct')
     train_31oct = os.path.join(base, 'er_train_31oct')
+    os.makedirs(train_31oct, exist_ok=True)
     train_31oct_ann = os.path.join(base, 'er_train_annotations_31oct')
 
     # copy files from train to train_31oct if they are not in train_28oct
@@ -52,7 +53,24 @@ def rename_train_degree_labels():
             assert 0 <= int(f.removesuffix('.txt')) <= 170000
             os.rename(os.path.join(train_ann, f), os.path.join(train_ann, new_f))
 
+def move_annotations():
+    base = '/home/e12223411/repos/difusco/data/mis'
+    src_dir = os.path.join(base, 'er_train_annotations_31oct')
+    dest_dir = os.path.join(base, 'er_train_annotations_28oct')
+
+    # Ensure the destination directory exists
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+
+    # Move all files from src_dir to dest_dir
+    for filename in os.listdir(src_dir):
+        src_file = os.path.join(src_dir, filename)
+        dest_file = os.path.join(dest_dir, filename)
+        shutil.move(src_file, dest_file)
+        print(f"Moved: {src_file} -> {dest_file}")
+
 
 if __name__ == '__main__':
-    # transfer_to_31oct()
-    rename_train_degree_labels()
+    # move_annotations()
+    transfer_to_31oct()
+    # rename_train_degree_labels()

@@ -34,8 +34,7 @@ class MWISSolver(ABC):
             **kwargs,
         )
 
-        imap_unordered_bar(prepare_instance, resolved_graph_paths,
-                           n_processes=20)
+        imap_unordered_bar(prepare_instance, resolved_graph_paths, n_processes=3)
 
     @abstractmethod
     def train(self, train_data_path: pathlib.Path, results_path: pathlib.Path, parameters):
@@ -43,7 +42,7 @@ class MWISSolver(ABC):
 
     @abstractmethod
     def solve(self, solve_data_path: pathlib.Path, results_path: pathlib.Path, parameters):
-	    pass
+        pass
 
 from multiprocessing import Pool
 
