@@ -190,7 +190,7 @@ class MISModel(COMetaModel):
         edge_index_np = edge_index.cpu().numpy()
         adj_mat = coo_matrix(
             (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
-        )
+        ).tocsr()
 
         for _ in range(self.args.sequential_sampling):
             xt = torch.randn_like(node_labels.float())
