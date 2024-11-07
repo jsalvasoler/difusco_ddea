@@ -13,8 +13,8 @@ from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
 from difusco.diffusion_schedulers import InferenceSchedule
-from difusco.node_selection.mis_dataset import MISDataset
-from difusco.node_selection.utils import mis_decode_np
+from difusco.mis.mis_dataset import MISDataset
+from difusco.mis.utils import mis_decode_np
 from difusco.pl_meta_model import COMetaModel
 
 if TYPE_CHECKING:

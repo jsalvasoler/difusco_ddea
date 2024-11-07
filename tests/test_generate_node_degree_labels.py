@@ -4,8 +4,8 @@ from typing import Any, Generator
 
 import pytest
 
-from difusco.node_selection.generate_node_degree_labels import generate_node_degree_labels
-from difusco.node_selection.mis_dataset import MISDataset
+from difusco.mis.generate_node_degree_labels import generate_node_degree_labels
+from difusco.mis.mis_dataset import MISDataset
 
 
 @pytest.fixture

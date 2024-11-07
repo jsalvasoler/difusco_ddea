@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from difusco.diffusion_schedulers import InferenceSchedule
-from difusco.node_selection.pl_mis_model import MISModel
+from difusco.mis.pl_mis_model import MISModel
 
 if TYPE_CHECKING:
     from argparse import Namespace

@@ -6,8 +6,8 @@ import torch
 from torch_geometric.data import Batch
 
 from difusco.arg_parser import get_arg_parser
-from difusco.node_selection.mis_dataset import MISDataset
-from difusco.node_selection.pl_high_degree_model import HighDegreeSelection, high_degree_decode_np
+from difusco.mis.mis_dataset import MISDataset
+from difusco.mis.pl_high_degree_model import HighDegreeSelection, high_degree_decode_np
 
 
 def test_the_test_step() -> None:
