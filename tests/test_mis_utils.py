@@ -13,12 +13,8 @@ from difusco.mis.utils import mis_decode_np, mis_decode_torch
 
 @pytest.fixture
 def adj_matrix() -> sp.csr_matrix:
-    return sp.csr_matrix([
-        [0, 1, 0, 0],
-        [1, 0, 1, 0],
-        [0, 1, 0, 1],
-        [0, 0, 1, 0]
-    ]).tocsr()
+    return sp.csr_matrix([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]]).tocsr()
+
 
 def test_mis_decoding_numpy(adj_matrix: sp.csr_matrix) -> None:
     predictions = np.array([0.9, 0.1, 0.8, 0.3])
@@ -39,13 +35,11 @@ def test_mis_decoding_torch(adj_matrix: sp.csr_matrix) -> None:
 
     assert torch.equal(result, expected_result), f"Expected {expected_result}, but got {result}"
 
+
 def benchmark_experiment() -> None:
+    device = "cuda:0"  # "cpu" or "cuda"
 
-    device = "cuda:0"      # "cpu" or "cuda"
-
-    dataset = MISDataset(
-        data_dir="/home/e12223411/repos/difusco/data/mis/er_test"
-    )
+    dataset = MISDataset(data_dir="/home/e12223411/repos/difusco/data/mis/er_test")
     times_np = []
     times_torch = []
     for sample in tqdm(dataset):
