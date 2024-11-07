@@ -4,43 +4,46 @@ import shutil
 
 from tqdm import tqdm
 
+import argparse
 
-def transfer_to_31oct():
+def transfer_0_to_1():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_files', type=int, default=5000, help='Number of files to copy')
+    args = parser.parse_args()
+
     base = '/home/e12223411/repos/difusco/data/mis'
 
     train = os.path.join(base, 'er_train')
-    train_28oct_ann = os.path.join(base, 'er_train_annotations_28oct')
-    train_ann = os.path.join(base, 'er_train_annotations_31oct')
-    train_31oct = os.path.join(base, 'er_train_31oct')
-    os.makedirs(train_31oct, exist_ok=True)
-    train_31oct_ann = os.path.join(base, 'er_train_annotations_31oct')
+    train_0_ann = os.path.join(base, 'er_train_annotations_0')
+    train_1 = os.path.join(base, 'er_train_1')
+    os.makedirs(train_1, exist_ok=True)
+    train_1_ann = os.path.join(base, 'er_train_annotations_1')
 
-    # copy files from train to train_31oct if they are not in train_28oct
+    # copy files from train to train_1 if they are not in train_0
     # take name on the left of the last _
-    graphs_28oct = {'_'.join(g.split('_')[:-1]) for g in os.listdir(train_28oct_ann) if g.endswith('unweighted.result')}
-    print('graphs_28oct:', len(graphs_28oct))
-    graphs_31oct = [g for g in os.listdir(train) if g[:-len('.gpickle')] not in graphs_28oct and g.endswith('.gpickle')]
-    print('graphs_31oct:', len(graphs_31oct))
+    graphs_0 = {'_'.join(g.split('_')[:-1]) for g in os.listdir(train_0_ann) if g.endswith('unweighted.result')}
+    print('graphs_0:', len(graphs_0))
+    graphs_1 = [g for g in os.listdir(train) if g[:-len('.gpickle')] not in graphs_0 and g.endswith('.gpickle')]
+    print('graphs_1:', len(graphs_1))
 
-    print(len(graphs_31oct) + len(graphs_28oct))
-    print(len(os.listdir(train)))
+    print(len(graphs_1) + len(graphs_0))
+    print(len([x for x in os.listdir(train) if x.endswith('.gpickle')]))
 
-    # Copy all 31oct graphs from train to train_31oct
-    for g in tqdm(graphs_31oct):
-        shutil.copy(os.path.join(train, g), os.path.join(train_31oct, g))
+    # Copy num_files 1 graphs from train to train_1
+    for g in tqdm(graphs_1[:args.num_files]):
+        shutil.copy(os.path.join(train, g), os.path.join(train_1, g))
 
     print('train:', len(os.listdir(train)))
-    print('train_ann:', len(os.listdir(train_ann)))
-    print('train_28oct_ann:', len(os.listdir(train_28oct_ann)))
-    print('train_31oct:', len(os.listdir(train_31oct)))
-    print('train_31oct_ann:', len(os.listdir(train_31oct_ann)))
+    print('train_0_ann:', len(os.listdir(train_0_ann)))
+    print('train_1:', len(os.listdir(train_1)))
+    print('train_1_ann:', len(os.listdir(train_1_ann)))
 
 
 def rename_train_degree_labels():
     base = '/home/e12223411/repos/difusco/data/mis'
     train_ann = os.path.join(base, 'er_train_degree_labels')
 
-    example = os.path.join(base, "er_train_annotations_31oct")
+    example = os.path.join(base, "er_train_annotations_1")
     files = {'_'.join(x.removesuffix('_unweighted.result').split('_')[:-1]) for x in os.listdir(example)}
     print(files)
     prefix = files.pop()
@@ -55,8 +58,8 @@ def rename_train_degree_labels():
 
 def move_annotations():
     base = '/home/e12223411/repos/difusco/data/mis'
-    src_dir = os.path.join(base, 'er_train_annotations_31oct')
-    dest_dir = os.path.join(base, 'er_train_annotations_28oct')
+    src_dir = os.path.join(base, 'er_train_annotations_1')
+    dest_dir = os.path.join(base, 'er_train_annotations_0')
 
     # Ensure the destination directory exists
     if not os.path.exists(dest_dir):
@@ -67,10 +70,9 @@ def move_annotations():
         src_file = os.path.join(src_dir, filename)
         dest_file = os.path.join(dest_dir, filename)
         shutil.move(src_file, dest_file)
-        print(f"Moved: {src_file} -> {dest_file}")
 
 
 if __name__ == '__main__':
     # move_annotations()
-    transfer_to_31oct()
+    transfer_0_to_1()
     # rename_train_degree_labels()
