@@ -58,6 +58,7 @@ allow-direct-references = true
 [tool.hatch.envs.default.scripts]
 interactive = "ipython"
 difusco = "python3 -m difusco {args}"
+ea = "python3 -m ea {args}"
 
 [tool.hatch.envs.default]
 python = "3.11"
