@@ -42,6 +42,7 @@ dependencies = [
   "logzero",
   "wandb",
   "pyinstrument",
+  "evotorch",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"
