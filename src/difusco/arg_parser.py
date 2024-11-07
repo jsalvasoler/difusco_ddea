@@ -74,7 +74,8 @@ def validate_args(args: Namespace) -> None:
     if args.do_test or args.do_train or args.do_valid_only:
         assert all(x for x in [args.data_path, args.models_path, args.logs_path])
 
-    for split in ["training_split", "validation_split", "test_split"]:
+    split_names = ["training_split", "validation_split", "test_split"]
+    for split in split_names + [f"{split}_label_dir" for split in split_names]:
         if not getattr(args, split):
             continue
         full_path = os.path.join(args.data_path, getattr(args, split))

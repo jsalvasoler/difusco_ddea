@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from sklearn.neighbors import KDTree
+from torch.utils.data import Dataset
 from torch_geometric.data import Data as GraphData
 
 if TYPE_CHECKING:
     import os
 
 
-class TSPGraphDataset(torch.utils.data.Dataset):
+class TSPGraphDataset(Dataset):
     def __init__(self, data_file: os.PathLike, sparse_factor: float = -1) -> None:
         self.data_file = data_file
         self.sparse_factor = sparse_factor

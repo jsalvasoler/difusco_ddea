@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import os
-
-# import pickle5 as pickle  # TODO: I changed this like wrt Edward Sun code. Check if it works.
 import pickle
 import time
 
 import numpy as np
 import torch
+from torch.utils.data import Dataset
 from torch_geometric.data import Data as GraphData
 
 
-class MISDataset(torch.utils.data.Dataset):
+class MISDataset(Dataset):
     def __init__(self, data_dir: str | os.PathLike, data_label_dir: str | os.PathLike | None = None) -> None:
         self.data_dir = data_dir
         assert os.path.exists(os.path.dirname(self.data_dir)), f"Data file {data_dir} does not exist"
