@@ -2,7 +2,7 @@ import os
 
 import torch
 from ea.config import Config
-from ea.mis.mis import MISInstance, create_mis_ea, create_mis_instance
+from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
 from evotorch import Problem
 from problems.mis.mis_dataset import MISDataset
 
