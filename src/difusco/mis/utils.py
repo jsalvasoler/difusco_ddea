@@ -25,7 +25,7 @@ def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> tor
 
     Args:
         predictions: The predicted labels in a torch.Tensor.
-        adj_matrix: The adjacency matrix of the graph in a torch.sparse_csr_tensor 
+        adj_matrix: The adjacency matrix of the graph in a torch.sparse_csr_tensor
     """
 
     def get_neighbors(adj_csr: torch.sparse.FloatTensor, node: int) -> torch.Tensor:

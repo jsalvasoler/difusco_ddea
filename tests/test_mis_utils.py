@@ -15,6 +15,7 @@ from difusco.mis.utils import mis_decode_np, mis_decode_torch
 def adj_matrix() -> sp.csr_matrix:
     return sp.csr_matrix([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]]).tocsr()
 
+
 @pytest.fixture
 def adj_matrix_torch() -> torch.sparse.FloatTensor:
     return torch.sparse_coo_tensor(

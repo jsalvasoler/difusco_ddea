@@ -16,6 +16,8 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--wandb_logger_name", type=str, default=None)
 
     parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--n_parallel_evals", type=int, default=0)
+
     parser.add_argument("--pop_size", type=int, default=100)
     parser.add_argument("--n_generations", type=int, default=100)
 
