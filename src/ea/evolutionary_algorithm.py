@@ -5,6 +5,7 @@ import numpy as np
 import wandb
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
+from pyinstrument import Profiler
 from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
 
@@ -49,6 +50,15 @@ def main_ea() -> None:
     args = parse_args()
     validate_args(args)
 
+    if args.profiler:
+        with Profiler() as profiler:
+            run_ea(args)
+        print(profiler.output_text(unicode=True, color=True))
+    else:
+        run_ea(args)
+
+
+def run_ea(args: Namespace) -> None:
     dataset = dataset_factory(args)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
