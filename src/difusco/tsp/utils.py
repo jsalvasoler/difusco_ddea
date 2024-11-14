@@ -175,3 +175,18 @@ class TSPEvaluator:
         for i in range(len(route) - 1):
             total_cost += self.dist_mat[route[i], route[i + 1]]
         return total_cost
+
+
+class TSPTorchEvaluator:
+    def __init__(self, points: torch.Tensor) -> None:
+        self.dist_mat = torch.cdist(points, points).to(points.device)
+
+    def evaluate(self, route: torch.Tensor) -> float:
+        # Get the consecutive pairs of indices from the route (e.g., [route[i], route[i+1]])
+        route_pairs = torch.stack([route[:-1], route[1:]], dim=1)
+
+        # Use gather to select the distances between consecutive points along the route
+        distances = self.dist_mat[route_pairs[:, 0], route_pairs[:, 1]]
+
+        # Sum the distances to get the total route cost
+        return distances.sum().item()

@@ -18,11 +18,8 @@ def adj_matrix() -> sp.csr_matrix:
 
 @pytest.fixture
 def adj_matrix_torch() -> torch.sparse.FloatTensor:
-    return torch.sparse_coo_tensor(
-        torch.tensor([[0, 1, 1, 2, 2, 3], [1, 0, 2, 1, 3, 2]]),
-        torch.ones(6),
-        (4, 4),
-    ).to_sparse_csr()
+    dense_adj_mat = torch.tensor([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]])
+    return dense_adj_mat.to_sparse_csr()
 
 
 def test_mis_decoding_numpy(adj_matrix: sp.csr_matrix) -> None:
@@ -36,7 +33,7 @@ def test_mis_decoding_numpy(adj_matrix: sp.csr_matrix) -> None:
 
 
 def test_mis_decoding_torch(adj_matrix_torch: torch.tensor) -> None:
-    predictions = torch.tensor([0.9, 0.1, 0.8, 0.3])
+    predictions = torch.tensor([0.9, 0.1, 0.8, 0.3], dtype=torch.float32)
 
     result = mis_decode_torch(predictions, adj_matrix_torch)
 

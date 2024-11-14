@@ -15,7 +15,7 @@ from ea.arg_parser import parse_args, validate_args
 from ea.config import Config
 from ea.ea_utils import save_results
 from ea.mis import MISInstance, create_mis_ea, create_mis_instance
-from ea.tsp import TSPInstance
+from ea.tsp import TSPInstance, create_tsp_instance
 
 ProblemInstance = MISInstance | TSPInstance
 
@@ -30,6 +30,8 @@ def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
 def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
     if config.task == "mis":
         return create_mis_instance(sample, device=config.device)
+    if config.task == "tsp":
+        return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
     error_msg = f"No instance for task {config.task}."
     raise ValueError(error_msg)
 
