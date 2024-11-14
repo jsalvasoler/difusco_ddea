@@ -20,9 +20,9 @@ ProblemInstance = MISInstance | TSPInstance
 
 
 def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
-    if args.task == "mis":
-        return create_mis_ea(instance, args)
-    error_msg = f"No evolutionary algorithm for task {args.task}."
+    if config.task == "mis":
+        return create_mis_ea(instance, config)
+    error_msg = f"No evolutionary algorithm for task {config.task}."
     raise ValueError(error_msg)
 
 
@@ -34,16 +34,16 @@ def instance_factory(task: str, sample: tuple) -> ProblemInstance:
 
 
 def dataset_factory(config: Config) -> Dataset:
-    data_path = os.path.join(args.data_path, args.test_split)
-    data_label_dir = os.path.join(args.data_path, args.test_split_label_dir) if args.test_split_label_dir else None
+    data_path = os.path.join(config.data_path, config.test_split)
+    data_label_dir = os.path.join(config.data_path, config.test_split_label_dir) if config.test_split_label_dir else None
 
-    if args.task == "mis":
+    if config.task == "mis":
         return MISDataset(data_dir=data_path, data_label_dir=data_label_dir)
 
-    if args.task == "tsp":
+    if config.task == "tsp":
         return TSPGraphDataset(data_dir=data_path)
 
-    error_msg = f"No dataset for task {args.task}."
+    error_msg = f"No dataset for task {config.task}."
     raise ValueError(error_msg)
 
 
@@ -60,29 +60,29 @@ def main_ea() -> None:
 
 
 def run_ea(config: Config) -> None:
-    dataset = dataset_factory(args)
+    dataset = dataset_factory(config)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     wandb.init(
-        project=args.project_name,
-        name=args.wandb_logger_name,
-        entity=args.wandb_entity,
-        config=args.__dict__,
-        dir=args.logs_path,
+        project=config.project_name,
+        name=config.wandb_logger_name,
+        entity=config.wandb_entity,
+        config=config.__dict__,
+        dir=config.logs_path,
     )
 
     results = []
 
     for i, sample in enumerate(dataloader):
-        instance = instance_factory(args.task, sample)
-        ea = ea_factory(args, instance)
+        instance = instance_factory(config.task, sample)
+        ea = ea_factory(config, instance)
 
         _ = StdOutLogger(
             searcher=ea,
             interval=10,
         )
 
-        ea.run(args.n_generations)
+        ea.run(config.n_generations)
 
         cost = ea.status["pop_best_eval"]
         gt_cost = instance.evaluate_mis_individual(instance.gt_labels)
@@ -92,7 +92,7 @@ def run_ea(config: Config) -> None:
         wandb.log(run_results, step=i)
         results.append(run_results)
 
-        if args.validate_samples is not None and i == args.validate_samples - 1:
+        if config.validate_samples is not None and i == config.validate_samples - 1:
             break
 
     agg_results = {
