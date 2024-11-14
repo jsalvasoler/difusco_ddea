@@ -23,7 +23,7 @@ def setup_and_teardown() -> Generator[Any, Any, Any]:
 def setup_and_teardown_2() -> Generator[Any, Any, Any]:
     opts = Namespace()
     opts.train_graphs_dir = "tests/resources/er_example_node_deg"
-    opts.output_dir = "tests/resources/tmp_annotations"
+    opts.output_dir = "tests/resources/tmp_annotations_2"
     os.system(f"rm -r {opts.output_dir}")
     os.makedirs(opts.output_dir, exist_ok=True)
     yield opts

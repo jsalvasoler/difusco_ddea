@@ -51,12 +51,14 @@ def main_ea() -> None:
     args = parse_args()
     validate_args(args)
 
+    config = Config.load_from_args(args)
+
     if args.profiler:
         with Profiler() as profiler:
-            run_ea(args)
+            run_ea(config)
         print(profiler.output_text(unicode=True, color=True))
     else:
-        run_ea(args)
+        run_ea(config)
 
 
 def run_ea(config: Config) -> None:
