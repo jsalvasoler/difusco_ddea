@@ -1,3 +1,5 @@
+# ruff: noqa: ANN102
+
 from argparse import Namespace
 
 
@@ -6,15 +8,15 @@ class Config:
         self._config = kwargs
 
     @classmethod
-    def load_from_args(cls, args: Namespace) -> 'Config':
+    def load_from_args(cls, args: Namespace) -> "Config":
         config = cls()
         config._config = vars(args)  # noqa: SLF001
         return config
 
     @classmethod
-    def load_from_dict(cls, config_dict: dict) -> 'Config':
+    def load_from_dict(cls, config_dict: dict) -> "Config":
         config = cls()
-        config._config = config_dict    # noqa: SLF001
+        config._config = config_dict  # noqa: SLF001
         return config
 
     def __getattr__(self, name: str) -> any:
