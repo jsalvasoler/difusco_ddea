@@ -1,6 +1,7 @@
 import os
 
 import torch
+from ea.config import Config
 from ea.mis import MISInstance, create_mis_ea, create_mis_instance
 from evotorch import Problem
 
@@ -24,8 +25,8 @@ def test_create_mis_instance() -> None:
     assert instance.n_nodes == 732
     assert instance.gt_labels.sum().item() == 45
     assert (
-        instance.gt_labels.shape[0]
-        == 732
+        732
+        == instance.gt_labels.shape[0]
         == instance.n_nodes
         == instance.adj_matrix.shape[0]
         == instance.adj_matrix.shape[1]
@@ -35,8 +36,8 @@ def test_create_mis_instance() -> None:
 def test_mis_ga_runs() -> None:
     instance = read_mis_instance()
 
-    ga = create_mis_ea(instance)
-    ga.run(2)
+    ga = create_mis_ea(instance, config=Config(pop_size=10))
+    ga.run(num_generations=2)
 
     status = ga.status
     assert status["iter"] == 2
@@ -49,6 +50,7 @@ def test_mis_problem_evaluation() -> None:
         objective_func=instance.evaluate_mis_individual,
         objective_sense="max",
         solution_length=instance.n_nodes,
+        device="cpu",
     )
 
     # create ind as a random tensor with size n_nodes

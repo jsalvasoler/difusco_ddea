@@ -8,6 +8,7 @@ from evotorch.logging import StdOutLogger
 from pyinstrument import Profiler
 from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
+from ea.config import Config
 
 from difusco.mis.mis_dataset import MISDataset
 from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
@@ -18,7 +19,7 @@ from ea.tsp import TSPInstance
 ProblemInstance = MISInstance | TSPInstance
 
 
-def ea_factory(args: Namespace, instance: ProblemInstance) -> GeneticAlgorithm:
+def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
     if args.task == "mis":
         return create_mis_ea(instance, args)
     error_msg = f"No evolutionary algorithm for task {args.task}."
@@ -32,7 +33,7 @@ def instance_factory(task: str, sample: tuple) -> ProblemInstance:
     raise ValueError(error_msg)
 
 
-def dataset_factory(args: Namespace) -> Dataset:
+def dataset_factory(config: Config) -> Dataset:
     data_path = os.path.join(args.data_path, args.test_split)
     data_label_dir = os.path.join(args.data_path, args.test_split_label_dir) if args.test_split_label_dir else None
 
@@ -58,7 +59,7 @@ def main_ea() -> None:
         run_ea(args)
 
 
-def run_ea(args: Namespace) -> None:
+def run_ea(config: Config) -> None:
     dataset = dataset_factory(args)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 

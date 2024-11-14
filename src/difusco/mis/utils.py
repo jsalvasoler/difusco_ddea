@@ -9,44 +9,43 @@ def mis_decode_np(predictions: np.ndarray, adj_matrix: sp.csr_matrix) -> np.ndar
     solution = np.zeros_like(predictions.astype(int))
     sorted_predict_labels = np.argsort(-predictions)
 
-    for i in sorted_predict_labels:
-        next_node = i
-
-        if solution[next_node] == -1:
+    for node in sorted_predict_labels:
+        if solution[node] == -1:
             continue
 
-        solution[adj_matrix[next_node].nonzero()[1]] = -1
-        solution[next_node] = 1
+        solution[adj_matrix[node].nonzero()[1]] = -1
+        solution[node] = 1
 
     return (solution == 1).astype(int)
 
 
-def mis_decode_torch(predictions: torch.Tensor, adj_matrix: sp.csr_matrix) -> torch.Tensor:
-    """Decode the labels to the MIS using PyTorch tensors."""
+def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> torch.Tensor:
+    """
+    Decode the labels to the MIS using PyTorch tensors.
+
+    Args:
+        predictions: The predicted labels in a torch.Tensor.
+        adj_matrix: The adjacency matrix of the graph in a torch.sparse_csr_tensor 
+    """
+
+    def get_neighbors(adj_csr: torch.sparse.FloatTensor, node: int) -> torch.Tensor:
+        row_start = adj_csr.crow_indices()[node].item()
+        row_end = adj_csr.crow_indices()[node + 1].item()
+        return adj_csr.col_indices()[row_start:row_end]
 
     # Initialize solution tensor on the same device as predictions.
-    solution = torch.zeros_like(predictions, dtype=torch.int)
+    solution = torch.zeros_like(predictions, dtype=torch.int, device=predictions.device).clone()
 
     # Get sorted indices of predictions in descending order.
     sorted_predict_labels = torch.argsort(-predictions)
 
-    # Convert the adjacency matrix to a CSR format if it's not already.
-    csr_adj_matrix = adj_matrix.tocsr()
-
     # Process each node according to the sorted prediction order.
-    for i in sorted_predict_labels:
-        next_node = i.item()  # Get scalar index
-
-        # Skip if the node has been set to -1 (i.e., already processed).
-        if solution[next_node] == -1:
+    for node in sorted_predict_labels:
+        if solution[node] == -1:
             continue
 
-        # Set neighbors of the current node to -1.
-        neighbors = csr_adj_matrix[next_node].nonzero()[1]
-        for neighbor in neighbors:
-            solution[neighbor] = -1
-
-        # Set the current node as part of the solution.
-        solution[next_node] = 1
+        neighbors = get_neighbors(adj_csr=adj_matrix, node=node)
+        solution[neighbors] = -1
+        solution[node] = 1
 
     return (solution == 1).int()
