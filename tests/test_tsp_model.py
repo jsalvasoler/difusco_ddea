@@ -3,11 +3,11 @@ from argparse import Namespace
 
 import numpy as np
 import torch
+from problems.tsp.tsp_evaluation import TSPEvaluator
 
 from difusco.arg_parser import get_arg_parser, validate_args
 from difusco.difusco import difusco
 from difusco.tsp.pl_tsp_model import TSPGraphDataset, TSPModel
-from difusco.tsp.utils import TSPEvaluator
 
 
 def test_categorical_tsp_training_step() -> None:

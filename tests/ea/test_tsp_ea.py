@@ -1,10 +1,9 @@
 import os
 
-from ea.tsp import TSPInstance, create_tsp_instance
+from problems.tsp.tsp_ea import TSPInstance, create_tsp_instance
+from problems.tsp.tsp_evaluation import TSPEvaluator
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from scipy.spatial import distance_matrix
-
-from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
-from difusco.tsp.utils import TSPEvaluator
 
 
 def get_tsp_sample() -> TSPInstance:

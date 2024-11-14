@@ -4,11 +4,10 @@ import numpy as np
 import pytest
 import scipy.sparse as sp
 import torch
+from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_evaluation import mis_decode_np, mis_decode_torch
 from scipy.sparse import coo_matrix
 from tqdm import tqdm
-
-from difusco.mis.mis_dataset import MISDataset
-from difusco.mis.utils import mis_decode_np, mis_decode_torch
 
 
 @pytest.fixture

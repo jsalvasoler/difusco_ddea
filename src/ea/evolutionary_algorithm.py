@@ -5,17 +5,17 @@ import numpy as np
 import wandb
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
+from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
+from problems.tsp.tsp_ea import TSPInstance, create_tsp_instance
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from pyinstrument import Profiler
 from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
 
-from difusco.mis.mis_dataset import MISDataset
-from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 from ea.arg_parser import parse_args, validate_args
 from ea.config import Config
 from ea.ea_utils import save_results
-from ea.mis import MISInstance, create_mis_ea, create_mis_instance
-from ea.tsp import TSPInstance, create_tsp_instance
 
 ProblemInstance = MISInstance | TSPInstance
 

@@ -1,8 +1,8 @@
 from itertools import permutations
 
 import numpy as np
+from problems.tsp.tsp_evaluation import batched_two_opt_torch, cython_merge
 
-from difusco.tsp.utils import batched_two_opt_torch, cython_merge
 from tests.resources.tsp_merge_python import merge_python
 
 

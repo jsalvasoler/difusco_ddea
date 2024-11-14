@@ -1,9 +1,8 @@
 import os
 
 import numpy as np
-
-from difusco.mis.mis_dataset import MISDataset
-from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.mis.mis_dataset import MISDataset
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 
 
 def test_tsp_dataset_is_loaded() -> None:

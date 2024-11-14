@@ -6,12 +6,10 @@ import torch
 from evotorch import Problem
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import GaussianMutation, OnePointCrossOver
-
-from difusco.mis.utils import mis_decode_torch
+from problems.mis.mis_evaluation import mis_decode_torch
 
 if TYPE_CHECKING:
     import numpy as np
-
     from ea.config import Config
 
 

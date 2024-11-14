@@ -1,10 +1,10 @@
 from argparse import Namespace
 
 import torch
+from problems.mis.mis_dataset import MISDataset
 from torch_geometric.data import Batch
 
 from difusco.arg_parser import get_arg_parser
-from difusco.mis.mis_dataset import MISDataset
 from difusco.mis.pl_mis_model import MISModel
 
 

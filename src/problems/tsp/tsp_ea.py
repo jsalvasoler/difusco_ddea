@@ -1,6 +1,5 @@
 import torch
-
-from difusco.tsp.utils import TSPTorchEvaluator
+from problems.tsp.tsp_evaluation import TSPTorchEvaluator
 
 
 class TSPInstance:

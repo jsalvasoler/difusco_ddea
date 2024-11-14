@@ -2,10 +2,9 @@ import os
 
 import torch
 from ea.config import Config
-from ea.mis import MISInstance, create_mis_ea, create_mis_instance
+from ea.mis.mis import MISInstance, create_mis_ea, create_mis_instance
 from evotorch import Problem
-
-from difusco.mis.mis_dataset import MISDataset
+from problems.mis.mis_dataset import MISDataset
 
 
 def read_mis_instance() -> MISInstance:

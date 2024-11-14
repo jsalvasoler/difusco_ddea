@@ -3,10 +3,10 @@ from argparse import Namespace
 
 import numpy as np
 import torch
+from problems.mis.mis_dataset import MISDataset
 from torch_geometric.data import Batch
 
 from difusco.arg_parser import get_arg_parser
-from difusco.mis.mis_dataset import MISDataset
 from difusco.mis.pl_high_degree_model import HighDegreeSelection, high_degree_decode_np
 
 

@@ -5,11 +5,11 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+from problems.tsp.tsp_evaluation import TSPEvaluator, batched_two_opt_torch, merge_tours
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from tqdm import tqdm
 
 from difusco.arg_parser import parse_args
-from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
-from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 
 def run_tsp_heuristics() -> None:

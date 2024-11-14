@@ -3,9 +3,9 @@ from argparse import Namespace
 from typing import Any, Generator
 
 import pytest
+from problems.mis.mis_dataset import MISDataset
 
 from difusco.mis.generate_node_degree_labels import generate_node_degree_labels
-from difusco.mis.mis_dataset import MISDataset
 
 
 @pytest.fixture
