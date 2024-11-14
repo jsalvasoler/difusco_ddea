@@ -4,25 +4,29 @@ from argparse import ArgumentParser, Namespace
 
 def get_arg_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Run an evolutionary algorithm")
-    parser.add_argument("--task", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=True)
-    parser.add_argument("--logs_path", type=str, default=None)
-    parser.add_argument("--results_path", type=str, default=None)
-    parser.add_argument("--test_split", type=str, required=True)
-    parser.add_argument("--test_split_label_dir", type=str, default=None)
 
-    parser.add_argument("--project_name", type=str, default="difusco")
-    parser.add_argument("--wandb_entity", type=str, default=None)
-    parser.add_argument("--wandb_logger_name", type=str, default=None)
+    general = parser.add_argument_group("general")
+    general.add_argument("--task", type=str, required=True)
+    general.add_argument("--data_path", type=str, required=True)
+    general.add_argument("--logs_path", type=str, default=None)
+    general.add_argument("--results_path", type=str, default=None)
+    general.add_argument("--test_split", type=str, required=True)
+    general.add_argument("--test_split_label_dir", type=str, default=None)
 
-    parser.add_argument("--device", type=str, default="cpu")
-    parser.add_argument("--n_parallel_evals", type=int, default=0)
+    wandb = parser.add_argument_group("wandb")
+    wandb.add_argument("--project_name", type=str, default="difusco")
+    wandb.add_argument("--wandb_entity", type=str, default=None)
+    wandb.add_argument("--wandb_logger_name", type=str, default=None)
 
-    parser.add_argument("--pop_size", type=int, default=100)
-    parser.add_argument("--n_generations", type=int, default=100)
+    ea_settings = parser.add_argument_group("ea_settings")
+    ea_settings.add_argument("--device", type=str, default="cpu")
+    ea_settings.add_argument("--n_parallel_evals", type=int, default=0)
+    ea_settings.add_argument("--pop_size", type=int, default=100)
+    ea_settings.add_argument("--n_generations", type=int, default=100)
 
-    parser.add_argument("--profiler", action="store_true")
-    parser.add_argument("--validate_samples", type=int, default=None)
+    dev = parser.add_argument_group("dev")
+    dev.add_argument("--profiler", action="store_true")
+    dev.add_argument("--validate_samples", type=int, default=None)
 
     return parser
 

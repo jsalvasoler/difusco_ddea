@@ -13,6 +13,7 @@ from difusco.mis.mis_dataset import MISDataset
 from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
 from ea.arg_parser import parse_args, validate_args
 from ea.config import Config
+from ea.ea_utils import save_results
 from ea.mis import MISInstance, create_mis_ea, create_mis_instance
 from ea.tsp import TSPInstance
 
@@ -77,14 +78,12 @@ def run_ea(config: Config) -> None:
 
     results = []
 
+    is_validation_run = config.validate_samples is not None
     for i, sample in enumerate(dataloader):
         instance = instance_factory(config, sample)
         ea = ea_factory(config, instance)
 
-        _ = StdOutLogger(
-            searcher=ea,
-            interval=10,
-        )
+        _ = StdOutLogger(searcher=ea, interval=10)
 
         start_time = timeit.default_timer()
         ea.run(config.n_generations)
@@ -97,7 +96,7 @@ def run_ea(config: Config) -> None:
         wandb.log(run_results, step=i)
         results.append(run_results)
 
-        if config.validate_samples is not None and i == config.validate_samples - 1:
+        if is_validation_run and i == config.validate_samples - 1:
             break
 
     agg_results = {
@@ -107,5 +106,11 @@ def run_ea(config: Config) -> None:
         "avg_runtime": np.mean([r["runtime"] for r in results]),
     }
     wandb.log(agg_results)
+
+    agg_results["wandb_id"] = wandb.run.id
+
+    # save results to results_path if it is not a validation run
+    if not is_validation_run:
+        save_results(config, agg_results)
 
     wandb.finish()
