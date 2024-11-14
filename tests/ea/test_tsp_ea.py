@@ -17,7 +17,7 @@ def get_tsp_sample() -> TSPInstance:
 
 def test_create_tsp_instance() -> None:
     sample = get_tsp_sample()
-    instance = create_tsp_instance(sample, sparse_factor=-1)
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     assert instance.gt_cost > 0
     assert instance.points.shape == (50, 2)

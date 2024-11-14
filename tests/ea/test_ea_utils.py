@@ -36,7 +36,7 @@ def test_save_results_file_does_not_exist(temp_dir: Generator) -> None:
 
     save_results(config, results)
 
-    results_file = os.path.join(config.results_path, "ea_results")
+    results_file = os.path.join(config.results_path, "ea_results.csv")
     assert os.path.exists(results_file)
 
     df = pd.read_csv(results_file)
@@ -67,7 +67,7 @@ def test_save_results_file_exists(temp_dir: Generator) -> None:
     # Create an initial results file
     initial_data = {"task": ["mis"], "wandb_logger_name": ["initial_logger"], "accuracy": [0.90], "loss": [0.10]}
     initial_df = pd.DataFrame(initial_data)
-    results_file = os.path.join(config.results_path, "ea_results")
+    results_file = os.path.join(config.results_path, "ea_results.csv")
     initial_df.to_csv(results_file, index=False)
 
     save_results(config, results)
