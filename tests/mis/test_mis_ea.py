@@ -2,9 +2,9 @@ import os
 
 import torch
 from ea.config import Config
-from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
 from evotorch import Problem
 from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
 
 
 def read_mis_instance() -> MISInstance:
@@ -35,7 +35,7 @@ def test_create_mis_instance() -> None:
 def test_mis_ga_runs() -> None:
     instance = read_mis_instance()
 
-    ga = create_mis_ea(instance, config=Config(pop_size=10))
+    ga = create_mis_ea(instance, config=Config(pop_size=10, n_parallel_evals=0))
     ga.run(num_generations=2)
 
     status = ga.status
