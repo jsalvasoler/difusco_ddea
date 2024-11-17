@@ -123,7 +123,7 @@ class MatrixQuadrantCrossover(CrossOver):
         return self._make_children_batch(children)
 
 
-def create_tsp_ea(instance: TSPInstance, config: Config) -> Problem:
+def create_tsp_ea(instance: TSPInstance, config: Config) -> GeneticAlgorithm:
     problem = create_tsp_problem(instance, config)
 
     return GeneticAlgorithm(
