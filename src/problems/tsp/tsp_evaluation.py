@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from multiprocessing import Pool
 from typing import Literal  # TODO: fix when upgrading python version
 
@@ -94,11 +95,11 @@ def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, in
 
 
 def cython_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
-    # with warnings.catch_warnings():
-    #     warnings.simplefilter("ignore")
-    real_adj_mat, merge_iterations = merge_cython(points.astype("double"), adj_mat.astype("double"))
-    real_adj_mat = np.asarray(real_adj_mat)
-    return real_adj_mat, merge_iterations
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        real_adj_mat, merge_iterations = merge_cython(points.astype("double"), adj_mat.astype("double"))
+        real_adj_mat = np.asarray(real_adj_mat)
+        return real_adj_mat, merge_iterations
 
 
 def merge_tours(

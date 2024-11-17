@@ -12,6 +12,7 @@ from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from pyinstrument import Profiler
 from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
+from tqdm import tqdm
 
 from ea.arg_parser import parse_args, validate_args
 from ea.config import Config
@@ -82,7 +83,7 @@ def run_ea(config: Config) -> None:
     results = []
 
     is_validation_run = config.validate_samples is not None
-    for i, sample in enumerate(dataloader):
+    for i, sample in tqdm(enumerate(dataloader)):
         instance = instance_factory(config, sample)
         ea = ea_factory(config, instance)
 
@@ -93,7 +94,7 @@ def run_ea(config: Config) -> None:
 
         cost = ea.status["pop_best_eval"]
         gt_cost = instance.gt_cost
-        gap = (gt_cost - cost) / gt_cost
+        gap = (cost - gt_cost) / gt_cost
 
         run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
         wandb.log(run_results, step=i)
