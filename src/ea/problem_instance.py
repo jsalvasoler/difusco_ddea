@@ -4,8 +4,8 @@ import torch
 
 
 class ProblemInstance(ABC):
-    @abstractmethod
     @property
+    @abstractmethod
     def gt_cost(self) -> float:
         pass
 

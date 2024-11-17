@@ -22,11 +22,11 @@ class TSPInstance(ProblemInstance):
         self.gt_tour = gt_tour
         self.tsp_evaluator = TSPTorchEvaluator(points=self.points)
 
-        self.gt_cost = self.evaluate_tsp_route(gt_tour)
+        self._gt_cost = self.evaluate_tsp_route(gt_tour)
 
     @property
     def gt_cost(self) -> float:
-        return self.gt_cost
+        return self._gt_cost
 
     def evaluate_tsp_route(self, route: torch.Tensor) -> float:
         return self.tsp_evaluator.evaluate(route)
