@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal
 
 import torch
+from ea.problem_instance import ProblemInstance
 from evotorch import Problem
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import GaussianMutation, OnePointCrossOver
@@ -13,19 +14,23 @@ if TYPE_CHECKING:
     from ea.config import Config
 
 
-class MISInstance:
+class MISInstance(ProblemInstance):
     def __init__(self, adj_matrix: torch.Tensor, n_nodes: int, gt_labels: np.array | None = None) -> None:
         self.adj_matrix = adj_matrix
         self.n_nodes = n_nodes
         self.gt_labels = gt_labels
 
-    def evaluate_mis_individual(self, ind: torch.Tensor) -> float:
-        return mis_decode_torch(ind, self.adj_matrix).sum()
+    @property
+    def gt_cost(self) -> float:
+        return self.gt_labels.sum()
+
+    def evaluate_individual(self, individual: torch.Tensor) -> float:
+        return mis_decode_torch(individual, self.adj_matrix).sum()
 
 
 def create_mis_ea(instance: MISInstance, config: Config) -> GeneticAlgorithm:
     problem = Problem(
-        objective_func=instance.evaluate_mis_individual,
+        objective_func=instance.evaluate_individual,
         objective_sense="max",
         solution_length=instance.n_nodes,
         bounds=(0, 1),

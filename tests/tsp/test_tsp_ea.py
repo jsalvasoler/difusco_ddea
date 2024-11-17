@@ -143,7 +143,7 @@ def test_tsp_problem_evaluation() -> None:
         gt_tour=torch.tensor([0, 1, 2, 3, 0]),
     )
     problem = Problem(
-        objective_func=instance.evaluate_tsp_individual,
+        objective_func=instance.evaluate_individual,
         objective_sense="min",
         solution_length=4**2,
         device="cpu",
@@ -152,13 +152,13 @@ def test_tsp_problem_evaluation() -> None:
     # create the adjacency matrix of 0 -> 1 -> 2 -> 3 -> 0
     ind = np.array([[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]])
     ind = torch.from_numpy(ind).view(-1)
-    obj = instance.evaluate_tsp_individual(ind)
+    obj = instance.evaluate_individual(ind)
     assert obj == problem._objective_func(ind) == 4  # noqa: SLF001
 
     # create the adjacency matrix of 0 -> 2 -> 1 -> 3 -> 0
     ind = np.array([[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]])
     ind = torch.from_numpy(ind).view(-1)
-    obj = instance.evaluate_tsp_individual(ind)
+    obj = instance.evaluate_individual(ind)
     assert obj == problem._objective_func(ind) == 2 * 2**0.5 + 2  # noqa: SLF001
 
 
@@ -171,7 +171,7 @@ def test_problem_evaluation_on_tsp_instance() -> None:
     ind = torch.rand(instance.n**2)
 
     # evaluate the individual
-    obj = instance.evaluate_tsp_individual(ind)
+    obj = instance.evaluate_individual(ind)
     assert obj == problem._objective_func(ind)  # noqa: SLF001
 
     # evaluate the ground truth tour

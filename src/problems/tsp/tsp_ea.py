@@ -1,13 +1,14 @@
 import numpy as np
 import torch
 from ea.config import Config
+from ea.problem_instance import ProblemInstance
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import CrossOver, GaussianMutation
 from problems.tsp.tsp_evaluation import TSPTorchEvaluator, cython_merge
 
 
-class TSPInstance:
+class TSPInstance(ProblemInstance):
     """
     Class representing a TSP instance. Responsible for evaluating TSP individuals. Makes sure that all tensors stay
     on the same device as the argument tensors.
@@ -23,10 +24,14 @@ class TSPInstance:
 
         self.gt_cost = self.evaluate_tsp_route(gt_tour)
 
+    @property
+    def gt_cost(self) -> float:
+        return self.gt_cost
+
     def evaluate_tsp_route(self, route: torch.Tensor) -> float:
         return self.tsp_evaluator.evaluate(route)
 
-    def evaluate_tsp_individual(self, ind: torch.Tensor) -> float:
+    def evaluate_individual(self, ind: torch.Tensor) -> float:
         # individual has size self.n ** 2, we reshape it to a matrix
         heatmap = ind.view(self.n, self.n).cpu().numpy()
 
@@ -63,7 +68,7 @@ def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPIn
 
 def create_tsp_problem(instance: TSPInstance, config: Config) -> Problem:
     return Problem(
-        objective_func=instance.evaluate_tsp_individual,
+        objective_func=instance.evaluate_individual,
         objective_sense="min",
         solution_length=instance.n**2,
         device=config.device,

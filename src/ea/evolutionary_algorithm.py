@@ -6,8 +6,8 @@ import wandb
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_dataset import MISDataset
-from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
-from problems.tsp.tsp_ea import TSPInstance, create_tsp_ea, create_tsp_instance
+from problems.mis.mis_ea import create_mis_ea, create_mis_instance
+from problems.tsp.tsp_ea import create_tsp_ea, create_tsp_instance
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from pyinstrument import Profiler
 from torch.utils.data import Dataset
@@ -16,8 +16,7 @@ from torch_geometric.loader import DataLoader
 from ea.arg_parser import parse_args, validate_args
 from ea.config import Config
 from ea.ea_utils import save_results
-
-ProblemInstance = MISInstance | TSPInstance
+from ea.problem_instance import ProblemInstance
 
 
 def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
@@ -93,7 +92,7 @@ def run_ea(config: Config) -> None:
         ea.run(config.n_generations)
 
         cost = ea.status["pop_best_eval"]
-        gt_cost = instance.evaluate_mis_individual(instance.gt_labels)
+        gt_cost = instance.gt_cost
         gap = (gt_cost - cost) / gt_cost
 
         run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}

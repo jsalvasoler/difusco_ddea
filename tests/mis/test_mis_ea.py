@@ -47,7 +47,7 @@ def test_mis_problem_evaluation() -> None:
     instance = read_mis_instance()
 
     problem = Problem(
-        objective_func=instance.evaluate_mis_individual,
+        objective_func=instance.evaluate_individual,
         objective_sense="max",
         solution_length=instance.n_nodes,
         device="cpu",
@@ -55,11 +55,11 @@ def test_mis_problem_evaluation() -> None:
 
     # create ind as a random tensor with size n_nodes
     ind = torch.rand(instance.n_nodes)
-    obj = instance.evaluate_mis_individual(ind)
+    obj = instance.evaluate_individual(ind)
     assert obj == problem._objective_func(ind)  # noqa: SLF001
 
     # evaluate the labels (ground truth) of the instance
-    obj_gt = instance.evaluate_mis_individual(instance.gt_labels)
+    obj_gt = instance.evaluate_individual(instance.gt_labels)
     assert obj_gt == problem._objective_func(instance.gt_labels)  # noqa: SLF001
 
     assert obj_gt == instance.gt_labels.sum()
