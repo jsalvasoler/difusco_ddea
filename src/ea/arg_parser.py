@@ -24,6 +24,9 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--pop_size", type=int, default=100)
     ea_settings.add_argument("--n_generations", type=int, default=100)
 
+    tsp_settings = parser.add_argument_group("tsp_settings")
+    tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
+
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true")
     dev.add_argument("--validate_samples", type=int, default=None)

@@ -4,6 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import torch
 from ea.config import Config
+from ea.evolutionary_algorithm import dataset_factory
 from evotorch import Problem
 from problems.tsp.tsp_ea import (
     MatrixQuadrantCrossover,
@@ -15,6 +16,7 @@ from problems.tsp.tsp_ea import (
 from problems.tsp.tsp_evaluation import TSPEvaluator
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from scipy.spatial import distance_matrix
+from torch_geometric.loader import DataLoader
 
 
 def get_tsp_sample() -> TSPInstance:
@@ -23,7 +25,12 @@ def get_tsp_sample() -> TSPInstance:
         data_file=os.path.join(resource_dir, "tsp50_example_dataset_two_samples.txt"), sparse_factor=-1
     )
 
-    return dataset.__getitem__(0)
+    item = dataset.__getitem__(0)
+    _, points, _, tour = item
+    # make a batch of size one for points and tour
+    points = torch.stack([points])
+    tour = torch.stack([tour])
+    return 0, points, 0, tour
 
 
 def test_create_tsp_instance() -> None:
@@ -39,7 +46,7 @@ def test_create_tsp_instance() -> None:
 
     # Compare with hand-calculated cost
     tour = instance.gt_tour.cpu().numpy()
-    points = sample[1].cpu().numpy()
+    points = sample[1][0].cpu().numpy()
     dist_mat = distance_matrix(points, points)
 
     calc_cost = 0
@@ -181,3 +188,24 @@ def test_tsp_ga_runs() -> None:
 
     status = ga.status
     assert status["iter"] == 2
+
+
+def test_tsp_ga_runs_with_dataloader() -> None:
+    dataset = dataset_factory(
+        config=Config(
+            data_path="tests/resources",
+            test_split="tsp50_example_dataset_two_samples.txt",
+            test_split_label_dir=None,
+            task="tsp",
+        )
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    for sample in dataloader:
+        instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
+        ga = create_tsp_ea(instance, config=Config(pop_size=10, device="cpu"))
+        ga.run(num_generations=2)
+
+        status = ga.status
+        assert status["iter"] == 2
+        break

@@ -49,11 +49,15 @@ class TSPInstance:
 
 
 def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
+    """Create a TSPInstance from a sample. A sample is a batch of size 1"""
+
     if sparse_factor <= 0:
-        _, points, adj_matrix, tour = sample
+        _, points, _, tour = sample
+        points, tour = points[0], tour[0]
         return TSPInstance(points.to(device), tour.to(device))
 
-    _, points, graph_data, adj_matrix, tour = sample
+    _, points, _, _, tour = sample
+    points, tour = points[0], tour[0]
     return TSPInstance(points.to(device), tour.to(device))
 
 

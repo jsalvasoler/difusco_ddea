@@ -5,6 +5,7 @@ from ea.config import Config
 from evotorch import Problem
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
+from torch_geometric.loader import DataLoader
 
 
 def read_mis_instance() -> MISInstance:
@@ -63,3 +64,20 @@ def test_mis_problem_evaluation() -> None:
 
     assert obj_gt == instance.gt_labels.sum()
     assert obj_gt >= obj
+
+
+def test_mis_ga_runs_with_dataloader() -> None:
+    dataset = MISDataset(
+        data_dir="tests/resources/er_example_dataset",
+        data_label_dir="tests/resources/er_example_dataset_annotations",
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    for sample in dataloader:
+        instance = create_mis_instance(sample, device="cpu")
+        ga = create_mis_ea(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+        ga.run(num_generations=2)
+
+        status = ga.status
+        assert status["iter"] == 2
+        break
