@@ -1,5 +1,6 @@
 import os
 
+import pytest
 import torch
 from ea.config import Config
 from evotorch import Problem
@@ -8,7 +9,7 @@ from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
 from torch_geometric.loader import DataLoader
 
 
-def read_mis_instance() -> MISInstance:
+def read_mis_instance(np_eval: bool = False) -> MISInstance:
     resource_dir = "tests/resources"
     dataset = MISDataset(
         data_dir=os.path.join(resource_dir, "er_example_dataset"),
@@ -17,11 +18,12 @@ def read_mis_instance() -> MISInstance:
 
     sample = dataset.__getitem__(0)
 
-    return create_mis_instance(sample)
+    return create_mis_instance(sample, np_eval=np_eval)
 
 
-def test_create_mis_instance() -> None:
-    instance = read_mis_instance()
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_create_mis_instance(np_eval: bool) -> None:
+    instance = read_mis_instance(np_eval=np_eval)
     assert instance.n_nodes == 732
     assert instance.gt_labels.sum().item() == 45
     assert (
@@ -33,18 +35,20 @@ def test_create_mis_instance() -> None:
     )
 
 
-def test_mis_ga_runs() -> None:
-    instance = read_mis_instance()
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_runs(np_eval: bool, pop_size: int) -> None:
+    instance = read_mis_instance(np_eval=np_eval)
 
-    ga = create_mis_ea(instance, config=Config(pop_size=10, n_parallel_evals=0))
+    ga = create_mis_ea(instance, config=Config(pop_size=pop_size, n_parallel_evals=0))
     ga.run(num_generations=2)
 
     status = ga.status
     assert status["iter"] == 2
 
 
-def test_mis_problem_evaluation() -> None:
-    instance = read_mis_instance()
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_problem_evaluation(np_eval: bool) -> None:
+    instance = read_mis_instance(np_eval=np_eval)
 
     problem = Problem(
         objective_func=instance.evaluate_individual,
@@ -66,7 +70,8 @@ def test_mis_problem_evaluation() -> None:
     assert obj_gt >= obj
 
 
-def test_mis_ga_runs_with_dataloader() -> None:
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
     dataset = MISDataset(
         data_dir="tests/resources/er_example_dataset",
         data_label_dir="tests/resources/er_example_dataset_annotations",
@@ -74,7 +79,7 @@ def test_mis_ga_runs_with_dataloader() -> None:
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
     for sample in dataloader:
-        instance = create_mis_instance(sample, device="cpu")
+        instance = create_mis_instance(sample, device="cpu", np_eval=np_eval)
         ga = create_mis_ea(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
         ga.run(num_generations=2)
 

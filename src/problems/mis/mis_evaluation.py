@@ -25,13 +25,11 @@ def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> tor
 
     Args:
         predictions: The predicted labels in a torch.Tensor.
-        adj_matrix: The adjacency matrix of the graph in a torch.sparse_csr_tensor
-    """
+        adj_matrix: The adjacency matrix of the graph as a torch.sparse_coo_tensor.
 
-    def get_neighbors(adj_csr: torch.sparse.FloatTensor, node: int) -> torch.Tensor:
-        row_start = adj_csr.crow_indices()[node].item()
-        row_end = adj_csr.crow_indices()[node + 1].item()
-        return adj_csr.col_indices()[row_start:row_end]
+    Returns:
+        torch.Tensor: A binary tensor indicating the nodes included in the MIS.
+    """
 
     # Initialize solution tensor on the same device as predictions.
     solution = torch.zeros_like(predictions, dtype=torch.int, device=predictions.device).clone()
@@ -39,13 +37,22 @@ def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> tor
     # Get sorted indices of predictions in descending order.
     sorted_predict_labels = torch.argsort(-predictions)
 
-    # Process each node according to the sorted prediction order.
+    # Extract adjacency matrix indices
+    row_indices, col_indices = adj_matrix.indices()
+
+    # Process each node according to the sorted prediction order
     for node in sorted_predict_labels:
         if solution[node] == -1:
             continue
 
-        neighbors = get_neighbors(adj_csr=adj_matrix, node=node)
+        # Get neighbors of the current node
+        neighbors_mask = row_indices == node  # Boolean mask for rows matching the node
+        neighbors = col_indices[neighbors_mask]  # Column indices where the row matches
+
+        # Mark neighbors as invalid (-1)
         solution[neighbors] = -1
+        # Add the current node to the solution
         solution[node] = 1
 
+    # Return a binary tensor indicating the nodes in the MIS
     return (solution == 1).int()

@@ -31,7 +31,7 @@ def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
 
 def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
     if config.task == "mis":
-        return create_mis_instance(sample, device=config.device)
+        return create_mis_instance(sample, device=config.device, np_eval=config.np_eval)
     if config.task == "tsp":
         return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
     error_msg = f"No instance for task {config.task}."
