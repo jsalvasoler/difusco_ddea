@@ -1,7 +1,8 @@
 from itertools import permutations
 
 import numpy as np
-from problems.tsp.tsp_evaluation import TSPEvaluator, batched_two_opt_torch, cython_merge
+import torch
+from problems.tsp.tsp_evaluation import TSPEvaluator, TSPTorchEvaluator, batched_two_opt_torch, cython_merge
 
 from tests.resources.tsp_merge_python import merge_python
 
@@ -116,9 +117,6 @@ def test_batched_two_opt_torch() -> None:
         assert sorted(edges.tolist()) == sorted(edges_min_cost.tolist()), f"{edges} != {edges_min_cost}"
 
 
-# import tsp utils
-
-
 def test_numpy_heatmaps() -> None:
     file = "tests/resources/test-heatmap-size50.npy"
     heatmap = np.load(file)
@@ -161,6 +159,22 @@ def test_tsp_evaluator_with_np_array() -> None:
     points = np.load(file)
     tsp_eval = TSPEvaluator(points)
     route = np.array(list(range(50)))
+    cost = tsp_eval.evaluate(route)
+
+    # calculated cost
+    calc_cost = 0
+    for i in range(len(route) - 1):
+        calc_cost += tsp_eval.dist_mat[route[i], route[i + 1]]
+
+    assert cost == calc_cost
+
+
+def test_tsp_torch_evaluator() -> None:
+    file = "tests/resources/test-points-size50.npy"
+    points = np.load(file)
+    points = torch.tensor(points)
+    tsp_eval = TSPTorchEvaluator(points)
+    route = torch.tensor(list(range(50)))
     cost = tsp_eval.evaluate(route)
 
     # calculated cost

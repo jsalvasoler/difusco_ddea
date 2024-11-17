@@ -7,7 +7,7 @@ from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
-from problems.tsp.tsp_ea import TSPInstance, create_tsp_instance
+from problems.tsp.tsp_ea import TSPInstance, create_tsp_ea, create_tsp_instance
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from pyinstrument import Profiler
 from torch.utils.data import Dataset
@@ -23,6 +23,8 @@ ProblemInstance = MISInstance | TSPInstance
 def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
     if config.task == "mis":
         return create_mis_ea(instance, config)
+    if config.task == "tsp":
+        return create_tsp_ea(instance, config)
     error_msg = f"No evolutionary algorithm for task {config.task}."
     raise ValueError(error_msg)
 
