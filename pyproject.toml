@@ -43,6 +43,7 @@ dependencies = [
   "wandb",
   "pyinstrument",
   "evotorch",
+  "click",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"
@@ -57,8 +58,7 @@ allow-direct-references = true
 
 [tool.hatch.envs.default.scripts]
 interactive = "ipython"
-difusco = "python3 -m difusco {args}"
-ea = "python3 -m ea {args}"
+cli = "python3 -m cli_tools {args}"
 
 [tool.hatch.envs.default]
 python = "3.11"

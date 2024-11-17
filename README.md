@@ -12,16 +12,15 @@ This repository contains the code of my Master Thesis, which is based on the wor
 - [Models](#models)
 - [License](#license)
 
-## Dependencies
+## Dependencies and Installation
 
 This project uses [hatch](https://hatch.pypa.io/) as a project manager. To install it, just `pip install hatch`. 
 
 Unfortunately, two dependencies (`torch-scatter` and `torch-sparse`) require `torch` as an runtime dependency. The usual `hatch` dependency sync will not work for these two packages. To install them, do:
 
 ```bash
-hatch run true # to create the environment and install basic dependencies
 
-hatch shell # to enter the environment
+hatch shell # to create and enter the environment
 
 pip install torch-scatter torch-sparse -f https://pytorch-geometric.com/whl/torch-2.3.1+cu121.html
 
@@ -37,6 +36,17 @@ Finally, we need to compile the `cython` code for the TSP heuristics. To do so, 
 cd src/difusco/tsp/cython_merge
 python setup.py build_ext --inplace
 ```
+
+
+## CLI Usage
+
+There is a simple click CLI that can be used to run all the relevant modules. To see the available commands, run:
+
+```bash
+hatch run cli --help
+```
+
+There are two groups of commands: `difusco` and `ea`. Run `hatch run cli difusco --help` and `hatch run cli ea --help` to see the available commands for each group.
 
 
 ## Data

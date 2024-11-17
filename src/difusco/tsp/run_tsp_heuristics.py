@@ -12,7 +12,7 @@ from tqdm import tqdm
 from difusco.arg_parser import parse_args
 
 
-def run_tsp_heuristics() -> None:
+def run_tsp_heuristics_main() -> None:
     args = parse_args()
     assert args.strategy in ["construction", "construction+2opt"]
 
@@ -115,4 +115,4 @@ def write_results(args: Namespace, results: dict) -> None:
 
 
 if __name__ == "__main__":
-    run_tsp_heuristics()
+    run_tsp_heuristics_main()
