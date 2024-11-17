@@ -27,6 +27,8 @@ def save_results(config: Config, results: dict[str, float | int | str]) -> None:
     # filter the name of the arguments of the grup ea_settings
     parser = get_arg_parser()
     ea_setting_args = filter_args_by_group(parser, "ea_settings")
+    tsp_setting_args = filter_args_by_group(parser, "tsp_settings")
+    mis_setting_args = filter_args_by_group(parser, "mis_settings")
 
     row = {
         "task": config.task,
@@ -35,6 +37,8 @@ def save_results(config: Config, results: dict[str, float | int | str]) -> None:
     }
 
     row.update({k: getattr(config, k) for k in ea_setting_args})
+    row.update({k: getattr(config, k) for k in tsp_setting_args})
+    row.update({k: getattr(config, k) for k in mis_setting_args})
     row.update(results)
     results_df = pd.DataFrame([row])
 

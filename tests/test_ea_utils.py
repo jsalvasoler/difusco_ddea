@@ -15,15 +15,10 @@ def temp_dir(tmp_path: str) -> Generator[any, any, any]:
     # Cleanup is handled by pytest
 
 
-def test_filter_args_by_group() -> None:
-    parser = get_arg_parser()
-    ea_settings_args = filter_args_by_group(parser, "ea_settings")
-    expected_args = ["device", "n_parallel_evals", "pop_size", "n_generations"]
-    assert set(ea_settings_args) == set(expected_args)
-
-
-def test_save_results_file_does_not_exist(temp_dir: Generator) -> None:
-    config = Config(
+@pytest.fixture
+def config(temp_dir: Generator) -> Config:
+    """Fixture to create a Config object for the tests."""
+    return Config(
         task="mis",
         wandb_logger_name="test_logger",
         results_path=str(temp_dir),
@@ -31,7 +26,19 @@ def test_save_results_file_does_not_exist(temp_dir: Generator) -> None:
         n_parallel_evals=0,
         pop_size=100,
         n_generations=100,
+        sparse_factor=-1,
+        np_eval=False,
     )
+
+
+def test_filter_args_by_group() -> None:
+    parser = get_arg_parser()
+    ea_settings_args = filter_args_by_group(parser, "ea_settings")
+    expected_args = ["device", "n_parallel_evals", "pop_size", "n_generations"]
+    assert set(ea_settings_args) == set(expected_args)
+
+
+def test_save_results_file_does_not_exist(config: Config) -> None:
     results = {"a": 0.95, "b": 0.05}
 
     save_results(config, results)
@@ -52,16 +59,7 @@ def test_save_results_file_does_not_exist(temp_dir: Generator) -> None:
     assert "timestamp" in df.columns
 
 
-def test_save_results_file_exists(temp_dir: Generator) -> None:
-    config = Config(
-        task="mis",
-        wandb_logger_name="test_logger",
-        results_path=str(temp_dir),
-        device="cpu",
-        n_parallel_evals=0,
-        pop_size=100,
-        n_generations=100,
-    )
+def test_save_results_file_exists(config: Config) -> None:
     results = {"a": 0.95, "b": 0.05}
 
     # Create an initial results file
