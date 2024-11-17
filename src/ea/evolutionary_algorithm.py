@@ -95,10 +95,8 @@ def run_ea(config: Config) -> None:
         cost = ea.status["pop_best_eval"]
         gt_cost = instance.gt_cost
 
-        if ea.problem.objective_sense == "min":
-            gap = (cost - gt_cost) / gt_cost
-        else:
-            gap = (gt_cost - cost) / gt_cost
+        diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
+        gap = diff / gt_cost
 
         run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
         wandb.log(run_results, step=i)

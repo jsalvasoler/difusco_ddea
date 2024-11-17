@@ -36,10 +36,10 @@ def test_create_mis_instance(np_eval: bool) -> None:
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_ga_runs(np_eval: bool, pop_size: int) -> None:
+def test_mis_ga_runs(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval)
 
-    ga = create_mis_ea(instance, config=Config(pop_size=pop_size, n_parallel_evals=0))
+    ga = create_mis_ea(instance, config=Config(pop_size=5, n_parallel_evals=0))
     ga.run(num_generations=2)
 
     status = ga.status
