@@ -1,5 +1,6 @@
 import os
 import timeit
+from argparse import Namespace
 
 import numpy as np
 import wandb
@@ -14,7 +15,6 @@ from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
-from ea.arg_parser import parse_args, validate_args
 from ea.config import Config
 from ea.ea_utils import save_results
 from ea.problem_instance import ProblemInstance
@@ -54,10 +54,7 @@ def dataset_factory(config: Config) -> Dataset:
     raise ValueError(error_msg)
 
 
-def main_ea() -> None:
-    args = parse_args()
-    validate_args(args)
-
+def main_ea(args: Namespace) -> None:
     config = Config.load_from_args(args)
 
     if args.profiler:

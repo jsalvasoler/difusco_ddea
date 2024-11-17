@@ -97,9 +97,7 @@ def difusco(args: Namespace) -> None:
     trainer.logger.finalize("success")
 
 
-def main_difusco() -> None:
-    args = parse_args()
-
+def main_difusco(args: Namespace) -> None:
     if args.profiler:
         with Profiler() as p:
             difusco(args)
@@ -109,4 +107,5 @@ def main_difusco() -> None:
 
 
 if __name__ == "__main__":
-    main_difusco()
+    args = parse_args()
+    main_difusco(args)

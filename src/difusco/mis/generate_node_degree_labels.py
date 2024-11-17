@@ -58,10 +58,6 @@ def generate_node_degree_labels(opts: argparse.Namespace) -> None:
         np.savetxt(os.path.join(opts.output_dir, filename), node_labels.numpy(), fmt="%d")
 
 
-def generate_node_degree_labels_main() -> None:
+if __name__ == "__main__":
     opts = parse_arguments()
     generate_node_degree_labels(opts)
-
-
-if __name__ == "__main__":
-    generate_node_degree_labels_main()
