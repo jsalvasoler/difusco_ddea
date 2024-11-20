@@ -107,6 +107,7 @@ def run_ea(config: Config) -> None:
         "avg_gt_cost": np.mean([r["gt_cost"] for r in results]),
         "avg_gap": np.mean([r["gap"] for r in results]),
         "avg_runtime": np.mean([r["runtime"] for r in results]),
+        "n_evals": len(results),
     }
     wandb.log(agg_results)
 

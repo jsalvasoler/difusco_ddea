@@ -1,11 +1,14 @@
 import os
 from typing import Generator
 
+import numpy as np
 import pandas as pd
 import pytest
 from ea.arg_parser import get_arg_parser
 from ea.config import Config
 from ea.ea_utils import filter_args_by_group, save_results
+from ea.evolutionary_algorithm import dataset_factory, instance_factory
+from torch_geometric.loader import DataLoader
 
 
 @pytest.fixture
@@ -81,3 +84,26 @@ def test_save_results_file_exists(config: Config) -> None:
     assert df["a"].iloc[1] == 0.95
     assert df["b"].iloc[1] == 0.05
     assert "timestamp" in df.columns
+
+
+def test_mis_gt_avg_cost_er_test_set() -> None:
+    config = Config(
+        task="mis",
+        data_path="data/mis",
+        test_split="er_test",
+        test_split_label_dir=None,  # er_test already has labels!
+        device="cpu",
+        np_eval=True,
+    )
+
+    dataset = dataset_factory(config)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    results = []
+
+    for sample in dataloader:
+        instance = instance_factory(config, sample)
+        gt_cost = instance.gt_cost
+        results.append(gt_cost)
+
+    assert np.mean(results) == 41.3828125

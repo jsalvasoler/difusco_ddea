@@ -51,6 +51,7 @@ def create_mis_ea(instance: MISInstance, config: Config) -> GeneticAlgorithm:
         solution_length=instance.n_nodes,
         bounds=(0, 1),
         num_actors=config.n_parallel_evals,
+        device=config.device,
     )
 
     return GeneticAlgorithm(
