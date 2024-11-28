@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 from evotorch import Problem
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import GaussianMutation, OnePointCrossOver
-from problems.mis.mis_instance import MISInstance
 
 if TYPE_CHECKING:
     from ea.config import Config
+    from problems.mis.mis_instance import MISInstance
 
 
 def create_mis_brkga(instance: MISInstance, config: Config) -> GeneticAlgorithm:
