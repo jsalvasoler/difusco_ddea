@@ -11,10 +11,10 @@ if TYPE_CHECKING:
 
 
 def create_tsp_ga(instance: TSPInstance, config: Config) -> GeneticAlgorithm:
-    problem = Problem(
+    problem = Problem(  # noqa: F841
         objective_func=instance.evaluate_individual,
-            objective_sense="min",
-            solution_length=instance.n**2,
-            device=config.device,
-            bounds=(0, 1),
+        objective_sense="min",
+        solution_length=instance.n**2,
+        device=config.device,
+        bounds=(0, 1),
     )

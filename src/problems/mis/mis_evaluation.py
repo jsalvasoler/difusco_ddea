@@ -55,4 +55,4 @@ def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> tor
         solution[node] = 1
 
     # Return a binary tensor indicating the nodes in the MIS
-    return (solution == 1).int()
+    return (solution == 1).bool()

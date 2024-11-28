@@ -30,5 +30,3 @@ def create_mis_brkga(instance: MISInstance, config: Config) -> GeneticAlgorithm:
         ],
         re_evaluate=False,
     )
-
-

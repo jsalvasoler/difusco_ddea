@@ -12,3 +12,11 @@ class ProblemInstance(ABC):
     @abstractmethod
     def evaluate_individual(self, individual: torch.Tensor) -> float:
         pass
+
+    @abstractmethod
+    def evaluate_solution(self, solution: torch.Tensor) -> float:
+        pass
+
+    @abstractmethod
+    def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
+        pass

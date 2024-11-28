@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
@@ -49,6 +47,12 @@ class TSPInstance(ProblemInstance):
 
         # Evaluate the tour using TSPTorchEvaluator
         return self.evaluate_tsp_route(tour)
+
+    def evaluate_solution(self, solution: torch.Tensor) -> float:
+        pass
+
+    def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
+        pass
 
 
 def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
