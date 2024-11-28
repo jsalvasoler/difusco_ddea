@@ -6,15 +6,14 @@ import torch
 from ea.config import Config
 from ea.evolutionary_algorithm import dataset_factory
 from evotorch import Problem
-from problems.tsp.tsp_ea import (
+from problems.tsp.tsp_brkga import (
     MatrixQuadrantCrossover,
-    TSPInstance,
-    create_tsp_ea,
-    create_tsp_instance,
+    create_tsp_brkga,
     create_tsp_problem,
 )
 from problems.tsp.tsp_evaluation import TSPEvaluator
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_instance import TSPInstance, create_tsp_instance
 from scipy.spatial import distance_matrix
 from torch_geometric.loader import DataLoader
 
@@ -183,7 +182,7 @@ def test_tsp_ga_runs() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ea(instance, config=Config(pop_size=10, device="cpu"))
+    ga = create_tsp_brkga(instance, config=Config(pop_size=10, device="cpu"))
     ga.run(num_generations=2)
 
     status = ga.status
@@ -203,7 +202,7 @@ def test_tsp_ga_runs_with_dataloader() -> None:
 
     for sample in dataloader:
         instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
-        ga = create_tsp_ea(instance, config=Config(pop_size=10, device="cpu"))
+        ga = create_tsp_brkga(instance, config=Config(pop_size=10, device="cpu"))
         ga.run(num_generations=2)
 
         status = ga.status

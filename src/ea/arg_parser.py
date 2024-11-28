@@ -6,6 +6,7 @@ def get_arg_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Run an evolutionary algorithm")
 
     general = parser.add_argument_group("general")
+    general.add_argument("--algo", type=str, required=True)
     general.add_argument("--task", type=str, required=True)
     general.add_argument("--data_path", type=str, required=True)
     general.add_argument("--logs_path", type=str, default=None)

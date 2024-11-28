@@ -23,6 +23,7 @@ def config(temp_dir: Generator) -> Config:
     """Fixture to create a Config object for the tests."""
     return Config(
         task="mis",
+        algo="brkga",
         wandb_logger_name="test_logger",
         results_path=str(temp_dir),
         device="cpu",
@@ -89,6 +90,7 @@ def test_save_results_file_exists(config: Config) -> None:
 def test_mis_gt_avg_cost_er_test_set() -> None:
     config = Config(
         task="mis",
+        algo="brkga",
         data_path="data/mis",
         test_split="er_test",
         test_split_label_dir=None,  # er_test already has labels!

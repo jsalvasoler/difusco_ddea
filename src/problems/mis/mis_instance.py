@@ -1,18 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
-from evotorch import Problem
-from evotorch.algorithms import GeneticAlgorithm
-from evotorch.operators import GaussianMutation, OnePointCrossOver
 from problems.mis.mis_evaluation import mis_decode_np, mis_decode_torch
 from scipy.sparse import coo_matrix
-
-if TYPE_CHECKING:
-    from ea.config import Config
 
 
 class MISInstance(ProblemInstance):
@@ -42,27 +36,6 @@ class MISInstanceNumPy(ProblemInstance):
     def evaluate_individual(self, individual: torch.Tensor) -> float:
         individual = individual.cpu().numpy()
         return mis_decode_np(individual, self.adj_matrix).sum()
-
-
-def create_mis_ea(instance: MISInstance, config: Config) -> GeneticAlgorithm:
-    problem = Problem(
-        objective_func=instance.evaluate_individual,
-        objective_sense="max",
-        solution_length=instance.n_nodes,
-        bounds=(0, 1),
-        num_actors=config.n_parallel_evals,
-        device=config.device,
-    )
-
-    return GeneticAlgorithm(
-        problem=problem,
-        popsize=config.pop_size,
-        operators=[
-            OnePointCrossOver(problem, tournament_size=4),
-            GaussianMutation(problem, stdev=0.1),
-        ],
-        re_evaluate=False,
-    )
 
 
 def create_mis_instance(sample: tuple, device: Literal["cpu", "cuda"] = "cpu", np_eval: bool = True) -> MISInstance:

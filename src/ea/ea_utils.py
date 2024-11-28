@@ -32,6 +32,7 @@ def save_results(config: Config, results: dict[str, float | int | str]) -> None:
 
     row = {
         "task": config.task,
+        "algo": config.algo,
         "wandb_logger_name": config.wandb_logger_name,
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
     }

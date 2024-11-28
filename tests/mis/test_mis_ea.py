@@ -4,8 +4,9 @@ import pytest
 import torch
 from ea.config import Config
 from evotorch import Problem
+from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
-from problems.mis.mis_ea import MISInstance, create_mis_ea, create_mis_instance
+from problems.mis.mis_instance import MISInstance, create_mis_instance
 from torch_geometric.loader import DataLoader
 
 
@@ -39,7 +40,7 @@ def test_create_mis_instance(np_eval: bool) -> None:
 def test_mis_ga_runs(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval)
 
-    ga = create_mis_ea(instance, config=Config(pop_size=5, n_parallel_evals=0))
+    ga = create_mis_brkga(instance, config=Config(pop_size=5, n_parallel_evals=0, device="cpu"))
     ga.run(num_generations=2)
 
     status = ga.status
@@ -80,7 +81,7 @@ def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
 
     for sample in dataloader:
         instance = create_mis_instance(sample, device="cpu", np_eval=np_eval)
-        ga = create_mis_ea(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+        ga = create_mis_brkga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
         ga.run(num_generations=2)
 
         status = ga.status

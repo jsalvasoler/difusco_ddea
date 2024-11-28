@@ -6,10 +6,14 @@ import numpy as np
 import wandb
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
+from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
-from problems.mis.mis_ea import create_mis_ea, create_mis_instance
-from problems.tsp.tsp_ea import create_tsp_ea, create_tsp_instance
+from problems.mis.mis_ga import create_mis_ga
+from problems.mis.mis_instance import create_mis_instance
+from problems.tsp.tsp_brkga import create_tsp_brkga
+from problems.tsp.tsp_ga import create_tsp_ga
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_instance import create_tsp_instance
 from pyinstrument import Profiler
 from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
@@ -21,10 +25,16 @@ from ea.problem_instance import ProblemInstance
 
 
 def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
-    if config.task == "mis":
-        return create_mis_ea(instance, config)
-    if config.task == "tsp":
-        return create_tsp_ea(instance, config)
+    if config.algo == "brkga":
+        if config.task == "mis":
+            return create_mis_brkga(instance, config)
+        if config.task == "tsp":
+            return create_tsp_brkga(instance, config)
+    elif config.algo == "ga":
+        if config.task == "mis":
+            return create_mis_ga(instance, config)
+        if config.task == "tsp":
+            return create_tsp_ga(instance, config)
     error_msg = f"No evolutionary algorithm for task {config.task}."
     raise ValueError(error_msg)
 
