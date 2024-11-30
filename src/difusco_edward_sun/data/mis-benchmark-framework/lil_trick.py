@@ -18,7 +18,8 @@ def transfer_0_to_1():
     train_1 = os.path.join(base, 'er_train_1')
     os.makedirs(train_1, exist_ok=True)
     train_1_ann = os.path.join(base, 'er_train_annotations_1')
-
+    os.makedirs(train_1_ann, exist_ok=True)
+    
     # copy files from train to train_1 if they are not in train_0
     # take name on the left of the last _
     graphs_0 = {'_'.join(g.split('_')[:-1]) for g in os.listdir(train_0_ann) if g.endswith('unweighted.result')}
