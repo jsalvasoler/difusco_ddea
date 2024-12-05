@@ -73,7 +73,31 @@ def move_annotations():
         shutil.move(src_file, dest_file)
 
 
+def check_for_gaps():
+    base = '/home/e12223411/repos/difusco/data/mis'
+    train = os.path.join(base, 'er_train')
+    print(len(os.listdir(train)))
+    train_ann = os.path.join(base, 'er_train_annotations_mis')
+    print(len(os.listdir(train_ann)))
+
+
+    # extract id:
+    def extract_id(s):
+        return int(s.split(".")[1].split("_")[1])
+    
+    # missing in train
+    ids = sorted(extract_id(f) for f in os.listdir(train_ann) if f.endswith('.result'))
+    missing = set(range(1, len(train_ann) + 1)) - set(ids)
+    print(f"missing in train: {missing}")
+
+    # missing in train_ann
+    ids = sorted(extract_id(f) for f in os.listdir(train) if f.endswith('.gpickle'))
+    missing = set(range(1, len(train) + 1)) - set(ids)
+    print(f"missing in train_ann: {missing}")
+
+
 if __name__ == '__main__':
     # move_annotations()
     transfer_0_to_1()
     # rename_train_degree_labels()
+    # check_for_gaps()

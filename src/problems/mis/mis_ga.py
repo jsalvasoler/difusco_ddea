@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import torch
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
-from evotorch.operators import CrossOver
+from evotorch.operators import CopyingOperator, CrossOver
 from torch import no_grad
 
 if TYPE_CHECKING:
@@ -43,10 +44,50 @@ class MISGaProblem(Problem):
             )
 
 
+class MISGAMutation(CopyingOperator):
+    """
+    Gaussian mutation operator.
+
+    Follows the algorithm description in:
+
+        Sean Luke, 2013, Essentials of Metaheuristics, Lulu, second edition
+        available for free at http://cs.gmu.edu/~sean/book/metaheuristics/
+    """
+
+    def __init__(self, problem: Problem, instance: MISInstance, deselect_prob: float = 0.05) -> None:
+        """
+        Mutation operator for the Maximum Independent Set problem. With probability deselect_prob, a selected node is
+        unselected and gets a probabilty of zero. Solution is then made feasible.
+
+        Args:
+            problem: The problem object to work with.
+            instance: The instance object to work with.
+            deselect_prob: The probability of deselecting a selected node.
+        """
+
+        super().__init__(problem)
+        self._instance = instance
+        self._deselect_prob = deselect_prob
+
+    @torch.no_grad()
+    def _do(self, batch: SolutionBatch) -> SolutionBatch:
+        result = deepcopy(batch)
+        data = result.access_values()
+        deselect_mask = torch.rand(data.shape, device=data.device, dtype=torch.float32) <= self._deselect_prob
+        priorities = torch.rand(data.shape, device=data.device, dtype=torch.float32)
+        priorities[deselect_mask.bool() & data.bool()] = 0
+
+        for i in range(data.shape[0]):
+            if deselect_mask[i].sum() > 0:
+                data[i] = self._instance.get_feasible_from_individual(priorities[i])
+
+        return result
+
+
 class MISGACrossover(CrossOver):
     def __init__(self, problem: Problem, instance: MISInstance, tournament_size: int = 4) -> None:
         super().__init__(problem, tournament_size=tournament_size)
-        self.instance = instance
+        self._instance = instance
 
     @no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
@@ -77,8 +118,8 @@ class MISGACrossover(CrossOver):
 
         for i in range(num_pairings):
             # Get feasible solutions based on priorities
-            children1[i] = self.instance.get_feasible_from_individual(priority1[i])
-            children2[i] = self.instance.get_feasible_from_individual(priority2[i])
+            children1[i] = self._instance.get_feasible_from_individual(priority1[i])
+            children2[i] = self._instance.get_feasible_from_individual(priority2[i])
 
         # Combine children into final result
         children = torch.cat([children1, children2], dim=0)
@@ -90,5 +131,11 @@ def create_mis_ga(instance: MISInstance, config: Config) -> GeneticAlgorithm:
     problem = MISGaProblem(instance, config)
 
     return GeneticAlgorithm(
-        problem=problem, popsize=config.pop_size, re_evaluate=False, operators=[MISGACrossover(problem, instance)]
+        problem=problem,
+        popsize=config.pop_size,
+        re_evaluate=False,
+        operators=[
+            MISGACrossover(problem, instance),
+            MISGAMutation(problem, instance, deselect_prob=0.2),
+        ],
     )

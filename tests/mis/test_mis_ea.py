@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from gc import collect
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -11,7 +13,7 @@ from ea.config import Config
 from evotorch import Problem
 from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
-from problems.mis.mis_ga import MISGACrossover, MISGaProblem, create_mis_ga
+from problems.mis.mis_ga import MISGACrossover, MISGAMutation, MISGaProblem, create_mis_ga
 from problems.mis.mis_instance import MISInstance, MISInstanceBase, MISInstanceNumPy, create_mis_instance
 from scipy.sparse import coo_matrix
 from torch_geometric.loader import DataLoader
@@ -32,10 +34,10 @@ def read_mis_instance(np_eval: bool = False) -> MISInstance:
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_create_mis_instance(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval)
-    assert instance.n_nodes == 732
+    assert instance.n_nodes == 788
     assert instance.gt_labels.sum().item() == 45
     assert (
-        732
+        788
         == instance.gt_labels.shape[0]
         == instance.n_nodes
         == instance.adj_matrix.shape[0]
@@ -44,13 +46,13 @@ def test_create_mis_instance(np_eval: bool) -> None:
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_ga_runs(np_eval: bool) -> None:
+def test_mis_brkga_runs(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval)
 
-    ga = create_mis_brkga(instance, config=Config(pop_size=5, n_parallel_evals=0, device="cpu"))
-    ga.run(num_generations=2)
+    brkga = create_mis_brkga(instance, config=Config(pop_size=5, n_parallel_evals=0, device="cpu"))
+    brkga.run(num_generations=2)
 
-    status = ga.status
+    status = brkga.status
     assert status["iter"] == 2
 
 
@@ -79,7 +81,7 @@ def test_mis_problem_evaluation(np_eval: bool) -> None:
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
+def test_mis_brkga_runs_with_dataloader(np_eval: bool) -> None:
     dataset = MISDataset(
         data_dir="tests/resources/er_example_dataset",
         data_label_dir="tests/resources/er_example_dataset_annotations",
@@ -163,3 +165,102 @@ def test_mis_ga_crossover(np_eval: bool, square_instance: MISInstanceBase) -> No
     assert (children.values[1] == torch.tensor([0, 1, 0, 1])).all()
     assert children.values[2].sum() == 2
     assert children.values[3].sum() == 2
+
+
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_mutation(np_eval: bool, square_instance: MISInstanceBase) -> None:
+    instance = square_instance
+    ga = create_mis_ga(instance, config=Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval))
+
+    # Set first individual to [1, 0, 1, 0]
+    data = ga.population.access_values()
+    data[0] = torch.tensor([1, 0, 1, 0])
+
+    mutation = ga._operators[1]
+    assert isinstance(mutation, MISGAMutation)
+
+    # Mock random values to force deselection of first node for first individual
+    # and no mutations for second individual
+    with patch(
+        "torch.rand",
+        side_effect=[
+            torch.tensor(
+                [
+                    [0.0, 0.9, 0.9, 0.9],  # First ind: deselect first node
+                    [0.9, 0.9, 0.9, 0.9],  # Second ind: no mutations
+                ]
+            ),
+            torch.tensor(
+                [
+                    [0.0, 1.0, 0.0, 1.0],  # First ind: let's have the other solution
+                    [0.0, 0.0, 0.0, 0.0],  # Second ind: will be unused
+                ]
+            ),
+        ],
+    ):
+        children = mutation._do(ga.population)
+
+    assert children.values.shape == (2, instance.n_nodes)
+    assert torch.equal(children.values[0], torch.tensor([0, 1, 0, 1]))  # Mutated to opposite
+    assert torch.equal(children.values[1], ga.population.values[1])  # No mutation
+
+
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_mutation_no_deselection(np_eval: bool, square_instance: MISInstanceBase) -> None:
+    instance = square_instance
+    ga = create_mis_ga(instance, config=Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval))
+
+    mutation = ga._operators[1]
+    assert isinstance(mutation, MISGAMutation)
+
+    with patch("torch.rand", return_value=torch.ones(2, 4)):
+        children = mutation._do(ga.population)
+
+    assert torch.equal(children.values[0], ga.population.values[0])
+    assert torch.equal(children.values[1], ga.population.values[1])
+
+
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
+    dataset = MISDataset(
+        data_dir="tests/resources/er_example_dataset",
+        data_label_dir="tests/resources/er_example_dataset_annotations",
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    for sample in dataloader:
+        instance = create_mis_instance(sample, device="cpu", np_eval=np_eval)
+        brkga = create_mis_brkga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+        brkga.run(num_generations=2)
+
+        status = brkga.status
+        assert status["iter"] == 2
+
+
+def test_gpu_memory() -> None:
+    # Helper function to check GPU memory usage
+    def print_gpu_memory() -> None:
+        print(f"Allocated memory: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
+        print(f"Cached memory: {torch.cuda.memory_reserved() / 1024**2:.2f} MB")
+
+    dataset = MISDataset(
+        data_dir="tests/resources/er_example_dataset",
+        data_label_dir="tests/resources/er_example_dataset_annotations",
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    for sample in dataloader:
+        instance = create_mis_instance(sample, device="cuda", np_eval=False)
+        brkga = create_mis_brkga(instance, config=Config(pop_size=10, device="cuda", n_parallel_evals=0))
+        brkga.run(num_generations=1)
+
+        status = brkga.status
+        assert status["iter"] == 1
+        print_gpu_memory()
+        torch.cuda.empty_cache()
+        collect()
+        print_gpu_memory()
+
+
+if __name__ == "__main__":
+    test_gpu_memory()

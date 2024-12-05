@@ -3,6 +3,7 @@ import timeit
 from argparse import Namespace
 
 import numpy as np
+import torch
 import wandb
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
@@ -108,6 +109,11 @@ def run_ea(config: Config) -> None:
         run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
         wandb.log(run_results, step=i)
         results.append(run_results)
+
+        # Clean up GPU memory
+        del instance
+        del ea
+        torch.cuda.empty_cache()
 
         if is_validation_run and i == config.validate_samples - 1:
             break

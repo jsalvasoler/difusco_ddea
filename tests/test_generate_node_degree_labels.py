@@ -51,7 +51,7 @@ def test_generate_labels_on_examples(setup_and_teardown: Generator) -> None:
         assert 0 <= int(idx) <= 170, 000
         with open(os.path.join(opts.output_dir, file)) as f:
             lines = f.readlines()
-            assert len(lines) in [732, 770]
+            assert len(lines) in [788, 756]
             assert all(line.strip().isdigit() for line in lines)
             assert {line.strip() for line in lines}.issubset({"0", "1"})
 
