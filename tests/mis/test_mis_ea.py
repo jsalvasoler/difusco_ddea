@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from gc import collect
 from unittest.mock import patch
 
 import numpy as np
@@ -239,9 +238,11 @@ def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
 
 def test_gpu_memory() -> None:
     # Helper function to check GPU memory usage
-    def print_gpu_memory() -> None:
-        print(f"Allocated memory: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
-        print(f"Cached memory: {torch.cuda.memory_reserved() / 1024**2:.2f} MB")
+    def get_gpu_memory() -> dict[str, float]:
+        return {
+            "allocated_mb": torch.cuda.memory_allocated() / 1024**2,
+            "cached_mb": torch.cuda.memory_reserved() / 1024**2,
+        }
 
     dataset = MISDataset(
         data_dir="tests/resources/er_example_dataset",
@@ -252,14 +253,26 @@ def test_gpu_memory() -> None:
     for sample in dataloader:
         instance = create_mis_instance(sample, device="cuda", np_eval=False)
         brkga = create_mis_brkga(instance, config=Config(pop_size=10, device="cuda", n_parallel_evals=0))
-        brkga.run(num_generations=1)
+        brkga.run(num_generations=2)
 
         status = brkga.status
-        assert status["iter"] == 1
-        print_gpu_memory()
-        torch.cuda.empty_cache()
+        memory = get_gpu_memory()
+        assert memory["allocated_mb"] > 0
+        assert memory["cached_mb"] > 0
+
+        del instance
+        del brkga
+        del status
+
+        from gc import collect
+
         collect()
-        print_gpu_memory()
+        torch.cuda.empty_cache()
+        new_memory = get_gpu_memory()
+
+        assert new_memory["allocated_mb"] == 0
+        assert new_memory["cached_mb"] <= memory["cached_mb"]
+        break
 
 
 if __name__ == "__main__":

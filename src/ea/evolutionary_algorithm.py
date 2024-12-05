@@ -1,6 +1,7 @@
 import os
 import timeit
 from argparse import Namespace
+from gc import collect
 
 import numpy as np
 import torch
@@ -114,6 +115,7 @@ def run_ea(config: Config) -> None:
         del instance
         del ea
         torch.cuda.empty_cache()
+        collect()
 
         if is_validation_run and i == config.validate_samples - 1:
             break
