@@ -1,21 +1,18 @@
+import time
 from itertools import permutations
 
 import numpy as np
 import torch
-from problems.tsp.tsp_evaluation import TSPEvaluator, TSPTorchEvaluator, batched_two_opt_torch, cython_merge
+from problems.tsp.tsp_evaluation import (
+    TSPEvaluator,
+    TSPTorchEvaluator,
+    adj_mat_to_tour,
+    batched_two_opt_torch,
+    cython_merge,
+    cython_merge_get_tour,
+)
 
 from tests.resources.tsp_merge_python import merge_python
-
-
-def adj_mat_to_tour(adj_mat: np.ndarray) -> list:
-    N = adj_mat.shape[0]
-    tour = [0]
-    while len(tour) < N + 1:
-        n = np.nonzero(adj_mat[tour[-1]])[0]
-        if len(tour) > 1:
-            n = n[n != tour[-2]]
-        tour.append(n.max())
-    return tour
 
 
 def test_merge_python_is_same_as_cython() -> None:
@@ -183,3 +180,48 @@ def test_tsp_torch_evaluator() -> None:
         calc_cost += tsp_eval.dist_mat[route[i], route[i + 1]]
 
     assert cost == calc_cost
+
+
+def test_cython_merge_get_tour() -> None:
+    # Example usage with simple coordinates
+    coords = np.array([[0, 0], [1, 1], [2, 0], [1, -1]], dtype=float)
+    # set random seed for reproducibility
+    np.random.seed(0)
+    adj_mat = np.array([[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]], dtype=float)
+
+    tour, merge_iterations = cython_merge_get_tour(coords, adj_mat)
+    print(tour)
+    print(merge_iterations)
+    assert tour == [0, 1, 2, 3, 0]
+
+
+def test_cython_merge_get_tour_vs_python() -> None:
+    N = 500
+
+    points = np.random.rand(N, 2)
+
+    # create a random adj_mat of size 50
+    adj_mat = np.random.rand(N, N)
+    adj_mat = (adj_mat + adj_mat.T) / 2
+    adj_mat[adj_mat == 0] = 0.001
+
+    # benchmark cython_merge_get_tour
+    start_time = time.time()
+    tour1, _ = cython_merge_get_tour(points, adj_mat)
+    end_time = time.time()
+    print(f"Cython merge get tour time: {end_time - start_time} seconds")
+
+    # benchmark python merge_python
+    start_time = time.time()
+    adj_mat, _ = cython_merge(points, adj_mat)
+    tour2 = adj_mat_to_tour(adj_mat)
+    end_time = time.time()
+    print(f"Python merge get tour time: {end_time - start_time} seconds")
+
+    assert (tour1 == tour2).all()
+
+    assert tour1[-1] == tour2[-1] == 0
+
+
+if __name__ == "__main__":
+    test_cython_merge_get_tour_vs_python()

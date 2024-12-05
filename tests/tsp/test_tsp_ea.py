@@ -12,6 +12,7 @@ from problems.tsp.tsp_brkga import (
     create_tsp_problem,
 )
 from problems.tsp.tsp_evaluation import TSPEvaluator
+from problems.tsp.tsp_ga import TSPGAProblem
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import TSPInstance, create_tsp_instance
 from scipy.spatial import distance_matrix
@@ -178,7 +179,7 @@ def test_problem_evaluation_on_tsp_instance() -> None:
     assert obj_gt <= obj
 
 
-def test_tsp_ga_runs() -> None:
+def test_tsp_brkga_runs() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
@@ -189,7 +190,7 @@ def test_tsp_ga_runs() -> None:
     assert status["iter"] == 2
 
 
-def test_tsp_ga_runs_with_dataloader() -> None:
+def test_tsp_brkga_runs_with_dataloader() -> None:
     dataset = dataset_factory(
         config=Config(
             data_path="tests/resources",
@@ -208,3 +209,22 @@ def test_tsp_ga_runs_with_dataloader() -> None:
         status = ga.status
         assert status["iter"] == 2
         break
+
+
+def test_tsp_ga_fill() -> None:
+    sample = get_tsp_sample()
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
+    problem = TSPGAProblem(instance, Config(pop_size=10, device="cpu", n_parallel_evals=0))
+
+    values = torch.zeros(10, instance.n + 1, dtype=torch.bool)
+    problem._fill(values)  # noqa: SLF001 for testing
+
+    assert values.shape == (10, instance.n + 1)
+    assert values.dtype == torch.bool
+
+    assert (values.sum(dim=1) > 0).all()
+
+    # Check that the routes can be evaluated
+    for i in range(values.shape[0]):
+        length = instance.evaluate_tsp_route(values[i])
+        assert length > 0

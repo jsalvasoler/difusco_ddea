@@ -8,7 +8,7 @@ import numpy as np
 import scipy.sparse
 import scipy.spatial
 import torch
-from problems.tsp.cython_merge.cython_merge import merge_cython
+from problems.tsp.cython_merge.cython_merge import merge_cython, merge_cython_get_tour
 
 
 def batched_two_opt_torch(
@@ -97,9 +97,15 @@ def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, in
 def cython_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        real_adj_mat, merge_iterations = merge_cython(points.astype("double"), adj_mat.astype("double"))
-        real_adj_mat = np.asarray(real_adj_mat)
-        return real_adj_mat, merge_iterations
+        adj_matrix, merge_iterations = merge_cython(points.astype("double"), adj_mat.astype("double"))
+        return np.asarray(adj_matrix), merge_iterations
+
+
+def cython_merge_get_tour(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        tour, merge_iterations = merge_cython_get_tour(points.astype("double"), adj_mat.astype("double"))
+        return np.asarray(tour), merge_iterations
 
 
 def merge_tours(
@@ -182,6 +188,8 @@ class TSPTorchEvaluator:
         self.dist_mat = torch.cdist(points, points).to(points.device)
 
     def evaluate(self, route: torch.Tensor) -> float:
+        """Route is a tensor of size n+1, with the last value being the first value."""
+
         # Get the consecutive pairs of indices from the route (e.g., [route[i], route[i+1]])
         route_pairs = torch.stack([route[:-1], route[1:]], dim=1)
 
@@ -190,3 +198,14 @@ class TSPTorchEvaluator:
 
         # Sum the distances to get the total route cost
         return distances.sum().item()
+
+
+def adj_mat_to_tour(adj_mat: np.ndarray) -> list:
+    N = adj_mat.shape[0]
+    tour = [0]
+    while len(tour) < N + 1:
+        n = np.nonzero(adj_mat[tour[-1]])[0]
+        if len(tour) > 1:
+            n = n[n != tour[-2]]
+        tour.append(n.max())
+    return tour
