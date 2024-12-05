@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
-from problems.tsp.tsp_evaluation import TSPTorchEvaluator, adj_mat_to_tour, batched_two_opt_torch, cython_merge
+from problems.tsp.tsp_evaluation import TSPTorchEvaluator, adj_mat_to_tour, cython_merge
+from problems.tsp.tsp_operators import batched_two_opt_torch
 
 
 class TSPInstance(ProblemInstance):

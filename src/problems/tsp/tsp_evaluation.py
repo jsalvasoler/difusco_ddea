@@ -2,83 +2,12 @@ from __future__ import annotations
 
 import warnings
 from multiprocessing import Pool
-from typing import Literal
 
 import numpy as np
 import scipy.sparse
 import scipy.spatial
 import torch
 from problems.tsp.cython_merge.cython_merge import merge_cython, merge_cython_get_tour
-
-
-def batched_two_opt_torch(
-    points: np.ndarray | torch.Tensor,
-    tour: np.ndarray | torch.Tensor,
-    max_iterations: int = 1000,
-    device: Literal["cpu", "gpu"] = "cpu",
-) -> tuple[np.ndarray | torch.Tensor, int]:
-    """
-    Apply the 2-opt algorithm to a batch of tours.
-    Tours have N + 1 elements, i.e., the first city is repeated at the end.
-
-    Works for both numpy and torch.
-
-    Args:
-        points: Points as numpy array or torch tensor of shape (N, 2)
-        tour: Tour as numpy array or torch tensor of shape (batch_size, N+1)
-        max_iterations: Maximum number of iterations
-        device: Device to run computations on ("cpu" or "gpu")
-
-    Returns:
-        tuple of (optimized tour array, number of iterations performed)
-    """
-    iterator = 0
-    return_numpy = isinstance(tour, np.ndarray)
-
-    with torch.inference_mode():
-        # Convert to torch tensors if needed
-        cuda_points = points if isinstance(points, torch.Tensor) else torch.from_numpy(points).to(device)
-        cuda_tour = tour if isinstance(tour, torch.Tensor) else torch.from_numpy(tour.copy()).to(device)
-
-        # Rest of the function remains the same
-        batch_size = cuda_tour.shape[0]
-
-        min_change = -1.0
-        while min_change < 0.0:
-            points_i = cuda_points[cuda_tour[:, :-1].reshape(-1)].reshape((batch_size, -1, 1, 2))
-            points_j = cuda_points[cuda_tour[:, :-1].reshape(-1)].reshape((batch_size, 1, -1, 2))
-            points_i_plus_1 = cuda_points[cuda_tour[:, 1:].reshape(-1)].reshape((batch_size, -1, 1, 2))
-            points_j_plus_1 = cuda_points[cuda_tour[:, 1:].reshape(-1)].reshape((batch_size, 1, -1, 2))
-
-            A_ij = torch.sqrt(torch.sum((points_i - points_j) ** 2, axis=-1))
-            A_i_plus_1_j_plus_1 = torch.sqrt(torch.sum((points_i_plus_1 - points_j_plus_1) ** 2, axis=-1))
-            A_i_i_plus_1 = torch.sqrt(torch.sum((points_i - points_i_plus_1) ** 2, axis=-1))
-            A_j_j_plus_1 = torch.sqrt(torch.sum((points_j - points_j_plus_1) ** 2, axis=-1))
-
-            change = A_ij + A_i_plus_1_j_plus_1 - A_i_i_plus_1 - A_j_j_plus_1
-            valid_change = torch.triu(change, diagonal=2)
-
-            min_change = torch.min(valid_change)
-            flatten_argmin_index = torch.argmin(valid_change.reshape(batch_size, -1), dim=-1)
-            min_i = torch.div(flatten_argmin_index, len(points), rounding_mode="floor")
-            min_j = torch.remainder(flatten_argmin_index, len(points))
-
-            if min_change < -1e-6:
-                for i in range(batch_size):
-                    cuda_tour[i, min_i[i] + 1 : min_j[i] + 1] = torch.flip(
-                        cuda_tour[i, min_i[i] + 1 : min_j[i] + 1], dims=(0,)
-                    )
-                iterator += 1
-            else:
-                break
-
-            if iterator >= max_iterations:
-                break
-
-        # Convert back to numpy if input was numpy
-        tour = cuda_tour.cpu().numpy() if return_numpy else cuda_tour
-
-    return tour, iterator
 
 
 def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:

@@ -10,8 +10,9 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import torch
 import torch.utils.data
-from problems.tsp.tsp_evaluation import TSPEvaluator, batched_two_opt_torch, merge_tours
+from problems.tsp.tsp_evaluation import TSPEvaluator, merge_tours
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_operators import batched_two_opt_torch
 from pytorch_lightning.utilities import rank_zero_info
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
