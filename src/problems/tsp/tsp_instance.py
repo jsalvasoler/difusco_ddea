@@ -1,8 +1,7 @@
-
 import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
-from problems.tsp.tsp_evaluation import TSPTorchEvaluator, adj_mat_to_tour, cython_merge
+from problems.tsp.tsp_evaluation import TSPTorchEvaluator, adj_mat_to_tour, batched_two_opt_torch, cython_merge
 
 
 class TSPInstance(ProblemInstance):
@@ -28,6 +27,11 @@ class TSPInstance(ProblemInstance):
 
     def evaluate_tsp_route(self, route: torch.Tensor) -> float:
         return self.tsp_evaluator.evaluate(route)
+
+    def two_opt_mutation(self, routes: torch.Tensor, max_iterations: int) -> torch.Tensor:
+        """Routes is a tensor of shape (n_solutions, n + 1)"""
+        tours, _ = batched_two_opt_torch(self.points, routes, max_iterations=max_iterations, device=self.device)
+        return tours
 
     def get_tour_from_adjacency_np_heatmap(self, heatmap: np.ndarray) -> torch.Tensor:
         """
@@ -60,6 +64,7 @@ class TSPInstance(ProblemInstance):
 
     def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
         pass
+
 
 def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
     """Create a TSPInstance from a sample. A sample is a batch of size 1"""

@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from unittest.mock import patch
 
 import numpy as np
@@ -12,7 +13,7 @@ from problems.tsp.tsp_brkga import (
     create_tsp_problem,
 )
 from problems.tsp.tsp_evaluation import TSPEvaluator
-from problems.tsp.tsp_ga import TSPGAProblem
+from problems.tsp.tsp_ga import TSPGAProblem, TSPTwoOptMutation, create_tsp_ga
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import TSPInstance, create_tsp_instance
 from scipy.spatial import distance_matrix
@@ -220,7 +221,7 @@ def test_tsp_ga_fill() -> None:
     problem._fill(values)  # noqa: SLF001 for testing
 
     assert values.shape == (10, instance.n + 1)
-    assert values.dtype == torch.bool
+    assert values.dtype == torch.int64
 
     assert (values.sum(dim=1) > 0).all()
 
@@ -228,3 +229,22 @@ def test_tsp_ga_fill() -> None:
     for i in range(values.shape[0]):
         length = instance.evaluate_tsp_route(values[i])
         assert length > 0
+
+
+def test_tsp_ga_mutation() -> None:
+    sample = get_tsp_sample()
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
+
+    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+
+    mutation = ga._operators[0]  # noqa: SLF001
+    assert isinstance(mutation, TSPTwoOptMutation)
+
+    parents = deepcopy(ga.population)
+    children = mutation._do(ga.population)  # noqa: SLF001
+    assert children.values.shape == ga.population.values.shape
+    assert children.values.dtype == torch.int64
+
+    # make sure that no individual has worsened
+    for i in range(children.values.shape[0]):
+        assert instance.evaluate_tsp_route(children.values[i]) <= instance.evaluate_tsp_route(parents.values[i])

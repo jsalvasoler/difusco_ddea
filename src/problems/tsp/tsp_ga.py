@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from evotorch import Problem
+from evotorch import Problem, SolutionBatch
+from evotorch.algorithms import GeneticAlgorithm
+from evotorch.operators import CopyingOperator
 
 if TYPE_CHECKING:
     from ea.config import Config
-    from evotorch.algorithms import GeneticAlgorithm
     from problems.tsp.tsp_instance import TSPInstance
 
 
@@ -20,7 +22,7 @@ class TSPGAProblem(Problem):
             objective_sense="min",
             solution_length=instance.n + 1,
             device=config.device,
-            dtype=torch.bool,
+            dtype=torch.int64,
         )
 
     def _fill(self, values: torch.Tensor) -> None:
@@ -35,7 +37,26 @@ class TSPGAProblem(Problem):
             values[i] = self.instance.get_tour_from_adjacency_np_heatmap(random_heatmap)
 
 
+class TSPTwoOptMutation(CopyingOperator):
+    def __init__(self, problem: TSPGAProblem, instance: TSPInstance, max_iterations: int = 5) -> None:
+        super().__init__(problem)
+        self._instance = instance
+        self._max_iterations = max_iterations
+
+    @torch.no_grad()
+    def _do(self, batch: SolutionBatch) -> SolutionBatch:
+        result = deepcopy(batch)
+        data = result.access_values()
+        data[:] = self._instance.two_opt_mutation(data, max_iterations=self._max_iterations)
+        return result
+
+
 def create_tsp_ga(instance: TSPInstance, config: Config) -> GeneticAlgorithm:
     problem = TSPGAProblem(instance, config)
 
-
+    return GeneticAlgorithm(
+        problem=problem,
+        popsize=config.pop_size,
+        operators=[TSPTwoOptMutation(problem, instance)],
+        elitist=True,
+    )
