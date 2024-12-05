@@ -13,7 +13,7 @@ from problems.tsp.tsp_brkga import (
     create_tsp_problem,
 )
 from problems.tsp.tsp_evaluation import TSPEvaluator
-from problems.tsp.tsp_ga import TSPGAProblem, TSPTwoOptMutation, create_tsp_ga
+from problems.tsp.tsp_ga import TSPGACrossover, TSPGAProblem, TSPTwoOptMutation, create_tsp_ga
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import TSPInstance, create_tsp_instance
 from scipy.spatial import distance_matrix
@@ -248,3 +248,36 @@ def test_tsp_ga_mutation() -> None:
     # make sure that no individual has worsened
     for i in range(children.values.shape[0]):
         assert instance.evaluate_tsp_route(children.values[i]) <= instance.evaluate_tsp_route(parents.values[i])
+
+
+def test_tsp_ga_crossover() -> None:
+    sample = get_tsp_sample()
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
+
+    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+
+    crossover = ga._operators[1]  # noqa: SLF001
+    assert isinstance(crossover, TSPGACrossover)
+
+    parents = deepcopy(ga.population)
+    children = crossover._do_cross_over(parents.values[:5], parents.values[5:])  # noqa: SLF001
+    assert children.values.shape == parents.values.shape
+    assert children.values.dtype == torch.int64
+
+    # make sure that children :5 and children 5: are different
+    assert (children.values[:5] != children.values[5:]).any()
+
+    # make sure that children and parents are different
+    assert (children.values != parents.values).any()
+
+    # make sure that children can be evaluated
+    for i in range(children.values.shape[0]):
+        assert instance.evaluate_solution(children.values[i]) > 0
+
+
+def test_tsp_ga_runs() -> None:
+    sample = get_tsp_sample()
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
+
+    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+    ga.run(num_generations=2)

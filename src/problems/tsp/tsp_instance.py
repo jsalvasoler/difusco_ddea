@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
 from problems.tsp.tsp_evaluation import TSPTorchEvaluator, adj_mat_to_tour, cython_merge
-from problems.tsp.tsp_operators import batched_two_opt_torch
+from problems.tsp.tsp_operators import batched_two_opt_torch, edge_recombination_crossover
 
 
 class TSPInstance(ProblemInstance):
@@ -44,6 +44,19 @@ class TSPInstance(ProblemInstance):
         tour = adj_mat_to_tour(adj_mat)
         return torch.tensor(tour, device=self.device)
 
+    def edge_recombination_crossover(self, parents1: torch.Tensor, parents2: torch.Tensor) -> torch.Tensor:
+        """
+        Edge recombination crossover for a batch of parents.
+
+        Args:
+            parents1: Tensor of size (batch_size, n + 1), first parent tours.
+            parents2: Tensor of size (batch_size, n + 1), second parent tours.
+
+        Returns:
+            offspring: Tensor of size (batch_size, n + 1), containing offspring tours.
+        """
+        return edge_recombination_crossover(parents1, parents2)
+
     def evaluate_individual(self, ind: torch.Tensor) -> float:
         # individual has size self.n ** 2, we reshape it to a matrix
         heatmap = ind.view(self.n, self.n).cpu().numpy()
@@ -61,7 +74,7 @@ class TSPInstance(ProblemInstance):
         return self.evaluate_tsp_route(tour)
 
     def evaluate_solution(self, solution: torch.Tensor) -> float:
-        pass
+        return self.evaluate_tsp_route(solution)
 
     def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
         pass

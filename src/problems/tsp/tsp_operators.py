@@ -81,14 +81,14 @@ def build_edge_lists(parent1: torch.Tensor, parent2: torch.Tensor) -> torch.Tens
     Build edge lists for a batch of parents. Edge lists are defined as the set of nodes
     that are connected to a given node in the tours of either parent. The max number
     of edges is 4 per node, which is why we need to return a tensor of shape
-    (batch_size // 2, n, 4). Note that there might be duplicates in the edge lists.
+    (batch_size, n, 4). Note that there might be duplicates in the edge lists.
 
     Args:
-        parent1: Tensor of size (batch_size // 2, n + 1), first parent tours.
-        parent2: Tensor of size (batch_size // 2, n + 1), second parent tours.
+        parent1: Tensor of size (batch_size, n + 1), first parent tours.
+        parent2: Tensor of size (batch_size, n + 1), second parent tours.
 
     Returns:
-        edge_lists: Tensor of size (batch_size // 2, n, 4), int
+        edge_lists: Tensor of size (batch_size, n, 4), int
     """
     n = parent1.size(1) - 1
 
@@ -110,7 +110,7 @@ def build_edge_lists(parent1: torch.Tensor, parent2: torch.Tensor) -> torch.Tens
     next_2 = parent2[:, next_indices]  # shape: (batch_size, n)
 
     # Stack all edges together
-    edge_lists = torch.stack([prev_1, next_1, prev_2, next_2], dim=-1)  # shape: (batch_size // 2, n, 4)
+    edge_lists = torch.stack([prev_1, next_1, prev_2, next_2], dim=-1)  # shape: (batch_size, n, 4)
 
     # Sort in the dimension of the last axis
     return edge_lists.sort(dim=-1).values
@@ -121,7 +121,7 @@ def select_from_edge_lists(edge_lists: torch.Tensor, visited: torch.Tensor) -> t
     edge lists are of shape (batch_size, n, 4), int
     visited is of shape (batch_size, n), boolean
     """
-    batch_size = edge_lists.size(0) * 2
+    batch_size = edge_lists.size(0)
 
     edge_lists_copy = edge_lists.clone()
 
@@ -142,7 +142,7 @@ def select_from_edge_lists(edge_lists: torch.Tensor, visited: torch.Tensor) -> t
     unique_counts = unique_counts - (torch.sum(edge_lists_copy == -1, dim=-1) > 0).int()
 
     # Select argument with minimum unique count, randomly break ties
-    min_unique_count = unique_counts[~visited].reshape(batch_size // 2, -1).min(dim=-1, keepdim=True).values
+    min_unique_count = unique_counts[~visited].reshape(batch_size, -1).min(dim=-1, keepdim=True).values
     candidates_mask = (unique_counts == min_unique_count) & (~visited)
     candidates_mask = candidates_mask.float().div(candidates_mask.sum(dim=-1, keepdim=True))
 
@@ -157,25 +157,26 @@ def edge_recombination_crossover(parent1: torch.Tensor, parent2: torch.Tensor) -
     Note: we assume that all edges are valid, i.e., a dense graph is provided
 
     Args:
-        parent1: Tensor of size (batch_size // 2, n + 1), first parent tours.
-        parent2: Tensor of size (batch_size // 2, n + 1), second parent tours.
+        parent1: Tensor of size (batch_size, n + 1), first parent tours.
+        parent2: Tensor of size (batch_size, n + 1), second parent tours.
 
     Returns:
         offspring: Tensor of size (batch_size, n + 1), containing offspring tours.
     """
-    batch_size = parent1.size(0) * 2
+    batch_size = parent1.size(0)
     n = parent1.size(1) - 1  # Number of cities excluding the return to start
+    device = parent1.device
 
     # Initialize tensors
-    offspring = torch.zeros((batch_size // 2, n + 1), dtype=torch.long)
-    visited = torch.zeros((batch_size // 2, n), dtype=torch.bool)
+    offspring = torch.zeros((batch_size, n + 1), dtype=torch.long, device=device)
+    visited = torch.zeros((batch_size, n), dtype=torch.bool, device=device)
 
     # Build edge lists
     edge_lists = build_edge_lists(parent1, parent2)
-    assert edge_lists.shape == (batch_size // 2, n, 4)
+    assert edge_lists.shape == (batch_size, n, 4)
 
-    current_nodes = torch.randint(0, n, (batch_size // 2,), dtype=torch.int)
-    visited[torch.arange(batch_size // 2), current_nodes] = True
+    current_nodes = torch.randint(0, n, (batch_size,), dtype=torch.int, device=device)
+    visited[torch.arange(batch_size), current_nodes] = True
     offspring[:, 0] = current_nodes
 
     # Generate tours
@@ -183,7 +184,7 @@ def edge_recombination_crossover(parent1: torch.Tensor, parent2: torch.Tensor) -
         current_nodes = select_from_edge_lists(edge_lists, visited)
 
         # Update visitation and current nodes
-        visited[torch.arange(batch_size // 2), current_nodes] = True
+        visited[torch.arange(batch_size), current_nodes] = True
         offspring[:, step] = current_nodes
 
     # Complete tours by returning to the start node

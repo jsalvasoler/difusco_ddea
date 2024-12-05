@@ -7,7 +7,8 @@ import numpy as np
 import torch
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
-from evotorch.operators import CopyingOperator
+from evotorch.operators import CopyingOperator, CrossOver
+from torch import no_grad
 
 if TYPE_CHECKING:
     from ea.config import Config
@@ -51,12 +52,37 @@ class TSPTwoOptMutation(CopyingOperator):
         return result
 
 
+class TSPGACrossover(CrossOver):
+    def __init__(self, problem: Problem, instance: TSPInstance, tournament_size: int = 4) -> None:
+        super().__init__(problem, tournament_size=tournament_size)
+        self._instance = instance
+
+    @no_grad()
+    def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+        """
+        Parents are two solutions of shape (batch_size, n_nodes).
+
+        Crossover creates two children:
+         - children1: forces the selection of common nodes between parents1 and parents2.
+         - children2: forces the selection of the remaining nodes, but penalizes the common nodes.
+        """
+        # Perform edge recombination crossover twice
+        children1 = self._instance.edge_recombination_crossover(parents1, parents2)
+        children2 = self._instance.edge_recombination_crossover(parents2, parents1)
+
+        # Combine children into final result
+        children = torch.cat([children1, children2], dim=0)
+
+        return self._make_children_batch(children)
+
+
 def create_tsp_ga(instance: TSPInstance, config: Config) -> GeneticAlgorithm:
     problem = TSPGAProblem(instance, config)
 
     return GeneticAlgorithm(
         problem=problem,
         popsize=config.pop_size,
-        operators=[TSPTwoOptMutation(problem, instance)],
+        re_evaluate=False,
+        operators=[TSPGACrossover(problem, instance, tournament_size=4), TSPTwoOptMutation(problem, instance)],
         elitist=True,
     )
