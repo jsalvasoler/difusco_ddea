@@ -24,6 +24,7 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--n_parallel_evals", type=int, default=0)
     ea_settings.add_argument("--pop_size", type=int, default=100)
     ea_settings.add_argument("--n_generations", type=int, default=100)
+    ea_settings.add_argument("--max_two_opt_it", type=int, default=-1)
 
     tsp_settings = parser.add_argument_group("tsp_settings")
     tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
@@ -40,6 +41,10 @@ def get_arg_parser() -> ArgumentParser:
 
 def validate_args(args: Namespace) -> None:
     assert args.task in ["tsp", "mis", "high_degree_selection"]
+    assert args.algo in ["ga", "brkga"]
+
+    if args.algo == "ga" and args.task == "tsp":
+        assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."
 
     for dir_path in [args.data_path, args.logs_path]:
         if dir_path:

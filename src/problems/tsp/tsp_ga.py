@@ -83,6 +83,8 @@ def create_tsp_ga(instance: TSPInstance, config: Config) -> GeneticAlgorithm:
         problem=problem,
         popsize=config.pop_size,
         re_evaluate=False,
-        operators=[TSPGACrossover(problem, instance, tournament_size=4), TSPTwoOptMutation(problem, instance)],
-        elitist=True,
+        operators=[
+            TSPGACrossover(problem, instance, tournament_size=4),
+            TSPTwoOptMutation(problem, instance, max_iterations=config.max_two_opt_it),
+        ],
     )
