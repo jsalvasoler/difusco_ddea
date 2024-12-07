@@ -97,7 +97,7 @@ def run_ea(config: Config) -> None:
         instance = instance_factory(config, sample)
         ea = ea_factory(config, instance)
 
-        _ = StdOutLogger(searcher=ea, interval=10)
+        _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
 
         start_time = timeit.default_timer()
         ea.run(config.n_generations)

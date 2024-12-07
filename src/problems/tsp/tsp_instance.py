@@ -65,7 +65,7 @@ class TSPInstance(ProblemInstance):
         adj_mat, _ = cython_merge(self.np_points, heatmap)
 
         # convert adj matrix to tour
-        tour = self.adj_mat_to_tour(adj_mat)
+        tour = adj_mat_to_tour(adj_mat)
         tour.append(0)
 
         tour = torch.tensor(tour, device=ind.device)
@@ -78,6 +78,31 @@ class TSPInstance(ProblemInstance):
 
     def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
         pass
+
+    def is_valid_tour(self, tour: torch.Tensor) -> bool:
+        """A tour is a tensor of size (n + 1,)"""
+        if tour.shape[0] != self.n + 1:
+            return False
+
+        # start and end city must be the same
+        if not (tour[0] == tour[-1]).all():
+            return False
+
+        # check no duplicate cities
+        if tour.unique(dim=0).shape[0] != self.n:
+            return False
+
+        # check that all elements are ints
+        if tour.dtype != torch.int64:
+            return False
+
+        # check that all elements are in the range [0, n)
+        if not (tour >= 0).all():
+            return False
+        if not (tour <= self.n).all():
+            return False
+
+        return True
 
 
 def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:

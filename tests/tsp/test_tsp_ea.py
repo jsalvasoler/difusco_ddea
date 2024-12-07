@@ -212,12 +212,32 @@ def test_tsp_brkga_runs_with_dataloader() -> None:
         break
 
 
+def test_valid_tour() -> None:
+    sample = get_tsp_sample()
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
+
+    assert instance.is_valid_tour(instance.gt_tour)
+
+    # create a tour with a duplicate city
+    instance.n = 5
+    tour = torch.tensor([0, 1, 2, 3, 3, 0])
+    assert not instance.is_valid_tour(tour)
+
+    # create a tour with wrong dtype
+    tour = torch.tensor([0, 1, 2, 3.4, 7, 0], dtype=torch.float)
+    assert not instance.is_valid_tour(tour)
+
+    # create a tour with a city not in the instance
+    tour = torch.tensor([0, 1, 2, 3, 7, 0])
+    assert not instance.is_valid_tour(tour)
+
+
 def test_tsp_ga_fill() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
     problem = TSPGAProblem(instance, Config(pop_size=10, device="cpu", n_parallel_evals=0))
 
-    values = torch.zeros(10, instance.n + 1, dtype=torch.bool)
+    values = torch.zeros(10, instance.n + 1, dtype=torch.int64)
     problem._fill(values)  # noqa: SLF001 for testing
 
     assert values.shape == (10, instance.n + 1)
@@ -225,10 +245,13 @@ def test_tsp_ga_fill() -> None:
 
     assert (values.sum(dim=1) > 0).all()
 
-    # Check that the routes can be evaluated
+    evaluations = [instance.evaluate_tsp_route(values[i]) for i in range(values.shape[0])]
+    assert all(eval_ > 0 for eval_ in evaluations)
+
+    # make sure that the routes are valid and that they match the problem's evaluation
     for i in range(values.shape[0]):
-        length = instance.evaluate_tsp_route(values[i])
-        assert length > 0
+        assert instance.is_valid_tour(values[i])
+        assert evaluations[i] == problem._objective_func(values[i])  # noqa: SLF001
 
 
 def test_tsp_ga_mutation() -> None:
