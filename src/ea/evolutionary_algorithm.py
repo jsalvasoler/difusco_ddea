@@ -81,17 +81,18 @@ def run_ea(config: Config) -> None:
     dataset = dataset_factory(config)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    wandb.init(
-        project=config.project_name,
-        name=config.wandb_logger_name,
-        entity=config.wandb_entity,
-        config=config.__dict__,
-        dir=config.logs_path,
-    )
+    is_validation_run = config.validate_samples is not None
+    if not is_validation_run:
+        wandb.init(
+            project=config.project_name,
+            name=config.wandb_logger_name,
+            entity=config.wandb_entity,
+            config=config.__dict__,
+            dir=config.logs_path,
+        )
 
     results = []
 
-    is_validation_run = config.validate_samples is not None
     for i, sample in tqdm(enumerate(dataloader)):
         instance = instance_factory(config, sample)
         ea = ea_factory(config, instance)
@@ -108,7 +109,10 @@ def run_ea(config: Config) -> None:
         gap = diff / gt_cost
 
         run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
-        wandb.log(run_results, step=i)
+
+        if not is_validation_run:
+            wandb.log(run_results, step=i)
+
         results.append(run_results)
 
         # Clean up GPU memory
@@ -127,12 +131,8 @@ def run_ea(config: Config) -> None:
         "avg_runtime": np.mean([r["runtime"] for r in results]),
         "n_evals": len(results),
     }
-    wandb.log(agg_results)
-
-    agg_results["wandb_id"] = wandb.run.id
-
-    # save results to results_path if it is not a validation run
     if not is_validation_run:
+        wandb.log(agg_results)
+        agg_results["wandb_id"] = wandb.run.id
         save_results(config, agg_results)
-
-    wandb.finish()
+        wandb.finish()
