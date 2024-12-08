@@ -90,64 +90,108 @@ def build_edge_lists(parent1: torch.Tensor, parent2: torch.Tensor) -> torch.Tens
     Returns:
         edge_lists: Tensor of size (batch_size, n, 4), int
     """
-    n = parent1.size(1) - 1
+    batch_size, n_plus_1 = parent1.size()
+    n = n_plus_1 - 1
 
     # Remove last element in the tour for both parents
-    parent1 = parent1[:, :-1]
-    parent2 = parent2[:, :-1]
+    parent1 = parent1[:, :-1]  # shape: (batch_size, n)
+    parent2 = parent2[:, :-1]  # shape: (batch_size, n)
 
-    # Create indices tensors for all positions at once
-    indices = torch.arange(n)
+    # For each node, we need its neighbors in both parent tours
+    # Roll the tours to get previous and next nodes
+    prev_1 = torch.roll(parent1, shifts=1, dims=1)  # shape: (batch_size, n)
+    next_1 = torch.roll(parent1, shifts=-1, dims=1)  # shape: (batch_size, n)
+    prev_2 = torch.roll(parent2, shifts=1, dims=1)  # shape: (batch_size, n)
+    next_2 = torch.roll(parent2, shifts=-1, dims=1)  # shape: (batch_size, n)
 
-    # Handle prev indices with wrap-around
-    prev_indices = torch.where(indices == 0, n - 1, indices - 1)
-    next_indices = torch.where(indices == n - 1, 0, indices + 1)
+    # Create masks for all nodes at once (batch_size, n, n)
+    node_indices = torch.arange(n, device=parent1.device)
+    mask1 = parent1.unsqueeze(-1) == node_indices
+    mask2 = parent2.unsqueeze(-1) == node_indices
 
-    # Get all prev and next nodes at once
-    prev_1 = parent1[:, prev_indices]  # shape: (batch_size, n)
-    next_1 = parent1[:, next_indices]  # shape: (batch_size, n)
-    prev_2 = parent2[:, prev_indices]  # shape: (batch_size, n)
-    next_2 = parent2[:, next_indices]  # shape: (batch_size, n)
+    # Create edge lists (batch_size, n, 4)
+    edge_lists = torch.zeros((batch_size, n, 4), dtype=torch.long, device=parent1.device)
 
-    # Stack all edges together
-    edge_lists = torch.stack([prev_1, next_1, prev_2, next_2], dim=-1)  # shape: (batch_size, n, 4)
+    # Gather neighbors for all nodes at once
+    edge_lists[:, :, 0] = (mask1 * prev_1.unsqueeze(-1)).sum(dim=1)
+    edge_lists[:, :, 1] = (mask1 * next_1.unsqueeze(-1)).sum(dim=1)
+    edge_lists[:, :, 2] = (mask2 * prev_2.unsqueeze(-1)).sum(dim=1)
+    edge_lists[:, :, 3] = (mask2 * next_2.unsqueeze(-1)).sum(dim=1)
 
     # Sort in the dimension of the last axis
     return edge_lists.sort(dim=-1).values
 
 
-def select_from_edge_lists(edge_lists: torch.Tensor, visited: torch.Tensor) -> torch.Tensor:
+def select_from_edge_lists(
+    edge_lists: torch.Tensor,
+    visited: torch.Tensor,
+    current_node: torch.Tensor,
+) -> torch.Tensor:
     """
-    edge lists are of shape (batch_size, n, 4), int
-    visited is of shape (batch_size, n), boolean
+    Select a node from the edge lists based on the number of unique elements.
+
+    Args:
+        edge_lists: Tensor of size (batch_size, n, 4), int
+        visited: Tensor of size (batch_size, n), boolean
+
+    Returns:
+        selection: Tensor of size (batch_size,), int
     """
     batch_size = edge_lists.size(0)
 
     edge_lists_copy = edge_lists.clone()
 
-    # Mask visited nodes with -1
-    for col_idx in range(4):
-        edge_lists_copy[:, :, col_idx] = torch.where(
-            visited.gather(1, edge_lists[:, :, col_idx]), -1, edge_lists[:, :, col_idx]
-        )
+    # candidates is a tensor of size (batch_size, 4)
+    candidates = edge_lists_copy[torch.arange(batch_size), current_node, :]
 
-    # Sort edge lists to bring -1s to the front
-    edge_lists_copy = edge_lists_copy.sort(dim=-1).values
+    # edge_lists_candidates is a tensor of size (batch_size, 4, 4)
+    edge_lists_candidates = edge_lists_copy[torch.arange(batch_size).unsqueeze(-1).expand(-1, 4), candidates, :]
+
+    # Mask visited nodes with -1
+    edge_lists_candidates[:, :, 0] = torch.where(
+        visited.gather(1, edge_lists_candidates[:, :, 0]), -1, edge_lists_candidates[:, :, 0]
+    )
+    edge_lists_candidates[:, :, 1] = torch.where(
+        visited.gather(1, edge_lists_candidates[:, :, 1]), -1, edge_lists_candidates[:, :, 1]
+    )
+    edge_lists_candidates[:, :, 2] = torch.where(
+        visited.gather(1, edge_lists_candidates[:, :, 2]), -1, edge_lists_candidates[:, :, 2]
+    )
+    edge_lists_candidates[:, :, 3] = torch.where(
+        visited.gather(1, edge_lists_candidates[:, :, 3]), -1, edge_lists_candidates[:, :, 3]
+    )
 
     # Count unique elements by summing differences and adding 1 (for the first unique element)
-    diffs = edge_lists_copy[:, :, 1:] != edge_lists_copy[:, :, :-1]
+    edge_lists_candidates = edge_lists_candidates.sort(dim=-1).values
+    diffs = edge_lists_candidates[:, :, 1:] != edge_lists_candidates[:, :, :-1]
     unique_counts = diffs.sum(dim=-1) + 1
 
     # Discount one if -1 is present in the row
-    unique_counts = unique_counts - (torch.sum(edge_lists_copy == -1, dim=-1) > 0).int()
+    unique_counts = unique_counts - (torch.sum(edge_lists_candidates == -1, dim=-1) > 0).int()
 
-    # Select argument with minimum unique count, randomly break ties
-    min_unique_count = unique_counts[~visited].reshape(batch_size, -1).min(dim=-1, keepdim=True).values
-    candidates_mask = (unique_counts == min_unique_count) & (~visited)
-    candidates_mask = candidates_mask.float().div(candidates_mask.sum(dim=-1, keepdim=True))
+    # binary mask of visited candidates
+    visited_candidates = visited.gather(1, candidates)  # shape: (batch_size, 4)
 
-    # Generate random indices to break ties
-    return torch.multinomial(candidates_mask.float(), num_samples=1).squeeze()
+    # we set inf = 10 for the counts of the visited candidates, feasible max is 4
+    min_unique_count = (
+        torch.where(visited_candidates, 10, unique_counts).min(dim=1, keepdim=True).values
+    )  # shape: (batch_size, 1)
+    real_candidates_mask = (unique_counts == min_unique_count) & (~visited_candidates)
+
+    sums = real_candidates_mask.sum(dim=-1, keepdim=True)
+    to_draw_randomly = (sums == 0).bool()  # shape: (batch_size, 1)
+    sums = torch.where(to_draw_randomly, 1.0, sums)
+    real_candidates_mask = torch.where(to_draw_randomly, torch.ones_like(real_candidates_mask), real_candidates_mask)
+    real_candidates_mask = real_candidates_mask.float().div(sums)
+
+    idx = torch.multinomial(real_candidates_mask.float(), num_samples=1)  # shape: (batch_size, 1)
+    selected_nodes = candidates.gather(1, idx)
+
+    # select the first unvisited node if all candidates are visited
+    first_unvisited = (~visited).int().argmax(dim=1)
+    selected_nodes = torch.where(to_draw_randomly, first_unvisited.unsqueeze(-1), selected_nodes)
+
+    return selected_nodes.squeeze(1)
 
 
 def edge_recombination_crossover(parent1: torch.Tensor, parent2: torch.Tensor) -> torch.Tensor:
@@ -175,17 +219,17 @@ def edge_recombination_crossover(parent1: torch.Tensor, parent2: torch.Tensor) -
     edge_lists = build_edge_lists(parent1, parent2)
     assert edge_lists.shape == (batch_size, n, 4)
 
-    current_nodes = torch.randint(0, n, (batch_size,), dtype=torch.int, device=device)
+    current_nodes = torch.zeros((batch_size,), dtype=torch.int, device=device)
     visited[torch.arange(batch_size), current_nodes] = True
     offspring[:, 0] = current_nodes
 
     # Generate tours
     for step in range(1, n):
-        current_nodes = select_from_edge_lists(edge_lists, visited)
+        current_nodes = select_from_edge_lists(edge_lists, visited, current_nodes)
 
         # Update visitation and current nodes
         visited[torch.arange(batch_size), current_nodes] = True
-        offspring[:, step] = current_nodes
+        offspring[torch.arange(batch_size), step] = current_nodes
 
     # Complete tours by returning to the start node
     offspring[:, -1] = offspring[:, 0]

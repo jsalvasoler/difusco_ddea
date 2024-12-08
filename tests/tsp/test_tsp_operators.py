@@ -3,6 +3,7 @@ from itertools import permutations
 import numpy as np
 import pytest
 import torch
+from problems.tsp.tsp_instance import TSPInstance
 from problems.tsp.tsp_operators import (
     batched_two_opt_torch,
     build_edge_lists,
@@ -123,14 +124,20 @@ def test_build_edge_lists(parent_tensors: dict) -> None:
     parent1 = parent1.numpy()[:, :-1]
     parent2 = parent2.numpy()[:, :-1]
     for ind_idx in range(parent1.shape[0]):
-        for node_idx in range(n - 1):
+        for node in range(n - 1):
+            parent1_ind = parent1[ind_idx].tolist()
+            parent2_ind = parent2[ind_idx].tolist()
+
+            # find where the node is in the parent tours
+            node_idx_in_parent1 = parent1_ind.index(node)
+            node_idx_in_parent2 = parent2_ind.index(node)
             node_edges = [
-                parent1[ind_idx, node_idx - 1],
-                parent1[ind_idx, node_idx + 1],
-                parent2[ind_idx, node_idx - 1],
-                parent2[ind_idx, node_idx + 1],
+                parent1_ind[node_idx_in_parent1 - 1],
+                parent1_ind[(node_idx_in_parent1 + 1) % n],
+                parent2_ind[node_idx_in_parent2 - 1],
+                parent2_ind[(node_idx_in_parent2 + 1) % n],
             ]
-            assert sorted(node_edges) == edge_lists[ind_idx, node_idx, :].flatten().tolist()
+            assert sorted(node_edges) == edge_lists[ind_idx, node, :].flatten().tolist()
 
 
 def test_select_from_edge_lists(parent_tensors: dict) -> None:
@@ -162,3 +169,61 @@ def test_edge_recombination(parent_tensors: dict) -> None:
     assert offspring.shape == (batch_size // 2, n + 1)
     assert (offspring[:, :-1] <= n - 1).all()
     assert (offspring[:, :-1] >= 0).all()
+
+
+def test_edge_recombination_small_example() -> None:
+    # n = 9
+
+    instance = TSPInstance(
+        points=torch.rand(9, 2),
+        gt_tour=torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 0]),  # irrelevant for the example
+    )
+
+    A = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 0])
+    B = torch.tensor([3, 0, 1, 7, 6, 5, 8, 2, 4, 3])
+    assert instance.is_valid_tour(A)
+    assert instance.is_valid_tour(B)
+
+    # put tensors in a batch
+    A = torch.stack([A]).to(dtype=torch.int64)
+    B = torch.stack([B]).to(dtype=torch.int64)
+
+    # make sure edge_list is correct
+    edge_lists = build_edge_lists(A, B)
+    assert edge_lists.shape == (1, 9, 4)
+    assert edge_lists.dtype == torch.int64
+
+    expected_edge_lists = {
+        0: [8, 1, 3],
+        1: [0, 2, 7],
+        2: [1, 3, 8, 4],
+        3: [2, 4, 0],
+        4: [3, 5, 2],
+        5: [4, 6, 8],
+        6: [5, 7],
+        7: [6, 8, 1],
+        8: [7, 0, 5, 2],
+    }
+
+    edge_lists_np = edge_lists.numpy()[0]
+    # check that sorted and unduplicated lists are equal
+    for i in range(edge_lists_np.shape[0]):
+        assert sorted(set(edge_lists_np[i])) == sorted(expected_edge_lists[i]), f"Edge list {i} does not match"
+
+    # We start from same node as parent1, which is 0
+    visited = torch.zeros(1, 9, dtype=torch.bool)
+
+    expected_selections = [(1, 3), (4,), (2, 5), (6,), (7,), (1, 8), (2,), (8,)]
+    assume_selections = [3, 4, 5, 6, 7, 1, 2, 8]
+    assert len(expected_selections) == len(assume_selections)
+    assert all(ass in exp for (ass, exp) in zip(assume_selections, expected_selections))
+
+    current_node = torch.tensor([0])
+    for i in range(len(expected_selections)):
+        visited[0, current_node] = True
+        selection = select_from_edge_lists(edge_lists, visited, current_node)
+        assert selection.shape == (1,)
+        assert selection.item() in expected_selections[i], f"step {i} failed"
+        current_node = torch.tensor(assume_selections[i])
+
+    assert visited.sum() == 9 - 1

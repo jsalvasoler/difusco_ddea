@@ -258,9 +258,9 @@ def test_tsp_ga_mutation() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2))
 
-    mutation = ga._operators[0]  # noqa: SLF001
+    mutation = ga._operators[1]  # noqa: SLF001
     assert isinstance(mutation, TSPTwoOptMutation)
 
     parents = deepcopy(ga.population)
@@ -271,15 +271,16 @@ def test_tsp_ga_mutation() -> None:
     # make sure that no individual has worsened
     for i in range(children.values.shape[0]):
         assert instance.evaluate_tsp_route(children.values[i]) <= instance.evaluate_tsp_route(parents.values[i])
+        assert instance.is_valid_tour(children.values[i])
 
 
-def test_tsp_ga_crossover() -> None:
+def test_tsp_ga_crossover_works() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
+    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2))
 
-    crossover = ga._operators[1]  # noqa: SLF001
+    crossover = ga._operators[0]  # noqa: SLF001
     assert isinstance(crossover, TSPGACrossover)
 
     parents = deepcopy(ga.population)
@@ -293,14 +294,29 @@ def test_tsp_ga_crossover() -> None:
     # make sure that children and parents are different
     assert (children.values != parents.values).any()
 
+    evaluations_1 = [instance.evaluate_tsp_route(children.values[i]) for i in range(children.values.shape[0])]
+
     # make sure that children can be evaluated
     for i in range(children.values.shape[0]):
-        assert instance.evaluate_solution(children.values[i]) > 0
+        assert evaluations_1[i] > 0
+        assert instance.is_valid_tour(children.values[i])
 
 
 def test_tsp_ga_runs() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
-    ga.run(num_generations=2)
+    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=10))
+
+    ga.run(num_generations=0)
+
+    # manually compute evaluations
+    population = ga.population.values
+    evaluations_0 = [instance.evaluate_tsp_route(population[i]) for i in range(population.shape[0])]
+
+    ga.run(num_generations=1)
+    evaluations_1 = [instance.evaluate_tsp_route(ga.population.values[i]) for i in range(ga.population.values.shape[0])]
+
+    assert ga.status["pop_best_eval"] == min(evaluations_1)
+
+    assert sorted(evaluations_1) == sorted(evaluations_0)
