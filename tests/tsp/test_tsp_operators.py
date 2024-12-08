@@ -151,7 +151,7 @@ def test_select_from_edge_lists(parent_tensors: dict) -> None:
     visited = torch.zeros(batch_size // 2, n, dtype=torch.bool)
     first_selection = torch.zeros(batch_size // 2, dtype=int)
     visited[torch.arange(batch_size // 2), first_selection] = True
-    selection = select_from_edge_lists(edge_lists, visited)
+    selection = select_from_edge_lists(edge_lists, visited, first_selection)
 
     assert selection.shape == (batch_size // 2,)
     assert (selection >= 1).all()  # cannot select zero as it is already visited

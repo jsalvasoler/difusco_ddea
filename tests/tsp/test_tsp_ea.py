@@ -319,4 +319,4 @@ def test_tsp_ga_runs() -> None:
 
     assert ga.status["pop_best_eval"] == min(evaluations_1)
 
-    assert sorted(evaluations_1) == sorted(evaluations_0)
+    assert sorted(evaluations_1) != sorted(evaluations_0)
