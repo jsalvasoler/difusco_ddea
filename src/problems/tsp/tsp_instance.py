@@ -85,14 +85,14 @@ class TSPInstance(ProblemInstance):
             return False
 
         # start and end city must be the same
-        if not (tour[0] == tour[-1]).all():
+        if not (tour[0] == tour[-1]).item():
             return False
 
         # check no duplicate cities
         if tour.unique(dim=0).shape[0] != self.n:
             return False
 
-        # check that all elements are ints
+        # check that all elements are int64
         if tour.dtype != torch.int64:
             return False
 
