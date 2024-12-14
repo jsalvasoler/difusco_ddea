@@ -1,5 +1,6 @@
 """A meta PyTorch Lightning model for training and evaluating DIFUSCO models."""
 
+from abc import abstractmethod
 from argparse import Namespace
 
 import numpy as np
@@ -203,3 +204,19 @@ class COMetaModel(pl.LightningModule):
         val_dataset = torch.utils.data.Subset(self.validation_dataset, range(self.args.validation_examples))
         print("Validation dataset size:", len(val_dataset))
         return DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+    @abstractmethod
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Define the forward pass."""
+
+    @abstractmethod
+    def diffusion_sample(self, x: torch.Tensor) -> torch.Tensor:
+        """Sample heatmaps from Difusco."""
+
+    @abstractmethod
+    def validation_step(self, batch: tuple, batch_idx: int) -> None:
+        """Define one validation step."""
+
+    @abstractmethod
+    def test_step(self, batch: tuple, batch_idx: int) -> None:
+        """Define one test step."""

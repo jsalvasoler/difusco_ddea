@@ -1,41 +1,32 @@
 # ruff: noqa: ANN102
 
-from argparse import Namespace
-from typing import Iterator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterator
+
+if TYPE_CHECKING:
+    from argparse import Namespace
 
 
 class Config:
     def __init__(self, **kwargs) -> None:
-        self._config = kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     @classmethod
-    def load_from_args(cls, args: Namespace) -> "Config":
-        config = cls()
-        config._config = vars(args)  # noqa: SLF001
-        return config
+    def load_from_args(cls, args: Namespace) -> Config:
+        return cls(**vars(args))
 
     @classmethod
-    def load_from_dict(cls, config_dict: dict) -> "Config":
-        config = cls()
-        config._config = config_dict  # noqa: SLF001
-        return config
+    def load_from_dict(cls, config_dict: dict) -> Config:
+        return cls(**config_dict)
 
     def __getattr__(self, name: str) -> any:
-        if name in self._config:
-            return self._config[name]
         error_msg = f"'Config' object has no attribute '{name}'"
         raise AttributeError(error_msg)
 
-    def __setattr__(self, name: str, value: any) -> None:
-        if name == "_config":  # Allow setting _config attribute
-            super().__setattr__(name, value)
-        else:
-            error_msg = f"'Config' object has no attribute '{name}'"
-            raise AttributeError(error_msg)
-
     def __iter__(self) -> Iterator[tuple[str, any]]:
-        """Iterate over config key-value pairs."""
-        return iter(self._config.items())
+        return iter(self.__dict__.items())
 
     def __repr__(self) -> str:
-        return f"Config({self._config})"
+        return f"Config({self.__dict__})"

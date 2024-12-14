@@ -8,7 +8,7 @@ import torch
 from ea.arg_parser import get_arg_parser
 from ea.config import Config
 from ea.ea_utils import filter_args_by_group, save_results
-from ea.evolutionary_algorithm import dataset_factory, ea_factory, instance_factory
+from ea.evolutionary_algorithm import dataset_factory, ea_factory, instance_factory, run_ea
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_dataset import MISDataset
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
@@ -198,7 +198,35 @@ def test_gpu_memory_cleanup(task: str, algo: str) -> None:
     }
 
 
+@pytest.mark.parametrize("task", ["tsp", "mis"])
+@pytest.mark.parametrize("algo", ["ga", "brkga"])
+def test_ea_runs(task: str, algo: str) -> None:
+    if task == "tsp":
+        data_path = "data/tsp/tsp50_test_concorde.txt"
+    elif task == "mis":
+        data_path = "data/mis/er_test"
+    else:
+        error_msg = f"Invalid task: {task}"
+        raise ValueError(error_msg)
+    config = Config(
+        test_split=data_path,
+        test_split_label_dir=None,
+        data_path=".",
+        pop_size=5,
+        device="cpu",
+        n_parallel_evals=0,
+        max_two_opt_it=1,
+        task=task,
+        algo=algo,
+        sparse_factor=-1,
+        n_generations=5,
+        np_eval=True,
+        validate_samples=2,
+    )
+    run_ea(config)
+
+
 if __name__ == "__main__":
-    for task in ["tsp", "mis"]:
-        for algo in ["ga", "brkga"]:
-            test_gpu_memory_cleanup(task, algo)
+    # for task in ["tsp", "mis"]:
+    #     for algo in ["ga", "brkga"]:
+    test_ea_runs("mis", "ga")

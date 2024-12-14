@@ -1,12 +1,13 @@
+from __future__ import annotations
+
+import multiprocessing as mp
 import os
 import timeit
-from argparse import Namespace
-from gc import collect
+from multiprocessing import Queue
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import torch
 import wandb
-from evotorch.algorithms import GeneticAlgorithm
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
@@ -17,13 +18,19 @@ from problems.tsp.tsp_ga import create_tsp_ga
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import create_tsp_instance
 from pyinstrument import Profiler
-from torch.utils.data import Dataset
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from ea.config import Config
 from ea.ea_utils import save_results
-from ea.problem_instance import ProblemInstance
+
+if TYPE_CHECKING:
+    from argparse import Namespace
+
+    from evotorch.algorithms import GeneticAlgorithm
+    from torch.utils.data import Dataset
+
+    from ea.problem_instance import ProblemInstance
 
 
 def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
@@ -77,7 +84,70 @@ def main_ea(args: Namespace) -> None:
         run_ea(config)
 
 
+def run_single_iteration(config: Config, sample: Any) -> dict:  # noqa: ANN401
+    instance = instance_factory(config, sample)
+    ea = ea_factory(config, instance)
+
+    _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
+
+    start_time = timeit.default_timer()
+    ea.run(config.n_generations)
+
+    cost = ea.status["pop_best_eval"]
+    gt_cost = instance.get_gt_cost()
+
+    diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
+    gap = diff / gt_cost
+
+    return {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
+
+
+def create_timeout_error(iteration: int) -> TimeoutError:
+    message = f"Process timed out for iteration {iteration}."
+    return TimeoutError(message)
+
+
+def create_no_result_error() -> RuntimeError:
+    return RuntimeError("No result returned from the process.")
+
+
+def create_process_error(error_message: str) -> RuntimeError:
+    return RuntimeError(error_message)
+
+
+def handle_timeout(process: mp.Process, iteration: int) -> None:
+    if process.is_alive():
+        process.terminate()
+        raise create_timeout_error(iteration)
+
+
+def handle_empty_queue(queue: Queue) -> None:
+    if queue.empty():
+        raise create_no_result_error()
+
+
+def handle_process_error(run_results: dict) -> None:
+    if "error" in run_results:
+        raise create_process_error(run_results["error"])
+
+
+def process_iteration(config: Config, sample: tuple[Any, ...], queue: Queue) -> None:
+    """Run the single iteration and store the result in the queue."""
+    try:
+        # Force torch to reinitialize CUDA in the subprocess
+        if hasattr(config, "device") and "cuda" in config.device:
+            import torch
+
+            torch.cuda.init()
+
+        result = run_single_iteration(config, sample)
+        queue.put(result)
+    except BaseException as e:  # noqa: BLE001 blind exception required
+        queue.put({"error": str(e)})
+
+
 def run_ea(config: Config) -> None:
+    print(f"Running EA with config: {config}")
     dataset = dataset_factory(config)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
@@ -92,50 +162,32 @@ def run_ea(config: Config) -> None:
         )
 
     results = []
+    ctx = mp.get_context("spawn")
 
     for i, sample in tqdm(enumerate(dataloader)):
-        instance = instance_factory(config, sample)
-        ea = ea_factory(config, instance)
+        queue = ctx.Queue()
+        process = ctx.Process(target=process_iteration, args=(config, sample, queue))
 
-        _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
+        process.start()
+        try:
+            process.join(timeout=30 * 60)  # 30 minutes timeout
+            handle_timeout(process, i)
+            handle_empty_queue(queue)
 
-        start_time = timeit.default_timer()
-        ea.run(config.n_generations)
+            run_results = queue.get()
+            handle_process_error(run_results)
 
-        cost = ea.status["pop_best_eval"]
-        gt_cost = instance.get_gt_cost()
+            results.append(run_results)
+            if not is_validation_run:
+                wandb.log(run_results, step=i)
+        except (TimeoutError, RuntimeError) as e:
+            print(f"Error in iteration {i}: {e}")
+        finally:
+            if process.is_alive():
+                process.terminate()
+                process.join()
 
-        diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
-        gap = diff / gt_cost
-
-        run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
-
-        if not is_validation_run:
-            wandb.log(run_results, step=i)
-
-        results.append(run_results)
-
-        # Clean up GPU memory - improved sequence
-        torch.cuda.synchronize()  # Make sure all CUDA operations are complete
-
-        # Delete in reverse order of creation
-        del ea  # Delete the EA
-        del instance.dist_mat  # Delete large tensors explicitly
-        del instance  # Delete the instance
-
-        # Force cleanup
-        torch.cuda.synchronize()  # Synchronize again after deletions
-        collect()  # Python garbage collection
-        torch.cuda.empty_cache()  # Clear CUDA cache
-
-        # Verify cleanup
-        if torch.cuda.memory_allocated() > 0:
-            print(f"Warning: {torch.cuda.memory_allocated() / 1024**2}MB still allocated")
-            print(torch.cuda.memory_snapshot())
-
-        assert torch.cuda.memory_allocated() == 0, f"Failed to clean up GPU memory after {i} runs."
-
-        if is_validation_run and i == config.validate_samples - 1:
+        if is_validation_run and i >= config.validate_samples - 1:
             break
 
     agg_results = {
@@ -145,6 +197,7 @@ def run_ea(config: Config) -> None:
         "avg_runtime": np.mean([r["runtime"] for r in results]),
         "n_evals": len(results),
     }
+
     if not is_validation_run:
         wandb.log(agg_results)
         agg_results["wandb_id"] = wandb.run.id
