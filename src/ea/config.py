@@ -1,6 +1,7 @@
 # ruff: noqa: ANN102
 
 from argparse import Namespace
+from typing import Iterator
 
 
 class Config:
@@ -31,6 +32,10 @@ class Config:
         else:
             error_msg = f"'Config' object has no attribute '{name}'"
             raise AttributeError(error_msg)
+
+    def __iter__(self) -> Iterator[tuple[str, any]]:
+        """Iterate over config key-value pairs."""
+        return iter(self._config.items())
 
     def __repr__(self) -> str:
         return f"Config({self._config})"

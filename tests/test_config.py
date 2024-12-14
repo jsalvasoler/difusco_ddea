@@ -91,3 +91,24 @@ def test_only_internal_config_can_be_set() -> None:
     # Test that _config can be set directly without error
     config._config = {"test": 42}  # noqa: SLF001
     assert config.test == 42
+
+
+def test_config_iterator() -> None:
+    config_dict = {"a": 1, "b": 2, "c": 3}
+    config = Config.load_from_dict(config_dict)
+
+    # Convert iterator results to a dict for comparison
+    iterated_dict = dict(config)
+
+    # Test that iterating over config yields the same key-value pairs as the original dict
+    assert iterated_dict == config_dict
+
+    # Test manual iteration
+    items = []
+    for key, value in config:
+        items.append((key, value))
+    
+    # Test that all items were iterated over
+    assert len(items) == len(config_dict)
+    # Test that all items match
+    assert dict(items) == config_dict
