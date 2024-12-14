@@ -106,7 +106,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
     for sample in dataloader:
         instance = instance_factory(config, sample)
-        gt_cost = instance.gt_cost
+        gt_cost = instance.get_gt_cost()
         results.append(gt_cost)
 
     assert np.mean(results) == 41.3828125

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 from unittest.mock import patch
@@ -12,7 +14,7 @@ from problems.tsp.tsp_brkga import (
     create_tsp_brkga,
     create_tsp_problem,
 )
-from problems.tsp.tsp_evaluation import TSPEvaluator
+from problems.tsp.tsp_evaluation import TSPEvaluator, TSPTorchEvaluator, evaluate_tsp_route_np, evaluate_tsp_route_torch
 from problems.tsp.tsp_ga import TSPGACrossover, TSPGAProblem, TSPTwoOptMutation, create_tsp_ga
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import TSPInstance, create_tsp_instance
@@ -38,7 +40,7 @@ def test_create_tsp_instance() -> None:
     sample = get_tsp_sample()
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    assert instance.gt_cost > 0
+    assert instance.get_gt_cost() > 0
     assert instance.points.shape == (50, 2)
     assert instance.n == 50
     assert instance.gt_tour.shape == (51,)
@@ -54,12 +56,24 @@ def test_create_tsp_instance() -> None:
     for i in range(len(tour) - 1):
         calc_cost += dist_mat[tour[i], tour[i + 1]]
 
-    assert abs(calc_cost - instance.gt_cost) < 1e-4
+    assert abs(calc_cost - instance.get_gt_cost()) < 1e-4
 
     # Compare with TSPEvaluator
     tsp_evaluator = TSPEvaluator(points)
 
-    assert abs(tsp_evaluator.evaluate(tour) - instance.gt_cost) < 1e-4
+    assert abs(tsp_evaluator.evaluate(tour) - instance.get_gt_cost()) < 1e-4
+
+    # Compare with evaluate_tsp_route_np
+    assert abs(evaluate_tsp_route_np(tsp_evaluator.dist_mat, tour) - instance.get_gt_cost()) < 1e-4
+
+    # Compare with TSPTorchEvaluator
+    points = sample[1][0]
+    tour = torch.tensor(tour)
+    tsp_torch_evaluator = TSPTorchEvaluator(points)
+    assert abs(tsp_torch_evaluator.evaluate(tour) - instance.get_gt_cost()) < 1e-4
+
+    # Compare with evaluate_tsp_route_torch
+    assert abs(evaluate_tsp_route_torch(tsp_torch_evaluator.dist_mat, tour) - instance.get_gt_cost()) < 1e-4
 
 
 @patch("numpy.random.randint", return_value=np.array([2]))
@@ -320,3 +334,47 @@ def test_tsp_ga_runs() -> None:
     assert ga.status["pop_best_eval"] == min(evaluations_1)
 
     assert sorted(evaluations_1) != sorted(evaluations_0)
+
+
+def test_gpu_memory() -> None:
+    # Helper function to check GPU memory usage
+    def get_gpu_memory(when: str = "before") -> dict[str, float]:
+        print(f"{when}: {torch.cuda.memory_allocated() / 1024**2}")
+        return {
+            "allocated_mb": torch.cuda.memory_allocated() / 1024**2,
+            "cached_mb": torch.cuda.memory_reserved() / 1024**2,
+        }
+
+    dataset = TSPGraphDataset(data_file="data/tsp/tsp100_test_concorde.txt", sparse_factor=-1)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    for sample in dataloader:
+        instance = create_tsp_instance(sample, device="cuda", sparse_factor=-1)
+        get_gpu_memory("after instance")
+
+        ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cuda", n_parallel_evals=0, max_two_opt_it=2))
+        get_gpu_memory("after ga")
+
+        ga.run(num_generations=2)
+        status = ga.status
+        memory = get_gpu_memory("after ga run")
+        assert memory["allocated_mb"] > 0
+        assert memory["cached_mb"] > 0
+
+        del status
+        del instance
+        del ga
+
+        from gc import collect
+
+        collect()
+        torch.cuda.empty_cache()
+        new_memory = get_gpu_memory("after cleanup")
+
+        assert new_memory["allocated_mb"] == 0
+        assert new_memory["cached_mb"] <= memory["cached_mb"]
+        break
+
+
+if __name__ == "__main__":
+    test_gpu_memory()

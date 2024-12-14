@@ -6,6 +6,7 @@ from problems.tsp.tsp_evaluation import (
     TSPEvaluator,
     TSPTorchEvaluator,
     adj_mat_to_tour,
+    cdist_v2,
     cython_merge,
     cython_merge_get_tour,
 )
@@ -175,6 +176,17 @@ def test_cython_merge_get_tour_vs_python() -> None:
     assert (tour1 == tour2).all()
 
     assert tour1[-1] == tour2[-1] == 0
+
+
+def test_cdist_v2() -> None:
+    points = torch.rand(100, 2)
+    dist_mat = cdist_v2(points, points)
+
+    assert dist_mat.shape == (100, 100)
+
+    # compare to torch.cdist
+    dist_mat_torch = torch.cdist(points, points)
+    assert torch.allclose(dist_mat, dist_mat_torch, atol=1e-5)
 
 
 if __name__ == "__main__":

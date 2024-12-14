@@ -146,6 +146,19 @@ class TSPTorchEvaluator:
         return distances.sum().item()
 
 
+def evaluate_tsp_route_np(dist_mat: np.ndarray, route: np.ndarray) -> float:
+    total_cost = 0
+    for i in range(len(route) - 1):
+        total_cost += dist_mat[route[i], route[i + 1]]
+    return total_cost
+
+
+def evaluate_tsp_route_torch(dist_mat: torch.Tensor, route: torch.Tensor) -> float:
+    route_pairs = torch.stack([route[:-1], route[1:]], dim=1)
+    distances = dist_mat[route_pairs[:, 0], route_pairs[:, 1]]
+    return distances.sum().item()
+
+
 def adj_mat_to_tour(adj_mat: np.ndarray) -> list:
     N = adj_mat.shape[0]
     tour = [0]
@@ -155,3 +168,28 @@ def adj_mat_to_tour(adj_mat: np.ndarray) -> list:
             n = n[n != tour[-2]]
         tour.append(n.max())
     return tour
+
+
+@torch.no_grad()
+def cdist_v2(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    # |x_i - y_j|_2^2 = <x_i - y_j, x_i - y_j> = <x_i, x_i> + <y_j, y_j> - 2*<x_i, y_j>
+
+    device = x.device
+    x_cpu = x.cpu()
+    y_cpu = y.cpu()
+    x_sq_norm = x_cpu.pow(2).sum(dim=-1)
+    y_sq_norm = y_cpu.pow(2).sum(dim=-1)
+    x_dot_y = torch.matmul(x_cpu, y_cpu.t())
+    del x_cpu, y_cpu
+
+    # Compute distance in-place to avoid extra allocation
+    dist = x_sq_norm.unsqueeze(dim=1) + y_sq_norm.unsqueeze(dim=0)
+    dist.sub_(2 * x_dot_y)
+    dist.clamp_(min=0.0)
+    dist.sqrt_()  # In-place square root
+
+    # Clean up intermediate tensors
+    del x_sq_norm, y_sq_norm, x_dot_y
+
+    dist = dist.detach()  # Ensure the tensor is detached from any graph
+    return dist.to(device)

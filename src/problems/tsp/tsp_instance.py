@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
-from problems.tsp.tsp_evaluation import TSPTorchEvaluator, adj_mat_to_tour, cython_merge
+from problems.tsp.tsp_evaluation import adj_mat_to_tour, cdist_v2, cython_merge, evaluate_tsp_route_torch
 from problems.tsp.tsp_operators import batched_two_opt_torch, edge_recombination_crossover
 
 
@@ -15,19 +15,18 @@ class TSPInstance(ProblemInstance):
         self.points = points
         self.np_points = points.cpu().numpy()
         self.device = points.device
-
         self.n = points.shape[0]
         self.gt_tour = gt_tour
-        self.tsp_evaluator = TSPTorchEvaluator(points=self.points)
+        self.gt_cost = None
+        self.dist_mat = cdist_v2(points, points)
 
-        self._gt_cost = self.evaluate_tsp_route(gt_tour)
-
-    @property
-    def gt_cost(self) -> float:
-        return self._gt_cost
+    def get_gt_cost(self) -> float:
+        if self.gt_cost is None:
+            self.gt_cost = self.evaluate_tsp_route(self.gt_tour)
+        return self.gt_cost
 
     def evaluate_tsp_route(self, route: torch.Tensor) -> float:
-        return self.tsp_evaluator.evaluate(route)
+        return evaluate_tsp_route_torch(self.dist_mat, route)
 
     def two_opt_mutation(self, routes: torch.Tensor, max_iterations: int) -> torch.Tensor:
         """Routes is a tensor of shape (n_solutions, n + 1)"""
@@ -108,11 +107,12 @@ class TSPInstance(ProblemInstance):
 def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
     """Create a TSPInstance from a sample. A sample is a batch of size 1"""
 
+    # TODO: implement sparse TSP instances
     if sparse_factor <= 0:
         _, points, _, tour = sample
-        points, tour = points[0], tour[0]
-        return TSPInstance(points.to(device), tour.to(device))
+        points, tour = points[0].to(device), tour[0].to(device)
+        return TSPInstance(points, tour)
 
     _, points, _, _, tour = sample
-    points, tour = points[0], tour[0]
-    return TSPInstance(points.to(device), tour.to(device))
+    points, tour = points[0].to(device), tour[0].to(device)
+    return TSPInstance(points, tour)

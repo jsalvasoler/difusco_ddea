@@ -32,8 +32,7 @@ class MISInstance(MISInstanceBase):
         self.n_nodes = n_nodes
         self.gt_labels = gt_labels
 
-    @property
-    def gt_cost(self) -> float:
+    def get_gt_cost(self) -> float:
         return self.gt_labels.sum()
 
     def evaluate_individual(self, individual: torch.Tensor) -> float:
@@ -65,8 +64,7 @@ class MISInstanceNumPy(MISInstanceBase):
         self.n_nodes = n_nodes
         self.gt_labels = gt_labels
 
-    @property
-    def gt_cost(self) -> float:
+    def get_gt_cost(self) -> float:
         return self.gt_labels.sum()
 
     def evaluate_individual(self, individual: torch.Tensor) -> float:

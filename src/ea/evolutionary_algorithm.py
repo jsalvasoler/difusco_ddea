@@ -103,7 +103,7 @@ def run_ea(config: Config) -> None:
         ea.run(config.n_generations)
 
         cost = ea.status["pop_best_eval"]
-        gt_cost = instance.gt_cost
+        gt_cost = instance.get_gt_cost()
 
         diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
         gap = diff / gt_cost
