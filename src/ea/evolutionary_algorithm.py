@@ -115,11 +115,25 @@ def run_ea(config: Config) -> None:
 
         results.append(run_results)
 
-        # Clean up GPU memory
-        del instance
-        del ea
-        torch.cuda.empty_cache()
-        collect()
+        # Clean up GPU memory - improved sequence
+        torch.cuda.synchronize()  # Make sure all CUDA operations are complete
+
+        # Delete in reverse order of creation
+        del ea  # Delete the EA
+        del instance.dist_mat  # Delete large tensors explicitly
+        del instance  # Delete the instance
+
+        # Force cleanup
+        torch.cuda.synchronize()  # Synchronize again after deletions
+        collect()  # Python garbage collection
+        torch.cuda.empty_cache()  # Clear CUDA cache
+
+        # Verify cleanup
+        if torch.cuda.memory_allocated() > 0:
+            print(f"Warning: {torch.cuda.memory_allocated() / 1024**2}MB still allocated")
+            print(torch.cuda.memory_snapshot())
+
+        assert torch.cuda.memory_allocated() == 0, f"Failed to clean up GPU memory after {i} runs."
 
         if is_validation_run and i == config.validate_samples - 1:
             break

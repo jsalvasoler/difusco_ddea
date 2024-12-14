@@ -17,12 +17,10 @@ class TSPInstance(ProblemInstance):
         self.device = points.device
         self.n = points.shape[0]
         self.gt_tour = gt_tour
-        self.gt_cost = None
         self.dist_mat = cdist_v2(points, points)
+        self.gt_cost = self.evaluate_tsp_route(self.gt_tour)
 
     def get_gt_cost(self) -> float:
-        if self.gt_cost is None:
-            self.gt_cost = self.evaluate_tsp_route(self.gt_tour)
         return self.gt_cost
 
     def evaluate_tsp_route(self, route: torch.Tensor) -> float:
