@@ -135,12 +135,6 @@ def handle_process_error(run_results: dict) -> None:
 def process_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
     """Run the single iteration and store the result in the queue."""
     try:
-        # Force torch to reinitialize CUDA in the subprocess
-        if hasattr(config, "device") and "cuda" in config.device:
-            import torch
-
-            torch.cuda.init()
-
         result = run_single_iteration(config, sample)
         queue.put(result)
     except BaseException as e:  # noqa: BLE001 blind exception required

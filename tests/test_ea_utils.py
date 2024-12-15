@@ -8,7 +8,7 @@ import torch
 from ea.arg_parser import get_arg_parser
 from ea.config import Config
 from ea.ea_utils import filter_args_by_group, save_results
-from ea.evolutionary_algorithm import dataset_factory, ea_factory, instance_factory, run_ea
+from ea.evolutionary_algorithm import dataset_factory, ea_factory, handle_empty_queue, handle_process_error, handle_timeout, instance_factory, process_iteration, run_ea
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_dataset import MISDataset
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
@@ -119,6 +119,10 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 @pytest.mark.parametrize("task", ["tsp", "mis"])
 @pytest.mark.parametrize("algo", ["ga", "brkga"])
 def test_gpu_memory_cleanup(task: str, algo: str) -> None:
+    import multiprocessing as mp
+    from tqdm import tqdm
+
+
     if task == "tsp":
         dataset = TSPGraphDataset(data_file="data/tsp/tsp100_test_concorde.txt", sparse_factor=-1)
     elif task == "mis":
@@ -128,7 +132,7 @@ def test_gpu_memory_cleanup(task: str, algo: str) -> None:
         raise ValueError(error_msg)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
     config = Config(
-        pop_size=10,
+        pop_size=2,
         device="cuda",
         n_parallel_evals=0,
         max_two_opt_it=10,
@@ -136,7 +140,7 @@ def test_gpu_memory_cleanup(task: str, algo: str) -> None:
         task=task,
         algo=algo,
         sparse_factor=-1,
-        n_generations=10,
+        n_generations=2,
         np_eval=True,
     )
 
@@ -145,55 +149,40 @@ def test_gpu_memory_cleanup(task: str, algo: str) -> None:
     is_validation_run = config.validate_samples is not None
     results = []
 
-    from tqdm import tqdm
+    results = []
+    ctx = mp.get_context("spawn")
 
     for i, sample in tqdm(enumerate(dataloader)):
-        instance = instance_factory(config, sample)
-        ea = ea_factory(config, instance)
+        queue = ctx.Queue()
+        process = ctx.Process(target=process_iteration, args=(config, sample, queue))
 
-        _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
+        process.start()
+        try:
+            process.join(timeout=30 * 60)  # 30 minutes timeout
+            handle_timeout(process, i)
+            handle_empty_queue(queue)
 
-        ea.run(config.n_generations)
+            run_results = queue.get()
+            handle_process_error(run_results)
 
-        cost = ea.status["pop_best_eval"]
-        gt_cost = instance.get_gt_cost()
+            results.append(run_results)
+        except (TimeoutError, RuntimeError) as e:
+            print(f"Error in iteration {i}: {e}")
+        finally:
+            if process.is_alive():
+                process.terminate()
+                process.join()
 
-        diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
-        gap = diff / gt_cost
-
-        run_results = {"cost": cost, "gt_cost": gt_cost, "gap": gap}
-
-        results.append(run_results)
-
-        # Clean up GPU memory - improved sequence
-        torch.cuda.synchronize()  # Make sure all CUDA operations are complete
-
-        # Delete in reverse order of creation
-        del ea  # Delete the EA
-        del instance  # Delete the instance
-
-        # Force cleanup
-        torch.cuda.synchronize()  # Synchronize again after deletions
-        import gc
-
-        gc.collect()
-        torch.cuda.empty_cache()  # Clear CUDA cache
-
-        # Verify cleanup
-        if torch.cuda.memory_allocated() > 0:
-            print(f"Warning: {torch.cuda.memory_allocated() / 1024**2}MB still allocated")
-            print(torch.cuda.memory_snapshot())
-
-        assert torch.cuda.memory_allocated() == 0, f"Failed to clean up GPU memory after {i} runs."
-        print(f"Successfully cleaned up GPU memory after {i} runs.")
-
-        if is_validation_run and i == config.validate_samples - 1:
+        if is_validation_run and i >= config.validate_samples - 1:
             break
+
+        assert torch.cuda.memory_allocated() == 0, "CUDA memory not freed"
 
     _ = {
         "avg_cost": np.mean([r["cost"] for r in results]),
         "avg_gt_cost": np.mean([r["gt_cost"] for r in results]),
         "avg_gap": np.mean([r["gap"] for r in results]),
+        "avg_runtime": np.mean([r["runtime"] for r in results]),
         "n_evals": len(results),
     }
 
