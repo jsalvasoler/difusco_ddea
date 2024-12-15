@@ -48,9 +48,9 @@ class DifuscoSampler:
     def sample(self, batch: tuple) -> torch.Tensor:
         """Sample heatmaps from Difusco"""
         if self.task == "tsp":
-            return self.sample_tsp(batch)
+            return self.sample_tsp(batch=batch)
         if self.task == "mis":
-            return self.sample_mis(batch)
+            return self.sample_mis(batch=batch)
         error_msg = f"Unknown task: {self.task}"
         raise ValueError(error_msg)
 
@@ -75,21 +75,28 @@ class DifuscoSampler:
         return torch.clamp(heatmaps, 0, 1)
 
     @torch.no_grad()
-    def sample_tsp(self, batch: tuple) -> torch.Tensor:
+    def sample_tsp(
+        self, batch: tuple | None = None, edge_index: torch.Tensor | None = None, points: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Sample heatmaps from Difusco
 
         Args:
-            batch: Input batch in the format expected by the model
+            batch: Input batch in the format expected by the model, or None if providing edge_index and points directly
+            edge_index: Edge index tensor, required if batch is None
+            points: Points tensor, required if batch is None
 
         Returns:
             Tensor containing the sampled heatmaps
         """
-        # Process batch based on task
-        _, edge_index, _, points, adj_matrix, _, _ = self.model.process_batch(batch)
+        # Process batch if provided, otherwise use direct inputs
+        if batch is not None:
+            _, edge_index, _, points, _, _, _ = self.model.process_batch(batch)
+        elif points is None:
+            error_msg = "Must provide either batch or both edge_index and points"
+            raise ValueError(error_msg)
 
         # Handle parallel sampling if enabled
-
         if self.model.args.parallel_sampling > 1:
             if not self.model.sparse:
                 points = points.repeat(self.model.args.parallel_sampling, 1, 1)
@@ -101,7 +108,6 @@ class DifuscoSampler:
 
         heatmaps = None
         points = points.to(self.device)
-        adj_matrix = adj_matrix.to(self.device)
         if self.model.sparse:
             edge_index = edge_index.to(self.device)
         for _ in range(self.model.args.sequential_sampling):

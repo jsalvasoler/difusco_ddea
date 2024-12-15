@@ -48,6 +48,7 @@ def test_create_tsp_instance(batch_sample_size_one: tuple) -> None:
     assert instance.gt_tour.min() == 0
     assert instance.gt_tour.max() == 49
 
+
 def test_tsp_instance_eval_methods(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
@@ -252,10 +253,12 @@ def test_valid_tour(batch_sample_size_one: tuple) -> None:
     assert not instance.is_valid_tour(tour)
 
 
-def test_tsp_ga_fill(batch_sample_size_one: tuple) -> None:
+def test_tsp_ga_fill_random_feasible(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
-    problem = TSPGAProblem(instance, Config(pop_size=10, device="cpu", n_parallel_evals=0))
+    problem = TSPGAProblem(
+        instance, Config(pop_size=10, device="cpu", n_parallel_evals=0, initialization="random_feasible")
+    )
 
     values = torch.zeros(10, instance.n + 1, dtype=torch.int64)
     problem._fill(values)  # noqa: SLF001 for testing
@@ -274,11 +277,70 @@ def test_tsp_ga_fill(batch_sample_size_one: tuple) -> None:
         assert evaluations[i] == problem._objective_func(values[i])  # noqa: SLF001
 
 
+def test_tsp_ga_fill_difusco_sampling(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
+    instance = create_tsp_instance(sample, device="cuda", sparse_factor=-1)
+    config = Config(
+        pop_size=2,
+        device="cuda",
+        n_parallel_evals=0,
+        initialization="difusco_sampling",
+        models_path="models",
+        ckpt_path="tsp/tsp50_categorical.ckpt",
+        task="tsp",
+        diffusion_type="categorical",
+        learning_rate=0.0002,
+        weight_decay=0.0001,
+        lr_scheduler="cosine-decay",
+        data_path="data",
+        test_split="tsp/tsp50_test_concorde.txt",
+        training_split="tsp/tsp50_train_concorde.txt",
+        validation_split="tsp/tsp50_test_concorde.txt",
+        batch_size=32,
+        num_epochs=50,
+        diffusion_steps=2,
+        validation_examples=8,
+        diffusion_schedule="linear",
+        inference_schedule="cosine",
+        inference_diffusion_steps=50,
+        parallel_sampling=2,
+        sequential_sampling=1,
+        sparse_factor=-1,
+        n_layers=12,
+        hidden_dim=256,
+        aggregation="sum",
+        use_activation_checkpoint=False,
+        fp16=False,
+    )
+    problem = TSPGAProblem(instance, config)
+
+    values = torch.zeros(2, instance.n + 1, dtype=torch.int64)
+    problem._fill(values)  # noqa: SLF001 for testing
+
+    assert values.shape == (2, instance.n + 1)
+    assert values.dtype == torch.int64
+
+    assert (values.sum(dim=1) > 0).all()
+
+    evaluations = [instance.evaluate_tsp_route(values[i]) for i in range(values.shape[0])]
+    assert all(eval_ > 0 for eval_ in evaluations)
+
+    # make sure that the routes are valid and that they match the problem's evaluation
+    for i in range(values.shape[0]):
+        assert instance.is_valid_tour(values[i])
+        assert evaluations[i] == problem._objective_func(values[i])  # noqa: SLF001
+
+
 def test_tsp_ga_mutation(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2))
+    ga = create_tsp_ga(
+        instance,
+        config=Config(
+            pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2, initialization="random_feasible"
+        ),
+    )
 
     mutation = ga._operators[1]  # noqa: SLF001
     assert isinstance(mutation, TSPTwoOptMutation)
@@ -298,7 +360,12 @@ def test_tsp_ga_crossover_works(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2))
+    ga = create_tsp_ga(
+        instance,
+        config=Config(
+            pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2, initialization="random_feasible"
+        ),
+    )
 
     crossover = ga._operators[0]  # noqa: SLF001
     assert isinstance(crossover, TSPGACrossover)
@@ -326,7 +393,12 @@ def test_tsp_ga_runs(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
-    ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=10))
+    ga = create_tsp_ga(
+        instance,
+        config=Config(
+            pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=5, initialization="random_feasible"
+        ),
+    )
 
     ga.run(num_generations=0)
 

@@ -19,9 +19,7 @@ class TSPInstance(ProblemInstance):
     on the same device as the argument tensors.
     """
 
-    def __init__(
-        self, points: torch.Tensor, edge_index: torch.Tensor | None, gt_tour: torch.Tensor
-    ) -> None:
+    def __init__(self, points: torch.Tensor, edge_index: torch.Tensor | None, gt_tour: torch.Tensor) -> None:
         self.sparse = edge_index is not None
 
         self.points = points

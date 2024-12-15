@@ -25,6 +25,21 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--pop_size", type=int, default=100)
     ea_settings.add_argument("--n_generations", type=int, default=100)
     ea_settings.add_argument("--max_two_opt_it", type=int, default=-1)
+    ea_settings.add_argument("--initialization", type=str, default="random_feasible")
+
+    difusco_settings = parser.add_argument_group("difusco_settings")
+    difusco_settings.add_argument("--models_path", type=str, default=".")
+    difusco_settings.add_argument("--model_ckpt", type=str, default=None)
+    difusco_settings.add_argument("--diffusion_type", type=str, default="categorical")
+    difusco_settings.add_argument("--diffusion_schedule", type=str, default="linear")
+    difusco_settings.add_argument("--inference_schedule", type=str, default="cosine")
+    difusco_settings.add_argument("--inference_diffusion_steps", type=int, default=50)
+    difusco_settings.add_argument("--parallel_sampling", type=int, default=1)
+    difusco_settings.add_argument("--sequential_sampling", type=int, default=1)
+    difusco_settings.add_argument("--hidden_dim", type=int, default=256)
+    difusco_settings.add_argument("--aggregation", type=str, default="sum")
+    difusco_settings.add_argument("--use_activation_checkpoint", action="store_true")
+    difusco_settings.add_argument("--fp16", action="store_true")
 
     tsp_settings = parser.add_argument_group("tsp_settings")
     tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
@@ -42,6 +57,9 @@ def get_arg_parser() -> ArgumentParser:
 def validate_args(args: Namespace) -> None:
     assert args.task in ["tsp", "mis", "high_degree_selection"]
     assert args.algo in ["ga", "brkga"]
+
+    if args.algo == "ga":
+        assert args.initialization in ["random_feasible", "difusco_sampling"]
 
     if args.algo == "ga" and args.task == "tsp":
         assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."
