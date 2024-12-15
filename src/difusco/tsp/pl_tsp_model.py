@@ -31,17 +31,17 @@ class TSPModel(COMetaModel):
         self.train_dataset = TSPGraphDataset(
             data_file=os.path.join(self.args.data_path, self.args.training_split),
             sparse_factor=self.args.sparse_factor,
-        )
+        ) if self.args.training_split else None
 
         self.test_dataset = TSPGraphDataset(
             data_file=os.path.join(self.args.data_path, self.args.test_split),
             sparse_factor=self.args.sparse_factor,
-        )
+        ) if self.args.test_split else None
 
         self.validation_dataset = TSPGraphDataset(
             data_file=os.path.join(self.args.data_path, self.args.validation_split),
             sparse_factor=self.args.sparse_factor,
-        )
+        ) if self.args.validation_split else None
 
     def forward(self, x: torch.Tensor, adj: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
         return self.model(x, t, adj, edge_index)
