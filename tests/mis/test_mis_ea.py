@@ -150,8 +150,6 @@ def assert_valid_initialized_population(values: torch.Tensor, instance: MISInsta
         assert values[i].sum() == instance.evaluate_solution(values[i])
 
 
-
-
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_fill_random_feasible(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval)

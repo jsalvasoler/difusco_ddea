@@ -176,6 +176,7 @@ def test_edge_recombination_small_example() -> None:
 
     instance = TSPInstance(
         points=torch.rand(9, 2),
+        edge_index=None,  # dense graph
         gt_tour=torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 0]),  # irrelevant for the example
     )
 
@@ -185,8 +186,8 @@ def test_edge_recombination_small_example() -> None:
     assert instance.is_valid_tour(B)
 
     # put tensors in a batch
-    A = torch.stack([A]).to(dtype=torch.int64)
-    B = torch.stack([B]).to(dtype=torch.int64)
+    A = A.unsqueeze(0).to(dtype=torch.int64)
+    B = B.unsqueeze(0).to(dtype=torch.int64)
 
     # make sure edge_list is correct
     edge_lists = build_edge_lists(A, B)
