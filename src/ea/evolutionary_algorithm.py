@@ -3,10 +3,10 @@ from __future__ import annotations
 import multiprocessing as mp
 import os
 import timeit
-from multiprocessing import Queue
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import torch
 import wandb
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_brkga import create_mis_brkga
@@ -99,7 +99,8 @@ def run_single_iteration(config: Config, sample: Any) -> dict:  # noqa: ANN401
     diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
     gap = diff / gt_cost
 
-    return {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
+    results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
+    return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
 
 def create_timeout_error(iteration: int) -> TimeoutError:
@@ -121,7 +122,7 @@ def handle_timeout(process: mp.Process, iteration: int) -> None:
         raise create_timeout_error(iteration)
 
 
-def handle_empty_queue(queue: Queue) -> None:
+def handle_empty_queue(queue: mp.Queue) -> None:
     if queue.empty():
         raise create_no_result_error()
 
@@ -131,7 +132,7 @@ def handle_process_error(run_results: dict) -> None:
         raise create_process_error(run_results["error"])
 
 
-def process_iteration(config: Config, sample: tuple[Any, ...], queue: Queue) -> None:
+def process_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
     """Run the single iteration and store the result in the queue."""
     try:
         # Force torch to reinitialize CUDA in the subprocess

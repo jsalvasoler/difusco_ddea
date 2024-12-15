@@ -216,7 +216,7 @@ class MISModel(COMetaModel):
             else:
                 xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2)
 
-        if self.diffusion_type == "gaussian":
+        if self.diffusion_type == "gaussian":  # noqa: SIM108
             predict_labels = xt.float() * 0.5 + 0.5
         else:
             predict_labels = xt.float() + 1e-6
