@@ -174,7 +174,7 @@ class COMetaModel(pl.LightningModule):
     def duplicate_edge_index(self, edge_index: torch.Tensor, num_nodes: int, device: torch.device) -> torch.Tensor:
         """Duplicate the edge index (in sparse graphs) for parallel sampling."""
         edge_index = edge_index.reshape((2, 1, -1))
-        edge_index_indent = torch.arange(0, self.args.parallel_sampling).view(1, -1, 1)
+        edge_index_indent = torch.arange(0, self.args.parallel_sampling).view(1, -1, 1).to(device)
         edge_index_indent = edge_index_indent * num_nodes
         edge_index = edge_index + edge_index_indent
         return edge_index.reshape((2, -1)).to(device)

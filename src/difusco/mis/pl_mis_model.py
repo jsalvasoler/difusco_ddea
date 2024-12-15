@@ -176,7 +176,7 @@ class MISModel(COMetaModel):
     @torch.no_grad()
     def diffusion_sample(
         self,
-        node_labels: torch.Tensor,
+        n_nodes: int,
         edge_index: torch.Tensor,
         device: torch.device,
     ) -> np.ndarray:
@@ -186,7 +186,7 @@ class MISModel(COMetaModel):
         If parallel_sampling is greater than 1, the output has shape (parallel_sampling, num_nodes),
         where num_nodes is the number of nodes in the graph. Otherwise, the output has shape (num_nodes,).
         """
-        xt = torch.randn_like(node_labels.float(), device=device)
+        xt = torch.rand(n_nodes, device=device, dtype=torch.float)
         if self.args.parallel_sampling > 1:
             xt = xt.repeat(self.args.parallel_sampling, 1)
             xt = torch.randn_like(xt)
@@ -198,7 +198,7 @@ class MISModel(COMetaModel):
         xt = xt.reshape(-1)
 
         if self.args.parallel_sampling > 1:
-            edge_index = self.duplicate_edge_index(edge_index, node_labels.shape[0], device)
+            edge_index = self.duplicate_edge_index(edge_index, n_nodes, device)
 
         steps = self.args.inference_diffusion_steps
         time_schedule = InferenceSchedule(
@@ -223,7 +223,8 @@ class MISModel(COMetaModel):
 
         return predict_labels
 
-    def process_batch(self, batch: tuple) -> tuple:
+    @staticmethod
+    def process_batch(batch: tuple) -> tuple:
         """
         Process the input batch and return node labels, edge index, and adjacency matrix.
 
@@ -259,7 +260,7 @@ class MISModel(COMetaModel):
 
         stacked_predict_labels = []
         for _ in range(self.args.sequential_sampling):
-            predict_labels = self.diffusion_sample(node_labels, edge_index, device)
+            predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device)
             predict_labels = predict_labels.cpu().detach().numpy()
             stacked_predict_labels.append(predict_labels)
 

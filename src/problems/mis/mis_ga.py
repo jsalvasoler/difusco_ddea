@@ -9,6 +9,8 @@ from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import CopyingOperator, CrossOver
 from torch import no_grad
 
+from difusco.sampler import DifuscoSampler
+
 if TYPE_CHECKING:
     from ea.config import Config
     from problems.mis.mis_instance import MISInstance
@@ -17,6 +19,8 @@ if TYPE_CHECKING:
 class MISGaProblem(Problem):
     def __init__(self, instance: MISInstance, config: Config) -> None:
         self.instance = instance
+        self.config = config
+        self.config.task = "mis"
         super().__init__(
             objective_func=instance.evaluate_solution,
             objective_sense="max",
@@ -26,22 +30,53 @@ class MISGaProblem(Problem):
         )
 
     def _fill(self, values: torch.Tensor) -> None:
+        if self.config.initialization == "random_feasible":
+            return self._fill_random_feasible_initialization(values)
+        if self.config.initialization == "difusco_sampling":
+            if self.config.device != "cuda":
+                error_msg = "Difusco sampling is only supported on CUDA"
+                raise ValueError(error_msg)
+            return self._fill_difusco_sampling(values)
+        error_msg = f"Invalid initialization method: {self.config.initialization}"
+        raise ValueError(error_msg)
+
+    def _fill_random_feasible_initialization(self, values: torch.Tensor) -> None:
         """
         Values is a tensor of shape (n_solutions, solution_length).
-
         Initialization heuristic: (randomized) construction heuristic based on node degree.
         """
-
         degrees = self.instance.get_degrees()
         inversed_normalized_degrees = 1 - degrees / degrees.max()
 
         for i in range(values.shape[0]):
             std = 0.2 * i / values.shape[0]  # scales from 0 to 0.2
             noise = torch.randn(self.solution_length, device=self.device) * std
-
             values[i] = self.instance.get_feasible_from_individual(
                 inversed_normalized_degrees + noise,
             )
+
+    def _fill_difusco_sampling(self, values: torch.Tensor) -> None:
+        """
+        Values is a tensor of shape (n_solutions, solution_length).
+        Uses Difusco to sample initial solutions.
+        """
+        sampler = DifuscoSampler(self.config)
+        popsize = self.config.pop_size
+        assert popsize == values.shape[0], "Population size must match the number of solutions"
+        assert (
+            self.config.parallel_sampling * self.config.sequential_sampling == popsize
+        ), "Population size must match the number of solutions"
+
+        # Sample node scores using Difusco
+        node_scores = sampler.sample_mis(
+            batch=None,
+            n_nodes=self.instance.n_nodes,
+            edge_index=self.instance.edge_index,
+        )
+
+        # Convert scores to feasible solutions
+        for i in range(popsize):
+            values[i] = self.instance.get_feasible_from_individual(node_scores[i])
 
 
 class MISGAMutation(CopyingOperator):

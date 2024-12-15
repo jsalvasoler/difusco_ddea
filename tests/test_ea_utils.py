@@ -44,13 +44,14 @@ def config(temp_dir: Generator) -> Config:
         max_two_opt_it=200,
         sparse_factor=-1,
         np_eval=False,
+        initialization="difusco_sampling",
     )
 
 
 def test_filter_args_by_group() -> None:
     parser = get_arg_parser()
     ea_settings_args = filter_args_by_group(parser, "ea_settings")
-    expected_args = ["device", "n_parallel_evals", "pop_size", "n_generations", "max_two_opt_it"]
+    expected_args = ["device", "n_parallel_evals", "pop_size", "n_generations", "max_two_opt_it", "initialization"]
     assert set(ea_settings_args) == set(expected_args)
 
 

@@ -14,20 +14,21 @@ from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ga import MISGACrossover, MISGAMutation, MISGaProblem, create_mis_ga
 from problems.mis.mis_instance import MISInstance, MISInstanceBase, MISInstanceNumPy, create_mis_instance
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 from torch_geometric.loader import DataLoader
 
 
-def read_mis_instance(np_eval: bool = False) -> MISInstance:
+def read_mis_instance(np_eval: bool = False, device: str = "cpu") -> MISInstance:
     resource_dir = "tests/resources"
     dataset = MISDataset(
         data_dir=os.path.join(resource_dir, "er_example_dataset"),
         data_label_dir=os.path.join(resource_dir, "er_example_dataset_annotations"),
     )
 
-    sample = dataset.__getitem__(0)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    sample = next(iter(dataloader))
 
-    return create_mis_instance(sample, np_eval=np_eval)
+    return create_mis_instance(sample, np_eval=np_eval, device=device)
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
@@ -42,6 +43,15 @@ def test_create_mis_instance(np_eval: bool) -> None:
         == instance.adj_matrix.shape[0]
         == instance.adj_matrix.shape[1]
     )
+    assert instance.edge_index.shape[0] == 2
+
+    if np_eval:
+        assert isinstance(instance, MISInstanceNumPy)
+        assert isinstance(instance.adj_matrix, csr_matrix)
+    else:
+        assert isinstance(instance, MISInstance)
+        assert isinstance(instance.adj_matrix, torch.Tensor)
+        assert instance.adj_matrix.is_sparse
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
@@ -103,6 +113,7 @@ def square_instance(np_eval: bool) -> MISInstance | MISInstanceNumPy:
         instance = MISInstanceNumPy(
             adj_matrix=coo_matrix(np.array([[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]])).tocsr(),
             n_nodes=4,
+            edge_index=torch.tensor([[0, 1, 2, 3], [1, 0, 3, 2]]),
         )
     else:
         # Create indices for non-zero elements
@@ -117,6 +128,7 @@ def square_instance(np_eval: bool) -> MISInstance | MISInstanceNumPy:
         instance = MISInstance(
             adj_matrix=torch.sparse_coo_tensor(indices=indices, values=values, size=(4, 4)).coalesce(),
             n_nodes=4,
+            edge_index=torch.tensor([[0, 1, 2, 3], [1, 0, 3, 2]]),
         )
     return instance
 
@@ -130,27 +142,85 @@ def test_mis_degrees(square_instance: MISInstanceBase) -> None:
     assert (degrees == torch.tensor([2, 2, 2, 2])).all()
 
 
-@pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_ga_fill(np_eval: bool) -> None:
-    instance = read_mis_instance(np_eval=np_eval)
-    problem = MISGaProblem(instance, Config(pop_size=10, device="cpu", n_parallel_evals=0))
-
-    values = torch.zeros(10, instance.n_nodes, dtype=torch.bool)
-    problem._fill(values)  # just for testing
+def assert_valid_initialized_population(values: torch.Tensor, instance: MISInstanceBase) -> None:
+    assert values.shape[1] == instance.n_nodes
 
     # Check that the sum of every row is equal to instance.evaluate_solution
     for i in range(values.shape[0]):
         assert values[i].sum() == instance.evaluate_solution(values[i])
+
+
+
+
+@pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_fill_random_feasible(np_eval: bool) -> None:
+    instance = read_mis_instance(np_eval=np_eval)
+    config = Config(pop_size=10, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
+    problem = MISGaProblem(instance, config=config)
+
+    values = torch.zeros(10, instance.n_nodes, dtype=torch.bool)
+    problem._fill(values)
+
+    assert_valid_initialized_population(values, instance)
 
     # Check that the first solution is the deterministic construction heuristic
     assert (values[0] == instance.get_feasible_from_individual(-instance.get_degrees())).all()
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
+def test_mis_ga_fill_difusco(np_eval: bool) -> None:
+    instance = read_mis_instance(np_eval=np_eval, device="cuda")
+
+    config = Config(
+        task="mis",
+        pop_size=2,
+        diffusion_type="gaussian",
+        learning_rate=0.0002,
+        weight_decay=0.0001,
+        lr_scheduler="cosine-decay",
+        data_path="data",
+        test_split="mis/er_test",
+        training_split="mis/er_test",
+        validation_split="mis/er_test",
+        training_split_label_dir=None,
+        validation_split_label_dir=None,
+        test_split_label_dir=None,
+        models_path="models",
+        ckpt_path="mis/mis_er_gaussian.ckpt",
+        batch_size=32,
+        num_epochs=50,
+        diffusion_steps=2,
+        validation_examples=8,
+        diffusion_schedule="linear",
+        inference_schedule="cosine",
+        inference_diffusion_steps=2,
+        device="cuda",
+        parallel_sampling=2,
+        sequential_sampling=1,
+        inference_trick="ddim",
+        sparse_factor=-1,
+        n_layers=12,
+        hidden_dim=256,
+        aggregation="sum",
+        use_activation_checkpoint=True,
+        fp16=False,
+        initialization="difusco_sampling",
+    )
+
+    problem = MISGaProblem(instance, config=config)
+
+    values = torch.zeros(2, instance.n_nodes, dtype=torch.bool, device=config.device)
+    problem._fill(values)
+
+    assert_valid_initialized_population(values, instance)
+
+
+@pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_crossover(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
 
-    ga = create_mis_ga(instance, config=Config(pop_size=4, device="cpu", n_parallel_evals=0, np_eval=np_eval))
+    config = Config(pop_size=4, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
+    ga = create_mis_ga(instance, config=config)
 
     parents_1 = torch.from_numpy(np.array([[1, 0, 1, 0], [0, 1, 0, 1]]))
     parents_2 = torch.from_numpy(np.array([[1, 0, 0, 0], [0, 1, 0, 0]]))
@@ -169,7 +239,8 @@ def test_mis_ga_crossover(np_eval: bool, square_instance: MISInstanceBase) -> No
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_mutation(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
-    ga = create_mis_ga(instance, config=Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval))
+    config = Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
+    ga = create_mis_ga(instance, config=config)
 
     # Set first individual to [1, 0, 1, 0]
     data = ga.population.access_values()
@@ -207,7 +278,8 @@ def test_mis_ga_mutation(np_eval: bool, square_instance: MISInstanceBase) -> Non
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_mutation_no_deselection(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
-    ga = create_mis_ga(instance, config=Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval))
+    config = Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
+    ga = create_mis_ga(instance, config=config)
 
     mutation = ga._operators[1]
     assert isinstance(mutation, MISGAMutation)
