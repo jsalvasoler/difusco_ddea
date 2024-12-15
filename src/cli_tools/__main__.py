@@ -36,7 +36,7 @@ def run_tsp_heuristics() -> None:
 
 def run_ea() -> None:
     """Run the Evolutionary Algorithm."""
-    from ea.arg_parser import parse_args
+    from ea.ea_arg_parser import parse_args
     from ea.evolutionary_algorithm import main_ea
 
     args = parse_args()

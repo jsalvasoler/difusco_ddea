@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from ea.arg_parser import get_arg_parser
+from ea.ea_arg_parser import get_arg_parser
 from ea.config import Config
 from ea.ea_utils import filter_args_by_group, save_results
 from ea.evolutionary_algorithm import (

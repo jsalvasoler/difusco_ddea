@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ea.arg_parser import get_arg_parser
+from ea.ea_arg_parser import get_arg_parser
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser
