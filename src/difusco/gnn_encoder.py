@@ -482,6 +482,7 @@ class GNNEncoder(nn.Module):
                     x_in,
                     e_in,
                     single_time_emb,
+                    use_reentrant=False,
                 )
                 x = out[0]
                 e = out[1]

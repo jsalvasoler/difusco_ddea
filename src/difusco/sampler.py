@@ -17,9 +17,7 @@ class Sampler:
 
     def __init__(
         self,
-        task: Literal["tsp", "mis"],
         config: Config,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ) -> None:
         """
         Initialize the sampler
@@ -30,32 +28,51 @@ class Sampler:
             param_args: Arguments for model initialization
             device: Device to run inference on
         """
-        self.task = task
-        self.device = device
+        self.task = config.task
+        self.device = config.device
 
         ckpt_path = Path(config.models_path) / config.ckpt_path
 
         # Load the appropriate model
-        if task == "tsp":
-            self.model = TSPModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=device)
-        elif task == "mis":
-            self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=device)
+        if self.task == "tsp":
+            self.model = TSPModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
+        elif self.task == "mis":
+            self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
         else:
-            error_msg = f"Unknown task: {task}"
+            error_msg = f"Unknown task: {self.task}"
             raise ValueError(error_msg)
 
         self.model.eval()
-        self.model.to(device)
+        self.model.to(self.device)
 
     def sample(self, batch: tuple) -> torch.Tensor:
         """Sample heatmaps from Difusco"""
         if self.task == "tsp":
             return self.sample_tsp(batch)
         if self.task == "mis":
-            error_msg = "MIS sampling not yet implemented"
-            raise NotImplementedError(error_msg)
+            return self.sample_mis(batch)
         error_msg = f"Unknown task: {self.task}"
         raise ValueError(error_msg)
+
+    @torch.no_grad()
+    def sample_mis(self, batch: tuple) -> torch.Tensor:
+        """
+        Sample heatmaps from Difusco
+
+        Args:
+            batch: Input batch in the format expected by the model
+
+        Returns:
+            Tensor containing the sampled heatmaps
+        """
+        node_labels, edge_index, adj_mat = self.model.process_batch(batch)
+        heatmaps = None
+        for _ in range(self.model.args.sequential_sampling):
+            labels_pred = self.model.diffusion_sample(node_labels, edge_index, self.device)
+            labels_pred = labels_pred.reshape((self.model.args.parallel_sampling, -1))
+            heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=0)
+
+        return torch.clamp(heatmaps, 0, 1)
 
     @torch.no_grad()
     def sample_tsp(self, batch: tuple) -> torch.Tensor:
@@ -83,10 +100,14 @@ class Sampler:
                 )
 
         heatmaps = None
+        points = points.to(self.device)
+        adj_matrix = adj_matrix.to(self.device)
+        if self.model.sparse:
+            edge_index = edge_index.to(self.device)
         for _ in range(self.model.args.sequential_sampling):
             adj_mat = self.model.diffusion_sample(
-                points=points.to(self.device),
-                adj_matrix=adj_matrix.to(self.device),
+                points=points,
+                adj_matrix=adj_matrix,
                 edge_index=edge_index,
                 device=self.device,
             )
