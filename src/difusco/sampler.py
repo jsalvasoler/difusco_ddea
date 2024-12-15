@@ -12,7 +12,7 @@ from difusco.mis.pl_mis_model import MISModel
 from difusco.tsp.pl_tsp_model import TSPModel
 
 
-class Sampler:
+class DifuscoSampler:
     """A class that samples heatmaps from Difusco"""
 
     def __init__(
@@ -107,7 +107,6 @@ class Sampler:
         for _ in range(self.model.args.sequential_sampling):
             adj_mat = self.model.diffusion_sample(
                 points=points,
-                adj_matrix=adj_matrix,
                 edge_index=edge_index,
                 device=self.device,
             )

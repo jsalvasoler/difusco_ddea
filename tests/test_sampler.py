@@ -9,7 +9,7 @@ from problems.mis.mis_dataset import MISDataset
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from torch_geometric.loader import DataLoader
 
-from difusco.sampler import Sampler
+from difusco.sampler import DifuscoSampler
 
 
 @pytest.fixture(params=[(1, 1), (3, 1), (1, 3), (3, 3)])
@@ -103,7 +103,7 @@ def run_test_on_config(config: Config) -> None:
 
     dataloader = get_dataloader(config)
 
-    sampler = Sampler(config=config)
+    sampler = DifuscoSampler(config=config)
 
     batch = next(iter(dataloader))
     heatmaps = sampler.sample(batch)

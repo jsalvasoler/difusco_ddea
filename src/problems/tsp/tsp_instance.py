@@ -1,8 +1,16 @@
-import numpy as np
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 from ea.problem_instance import ProblemInstance
-from problems.tsp.tsp_evaluation import adj_mat_to_tour, cdist_v2, cython_merge, evaluate_tsp_route_torch
+from problems.tsp.tsp_evaluation import adj_mat_to_tour, cython_merge, evaluate_tsp_route_torch
 from problems.tsp.tsp_operators import batched_two_opt_torch, edge_recombination_crossover
+
+from difusco.tsp.pl_tsp_model import TSPModel
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class TSPInstance(ProblemInstance):
@@ -11,14 +19,35 @@ class TSPInstance(ProblemInstance):
     on the same device as the argument tensors.
     """
 
-    def __init__(self, points: torch.Tensor, gt_tour: torch.Tensor) -> None:
+    def __init__(
+        self, points: torch.Tensor, edge_index: torch.Tensor | None, gt_tour: torch.Tensor
+    ) -> None:
+        self.sparse = edge_index is not None
+
         self.points = points
         self.np_points = points.cpu().numpy()
+        self.edge_index = edge_index
         self.device = points.device
         self.n = points.shape[0]
         self.gt_tour = gt_tour
         self.dist_mat = torch.cdist(points, points)
         self.gt_cost = self.evaluate_tsp_route(self.gt_tour)
+
+    @staticmethod
+    def create_from_batch_sample(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
+        """Create a TSPInstance from a batch sample. The batch must have size 1, i.e. a single sample."""
+        assert sample[1].shape[0] == 1, "Batch must have size 1"
+
+        if sparse_factor <= 0:
+            _, edge_index, _, points, _, _, gt_tour = TSPModel.process_dense_batch(sample)
+        else:
+            _, edge_index, _, points, _, _, gt_tour = TSPModel.process_sparse_batch(sample)
+            edge_index = edge_index[0].to(device)
+
+        points = points[0].to(device)
+        gt_tour = torch.from_numpy(gt_tour).to(device)
+
+        return TSPInstance(points, edge_index, gt_tour)
 
     def get_gt_cost(self) -> float:
         return self.gt_cost
@@ -104,13 +133,4 @@ class TSPInstance(ProblemInstance):
 
 def create_tsp_instance(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
     """Create a TSPInstance from a sample. A sample is a batch of size 1"""
-
-    # TODO: implement sparse TSP instances
-    if sparse_factor <= 0:
-        _, points, _, tour = sample
-        points, tour = points[0].to(device), tour[0].to(device)
-        return TSPInstance(points, tour)
-
-    _, points, _, _, tour = sample
-    points, tour = points[0].to(device), tour[0].to(device)
-    return TSPInstance(points, tour)
+    return TSPInstance.create_from_batch_sample(sample, device, sparse_factor)

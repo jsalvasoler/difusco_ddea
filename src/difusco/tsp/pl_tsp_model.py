@@ -186,17 +186,17 @@ class TSPModel(COMetaModel):
             pred = pred.squeeze(1)
             return self.gaussian_posterior(target_t, t, pred, xt)
 
-    def _process_dense_batch(
-        self, batch: tuple
-    ) -> tuple[None, None, torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
+    @staticmethod
+    def process_dense_batch(batch: tuple) -> tuple:
+        """Process a batch of size 1 corresponding to a dense TSP instance"""
         real_batch_idx, points, adj_matrix, gt_tour = batch
         np_points = points.cpu().numpy()[0]
         np_gt_tour = gt_tour.cpu().numpy()[0]
         return real_batch_idx, None, None, points, adj_matrix, np_points, np_gt_tour
 
-    def _process_sparse_batch(
-        self, batch: tuple
-    ) -> tuple[torch.Tensor, np.ndarray, torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
+    @staticmethod
+    def process_sparse_batch(batch: tuple) -> tuple:
+        """Process a batch of size 1 corresponding to a sparse TSP instance"""
         real_batch_idx, graph_data, point_indicator, edge_indicator, gt_tour = batch
         route_edge_flags = graph_data.edge_attr
         points = graph_data.x
@@ -213,14 +213,13 @@ class TSPModel(COMetaModel):
 
     def process_batch(self, batch: tuple) -> tuple:
         if not self.sparse:
-            return self._process_dense_batch(batch)
-        return self._process_sparse_batch(batch)
+            return self.process_dense_batch(batch)
+        return self.process_sparse_batch(batch)
 
     @torch.no_grad()
     def diffusion_sample(
         self,
         points: torch.Tensor,
-        adj_matrix: torch.Tensor,
         edge_index: torch.Tensor,
         device: str,
     ) -> np.ndarray:
@@ -229,7 +228,7 @@ class TSPModel(COMetaModel):
 
         Output has shape (parallel_sampling, n, n), where n in the graph size.
         """
-        xt = torch.randn_like(adj_matrix.float())
+        xt = torch.randn(1, points.shape[1], points.shape[1], device=device, dtype=torch.float)
         if self.args.parallel_sampling > 1:
             if not self.sparse:
                 xt = xt.repeat(self.args.parallel_sampling, 1, 1)
@@ -289,7 +288,7 @@ class TSPModel(COMetaModel):
 
         stacked_tours = []
         for _ in range(self.args.sequential_sampling):
-            adj_mat = self.diffusion_sample(points, adj_matrix, edge_index, device)
+            adj_mat = self.diffusion_sample(points, edge_index, device)
 
             if self.args.save_numpy_heatmap:
                 self.run_save_numpy_heatmap(adj_mat, np_points, real_batch_idx, split)

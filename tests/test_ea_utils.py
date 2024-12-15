@@ -8,8 +8,15 @@ import torch
 from ea.arg_parser import get_arg_parser
 from ea.config import Config
 from ea.ea_utils import filter_args_by_group, save_results
-from ea.evolutionary_algorithm import dataset_factory, ea_factory, handle_empty_queue, handle_process_error, handle_timeout, instance_factory, process_iteration, run_ea
-from evotorch.logging import StdOutLogger
+from ea.evolutionary_algorithm import (
+    dataset_factory,
+    handle_empty_queue,
+    handle_process_error,
+    handle_timeout,
+    instance_factory,
+    process_iteration,
+    run_ea,
+)
 from problems.mis.mis_dataset import MISDataset
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from torch_geometric.loader import DataLoader
@@ -120,8 +127,8 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 @pytest.mark.parametrize("algo", ["ga", "brkga"])
 def test_gpu_memory_cleanup(task: str, algo: str) -> None:
     import multiprocessing as mp
-    from tqdm import tqdm
 
+    from tqdm import tqdm
 
     if task == "tsp":
         dataset = TSPGraphDataset(data_file="data/tsp/tsp100_test_concorde.txt", sparse_factor=-1)

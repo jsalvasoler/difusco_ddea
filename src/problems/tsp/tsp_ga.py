@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 class TSPGAProblem(Problem):
     def __init__(self, instance: TSPInstance, config: Config) -> None:
         self.instance = instance
+        self.config = config
         super().__init__(
             objective_func=instance.evaluate_solution,
             objective_sense="min",
@@ -27,6 +28,14 @@ class TSPGAProblem(Problem):
         )
 
     def _fill(self, values: torch.Tensor) -> None:
+        if self.config.initialization == "random_feasible":
+            return self._fill_random_feasible_initialization(values)
+        if self.config.initialization == "difusco_sampling":
+            return self._fill_difusco_sampling(values)
+        error_msg = f"Invalid initialization method: {self.config.initialization}"
+        raise ValueError(error_msg)
+
+    def _fill_random_feasible_initialization(self, values: torch.Tensor) -> None:
         """
         Values is a tensor of shape (n_solutions, solution_length).
         """
@@ -36,6 +45,16 @@ class TSPGAProblem(Problem):
             else:
                 random_heatmap = np.random.rand(self.instance.n, self.instance.n)
             values[i] = self.instance.get_tour_from_adjacency_np_heatmap(random_heatmap)
+
+    # def _fill_difusco_sampling(self, values: torch.Tensor) -> None:
+    #     """
+    #     Values is a tensor of shape (n_solutions, solution_length).
+    #     """
+    #     sampler = DifuscoSampler(self.config)
+    #     popsize = self.config.pop_size
+    #     assert popsize == values.shape[0], "Population size must match the number of solutions"
+
+    #     heatmaps = sampler.sample()
 
 
 class TSPTwoOptMutation(CopyingOperator):

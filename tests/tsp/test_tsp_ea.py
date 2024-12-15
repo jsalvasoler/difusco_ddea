@@ -5,6 +5,7 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 import torch
 from ea.config import Config
 from ea.evolutionary_algorithm import dataset_factory
@@ -22,30 +23,34 @@ from scipy.spatial import distance_matrix
 from torch_geometric.loader import DataLoader
 
 
-def get_tsp_sample() -> TSPInstance:
+@pytest.fixture
+def batch_sample_size_one() -> tuple:
     resource_dir = "tests/resources"
     dataset = TSPGraphDataset(
         data_file=os.path.join(resource_dir, "tsp50_example_dataset_two_samples.txt"), sparse_factor=-1
     )
-
-    item = dataset.__getitem__(0)
-    _, points, _, tour = item
-    # make a batch of size one for points and tour
-    points = torch.stack([points])
-    tour = torch.stack([tour])
-    return 0, points, 0, tour
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    return next(iter(dataloader))
 
 
-def test_create_tsp_instance() -> None:
-    sample = get_tsp_sample()
+def test_create_tsp_instance(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     assert instance.get_gt_cost() > 0
+    assert not instance.sparse
     assert instance.points.shape == (50, 2)
+    assert instance.np_points.shape == (50, 2)
+    assert instance.edge_index is None  # dense graph
+    assert instance.dist_mat.shape == (50, 50)
     assert instance.n == 50
     assert instance.gt_tour.shape == (51,)
     assert instance.gt_tour.min() == 0
     assert instance.gt_tour.max() == 49
+
+def test_tsp_instance_eval_methods(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
+    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     # Compare with hand-calculated cost
     tour = instance.gt_tour.cpu().numpy()
@@ -155,6 +160,7 @@ def test_matrix_quadrant_crossover_two_pairs(mock_randint) -> None:  # noqa: ANN
 def test_tsp_problem_evaluation() -> None:
     instance = TSPInstance(
         points=torch.from_numpy(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])),
+        edge_index=None,
         gt_tour=torch.tensor([0, 1, 2, 3, 0]),
     )
     problem = Problem(
@@ -177,8 +183,8 @@ def test_tsp_problem_evaluation() -> None:
     assert obj == problem._objective_func(ind) == 2 * 2**0.5 + 2  # noqa: SLF001
 
 
-def test_problem_evaluation_on_tsp_instance() -> None:
-    sample = get_tsp_sample()
+def test_problem_evaluation_on_tsp_instance(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
     problem = create_tsp_problem(instance, config=Config(device="cpu"))
 
@@ -194,8 +200,8 @@ def test_problem_evaluation_on_tsp_instance() -> None:
     assert obj_gt <= obj
 
 
-def test_tsp_brkga_runs() -> None:
-    sample = get_tsp_sample()
+def test_tsp_brkga_runs(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     ga = create_tsp_brkga(instance, config=Config(pop_size=10, device="cpu"))
@@ -226,8 +232,8 @@ def test_tsp_brkga_runs_with_dataloader() -> None:
         break
 
 
-def test_valid_tour() -> None:
-    sample = get_tsp_sample()
+def test_valid_tour(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     assert instance.is_valid_tour(instance.gt_tour)
@@ -246,8 +252,8 @@ def test_valid_tour() -> None:
     assert not instance.is_valid_tour(tour)
 
 
-def test_tsp_ga_fill() -> None:
-    sample = get_tsp_sample()
+def test_tsp_ga_fill(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
     problem = TSPGAProblem(instance, Config(pop_size=10, device="cpu", n_parallel_evals=0))
 
@@ -268,8 +274,8 @@ def test_tsp_ga_fill() -> None:
         assert evaluations[i] == problem._objective_func(values[i])  # noqa: SLF001
 
 
-def test_tsp_ga_mutation() -> None:
-    sample = get_tsp_sample()
+def test_tsp_ga_mutation(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2))
@@ -288,8 +294,8 @@ def test_tsp_ga_mutation() -> None:
         assert instance.is_valid_tour(children.values[i])
 
 
-def test_tsp_ga_crossover_works() -> None:
-    sample = get_tsp_sample()
+def test_tsp_ga_crossover_works(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2))
@@ -316,8 +322,8 @@ def test_tsp_ga_crossover_works() -> None:
         assert instance.is_valid_tour(children.values[i])
 
 
-def test_tsp_ga_runs() -> None:
-    sample = get_tsp_sample()
+def test_tsp_ga_runs(batch_sample_size_one: tuple) -> None:
+    sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
 
     ga = create_tsp_ga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=10))
