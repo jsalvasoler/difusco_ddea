@@ -8,7 +8,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import torch
-from ea.config import Config
+from config.config import Config
+from config.configs.mis_inference import config as mis_inference_config
 from evotorch import Problem
 from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
@@ -169,45 +170,21 @@ def test_mis_ga_fill_random_feasible(np_eval: bool) -> None:
 def test_mis_ga_fill_difusco(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval, device="cuda")
 
+    pop_size = 50
+
     config = Config(
-        task="mis",
-        pop_size=2,
-        diffusion_type="gaussian",
-        learning_rate=0.0002,
-        weight_decay=0.0001,
-        lr_scheduler="cosine-decay",
-        data_path="data",
-        test_split="mis/er_test",
-        training_split="mis/er_test",
-        validation_split="mis/er_test",
-        training_split_label_dir=None,
-        validation_split_label_dir=None,
-        test_split_label_dir=None,
-        models_path="models",
-        ckpt_path="mis/mis_er_gaussian.ckpt",
-        batch_size=32,
-        num_epochs=50,
-        diffusion_steps=2,
-        validation_examples=8,
-        diffusion_schedule="linear",
-        inference_schedule="cosine",
+        pop_size=pop_size,
+        parallel_sampling=pop_size // 5,
+        sequential_sampling=pop_size // 10,
         inference_diffusion_steps=2,
-        device="cuda",
-        parallel_sampling=2,
-        sequential_sampling=1,
-        inference_trick="ddim",
-        sparse_factor=-1,
-        n_layers=12,
-        hidden_dim=256,
-        aggregation="sum",
-        use_activation_checkpoint=True,
-        fp16=False,
+        diffusion_steps=2,
         initialization="difusco_sampling",
     )
 
+    config = mis_inference_config.update(config)
     problem = MISGaProblem(instance, config=config)
 
-    values = torch.zeros(2, instance.n_nodes, dtype=torch.bool, device=config.device)
+    values = torch.zeros(pop_size, instance.n_nodes, dtype=torch.bool, device=config.device)
     problem._fill(values)
 
     assert_valid_initialized_population(values, instance)

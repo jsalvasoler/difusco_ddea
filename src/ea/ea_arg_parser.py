@@ -39,7 +39,7 @@ def get_arg_parser() -> ArgumentParser:
     difusco_settings.add_argument("--sequential_sampling", type=int, default=1)
     difusco_settings.add_argument("--hidden_dim", type=int, default=256)
     difusco_settings.add_argument("--aggregation", type=str, default="sum")
-    difusco_settings.add_argument('--n_layers', type=int, default=12)
+    difusco_settings.add_argument("--n_layers", type=int, default=12)
     difusco_settings.add_argument("--use_activation_checkpoint", action="store_true")
     difusco_settings.add_argument("--fp16", action="store_true")
     difusco_settings.add_argument("--training_split", type=str, default=None)

@@ -5,15 +5,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from config.config import Config
 from ea.ea_arg_parser import get_arg_parser
-from ea.config import Config
-from ea.ea_utils import filter_args_by_group, save_results
+from ea.ea_utils import dataset_factory, filter_args_by_group, instance_factory, save_results
 from ea.evolutionary_algorithm import (
-    dataset_factory,
     handle_empty_queue,
     handle_process_error,
     handle_timeout,
-    instance_factory,
     process_iteration,
     run_ea,
 )

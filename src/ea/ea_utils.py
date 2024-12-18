@@ -5,13 +5,21 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from config.config import Config
+from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_instance import create_mis_instance
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_instance import create_tsp_instance
 
 from ea.ea_arg_parser import get_arg_parser
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser
 
-    from ea.config import Config
+    from config.config import Config
+    from torch.utils.data import Dataset
+
+    from ea.problem_instance import ProblemInstance
 
 
 def filter_args_by_group(parser: ArgumentParser, group_name: str) -> dict:
@@ -48,3 +56,28 @@ def save_results(config: Config, results: dict[str, float | int | str]) -> None:
     current_results = pd.concat([current_results, results_df])
 
     current_results.to_csv(results_file, index=False)
+
+
+def dataset_factory(config: Config) -> Dataset:
+    data_path = os.path.join(config.data_path, config.test_split)
+    data_label_dir = (
+        os.path.join(config.data_path, config.test_split_label_dir) if config.test_split_label_dir else None
+    )
+
+    if config.task == "mis":
+        return MISDataset(data_dir=data_path, data_label_dir=data_label_dir)
+
+    if config.task == "tsp":
+        return TSPGraphDataset(data_file=data_path)
+
+    error_msg = f"No dataset for task {config.task}."
+    raise ValueError(error_msg)
+
+
+def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
+    if config.task == "mis":
+        return create_mis_instance(sample, device=config.device, np_eval=config.np_eval)
+    if config.task == "tsp":
+        return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
+    error_msg = f"No instance for task {config.task}."
+    raise ValueError(error_msg)

@@ -7,8 +7,9 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import torch
-from ea.config import Config
-from ea.evolutionary_algorithm import dataset_factory
+from config.config import Config
+from config.configs.tsp_inference import config as tsp_inference_config
+from ea.ea_utils import dataset_factory
 from evotorch import Problem
 from problems.tsp.tsp_brkga import (
     MatrixQuadrantCrossover,
@@ -280,38 +281,18 @@ def test_tsp_ga_fill_random_feasible(batch_sample_size_one: tuple) -> None:
 def test_tsp_ga_fill_difusco_sampling(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cuda", sparse_factor=-1)
+
     config = Config(
-        pop_size=2,
-        device="cuda",
-        n_parallel_evals=0,
-        initialization="difusco_sampling",
-        models_path="models",
-        ckpt_path="tsp/tsp50_categorical.ckpt",
-        task="tsp",
-        diffusion_type="categorical",
-        learning_rate=0.0002,
-        weight_decay=0.0001,
-        lr_scheduler="cosine-decay",
-        data_path="data",
-        test_split="tsp/tsp50_test_concorde.txt",
-        training_split="tsp/tsp50_train_concorde.txt",
-        validation_split="tsp/tsp50_test_concorde.txt",
-        batch_size=32,
-        num_epochs=50,
-        diffusion_steps=2,
-        validation_examples=8,
-        diffusion_schedule="linear",
-        inference_schedule="cosine",
-        inference_diffusion_steps=50,
         parallel_sampling=2,
         sequential_sampling=1,
-        sparse_factor=-1,
-        n_layers=12,
-        hidden_dim=256,
-        aggregation="sum",
-        use_activation_checkpoint=False,
-        fp16=False,
+        diffusion_steps=2,
+        inference_diffusion_steps=2,
+        pop_size=2,
+        initialization="difusco_sampling",
     )
+
+    config = tsp_inference_config.update(config)
+
     problem = TSPGAProblem(instance, config)
 
     values = torch.zeros(2, instance.n + 1, dtype=torch.int64)

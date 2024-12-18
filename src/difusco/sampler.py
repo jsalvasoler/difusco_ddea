@@ -1,23 +1,21 @@
 from __future__ import annotations
 
+import timeit
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
-import timeit
-import numpy as np
 import wandb
+from ea.ea_utils import dataset_factory, instance_factory, save_results
+from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
-from ea.ea_utils import save_results
-from ea.evolutionary_algorithm import dataset_factory, instance_factory
-from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
-
-if TYPE_CHECKING:
-    from config.config import Config
 
 from difusco.mis.pl_mis_model import MISModel
 from difusco.tsp.pl_tsp_model import TSPModel
+
+if TYPE_CHECKING:
+    from config.config import Config
 
 
 class DifuscoSampler:
@@ -143,16 +141,16 @@ class DifuscoSampler:
 
 def run_difusco_initialization_experiments(config: Config) -> None:
     """Run experiments to evaluate Difusco initialization performance.
-    
+
     Args:
         config: Configuration object containing experiment parameters
     """
     print(f"Running Difusco initialization experiments with config: {config}")
-    
+
     # Initialize dataset and dataloader similar to EA
     dataset = dataset_factory(config)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-    
+
     # Initialize wandb if not in validation mode
     is_validation_run = config.validate_samples is not None
     if not is_validation_run:
@@ -163,34 +161,37 @@ def run_difusco_initialization_experiments(config: Config) -> None:
             config=config.__dict__,
             dir=config.logs_path,
         )
-    
+
     # Initialize sampler
     sampler = DifuscoSampler(config)
     results = []
-    
+
     for i, sample in tqdm(enumerate(dataloader)):
-        start_time = timeit.default_timer()
-        
         # Create problem instance to evaluate solutions
         instance = instance_factory(config, sample)
-        
+
         # Sample solutions using Difusco
+        start_time = timeit.default_timer()
         heatmaps = sampler.sample(sample)
-        
+        end_time = timeit.default_timer()
+        sampling_time = end_time - start_time
+
         # Convert heatmaps to solutions and evaluate
         if config.task == "tsp":
-            instance_results = metrics_on_tsp_heatmaps(heatmaps, instance)
+            pass
+            # instance_results = metrics_on_tsp_heatmaps(heatmaps, instance)
         else:  # MIS
-            instance_results = metrics_on_mis_heatmaps(heatmaps, instance)
-        
+            instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
+        instance_results["sampling_time"] = sampling_time
+
         results.append(instance_results)
 
         if not is_validation_run:
             wandb.log(instance_results, step=i)
-            
+
         if is_validation_run and i >= config.validate_samples - 1:
             break
-    
+
     # Compute and log aggregate results
     agg_results = {
         "avg_best_cost": sum(r["best_cost"] for r in results) / len(results),
@@ -210,7 +211,6 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         save_results(config, agg_results)
         wandb.finish()
 
+
 if __name__ == "__main__":
-    config = Config(
-        task="mis",
-    )
+    pass

@@ -1,34 +1,28 @@
 from __future__ import annotations
 
 import multiprocessing as mp
-import os
 import timeit
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 import wandb
+from config.config import Config
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_brkga import create_mis_brkga
-from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ga import create_mis_ga
-from problems.mis.mis_instance import create_mis_instance
 from problems.tsp.tsp_brkga import create_tsp_brkga
 from problems.tsp.tsp_ga import create_tsp_ga
-from problems.tsp.tsp_graph_dataset import TSPGraphDataset
-from problems.tsp.tsp_instance import create_tsp_instance
 from pyinstrument import Profiler
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
-from ea.config import Config
-from ea.ea_utils import save_results
+from ea.ea_utils import dataset_factory, instance_factory, save_results
 
 if TYPE_CHECKING:
     from argparse import Namespace
 
     from evotorch.algorithms import GeneticAlgorithm
-    from torch.utils.data import Dataset
 
     from ea.problem_instance import ProblemInstance
 
@@ -45,31 +39,6 @@ def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
         if config.task == "tsp":
             return create_tsp_ga(instance, config)
     error_msg = f"No evolutionary algorithm for task {config.task}."
-    raise ValueError(error_msg)
-
-
-def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
-    if config.task == "mis":
-        return create_mis_instance(sample, device=config.device, np_eval=config.np_eval)
-    if config.task == "tsp":
-        return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
-    error_msg = f"No instance for task {config.task}."
-    raise ValueError(error_msg)
-
-
-def dataset_factory(config: Config) -> Dataset:
-    data_path = os.path.join(config.data_path, config.test_split)
-    data_label_dir = (
-        os.path.join(config.data_path, config.test_split_label_dir) if config.test_split_label_dir else None
-    )
-
-    if config.task == "mis":
-        return MISDataset(data_dir=data_path, data_label_dir=data_label_dir)
-
-    if config.task == "tsp":
-        return TSPGraphDataset(data_file=data_path)
-
-    error_msg = f"No dataset for task {config.task}."
     raise ValueError(error_msg)
 
 

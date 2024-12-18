@@ -12,7 +12,7 @@ from torch import no_grad
 from difusco.sampler import DifuscoSampler
 
 if TYPE_CHECKING:
-    from ea.config import Config
+    from config.config import Config
     from problems.mis.mis_instance import MISInstance
 
 

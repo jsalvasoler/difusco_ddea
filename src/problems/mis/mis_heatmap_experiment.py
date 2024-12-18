@@ -1,31 +1,31 @@
+import timeit
+
 import torch
-
-
 from config.config import Config
 from problems.mis.mis_instance import MISInstance
 
 
 def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, config: Config) -> dict:
     """Calculate metrics on MIS heatmaps including selection frequencies.
-    
+
     Args:
         heatmaps: Tensor of shape (n_solutions, n_vertices) containing sampled solutions
         instance: MIS problem instance
         config: Configuration object
-    
+
     Returns:
         Dictionary containing metrics including costs, gaps and selection frequencies
     """
     assert heatmaps.shape[0] == config.pop_size
     assert heatmaps.shape[1] == instance.n
-    
+
     solutions = None
+    start_time = timeit.default_timer()
     for i in range(heatmaps.shape[0]):
         solution = instance.get_feasible_from_individual(heatmaps[i])
-        if solutions is None:
-            solutions = solution
-        else:
-            solutions = torch.cat((solutions, solution), dim=0)
+        solutions = solution if solutions is None else torch.cat((solutions, solution), dim=0)
+    end_time = timeit.default_timer()
+    feasibility_heuristics_time = end_time - start_time
 
     assert solutions.shape[0] == config.pop_size
     assert solutions.shape[1] == instance.n
@@ -37,11 +37,12 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
         "avg_cost": costs.mean(),
         "best_gap": (instance.get_gt_cost() - costs.max()) / instance.get_gt_cost(),
         "avg_gap": (instance.get_gt_cost() - costs.mean()) / instance.get_gt_cost(),
+        "feasibility_heuristics_time": feasibility_heuristics_time,
     }
 
     # Calculate selection frequencies for each node
     frequencies = solutions.float().mean(dim=0)  # Shape: (n_vertices,)
-    node_entropy = -frequencies * torch.log(frequencies) - (1 - frequencies) * torch.log(1 - frequencies)  # Shape: (n_vertices,)
+    node_entropy = -frequencies * torch.log(frequencies) - (1 - frequencies) * torch.log(1 - frequencies)
     instance_results["total_entropy"] = node_entropy.mean()
 
     # Calculate the number of unique solutions
@@ -65,6 +66,3 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
     instance_results["avg_diff_rounded_to_solution"] = hamming_dist_rounded.mean()
 
     return instance_results
-
-
-
