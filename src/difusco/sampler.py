@@ -1,21 +1,15 @@
 from __future__ import annotations
 
-import timeit
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
-import wandb
-from ea.ea_utils import dataset_factory, instance_factory, save_results
-from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
-from torch_geometric.loader import DataLoader
-from tqdm import tqdm
-
-from difusco.mis.pl_mis_model import MISModel
-from difusco.tsp.pl_tsp_model import TSPModel
 
 if TYPE_CHECKING:
     from config.config import Config
+
+from difusco.mis.pl_mis_model import MISModel
+from difusco.tsp.pl_tsp_model import TSPModel
 
 
 class DifuscoSampler:
@@ -137,80 +131,3 @@ class DifuscoSampler:
 
         # clip heatmaps to be between 0 and 1
         return torch.clamp(heatmaps, 0, 1)
-
-
-def run_difusco_initialization_experiments(config: Config) -> None:
-    """Run experiments to evaluate Difusco initialization performance.
-
-    Args:
-        config: Configuration object containing experiment parameters
-    """
-    print(f"Running Difusco initialization experiments with config: {config}")
-
-    # Initialize dataset and dataloader similar to EA
-    dataset = dataset_factory(config)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    # Initialize wandb if not in validation mode
-    is_validation_run = config.validate_samples is not None
-    if not is_validation_run:
-        wandb.init(
-            project=config.project_name,
-            name=config.wandb_logger_name,
-            entity=config.wandb_entity,
-            config=config.__dict__,
-            dir=config.logs_path,
-        )
-
-    # Initialize sampler
-    sampler = DifuscoSampler(config)
-    results = []
-
-    for i, sample in tqdm(enumerate(dataloader)):
-        # Create problem instance to evaluate solutions
-        instance = instance_factory(config, sample)
-
-        # Sample solutions using Difusco
-        start_time = timeit.default_timer()
-        heatmaps = sampler.sample(sample)
-        end_time = timeit.default_timer()
-        sampling_time = end_time - start_time
-
-        # Convert heatmaps to solutions and evaluate
-        if config.task == "tsp":
-            pass
-            # instance_results = metrics_on_tsp_heatmaps(heatmaps, instance)
-        else:  # MIS
-            instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
-        instance_results["sampling_time"] = sampling_time
-
-        results.append(instance_results)
-
-        if not is_validation_run:
-            wandb.log(instance_results, step=i)
-
-        if is_validation_run and i >= config.validate_samples - 1:
-            break
-
-    # Compute and log aggregate results
-    agg_results = {
-        "avg_best_cost": sum(r["best_cost"] for r in results) / len(results),
-        "avg_avg_cost": sum(r["avg_cost"] for r in results) / len(results),
-        "avg_best_gap": sum(r["best_gap"] for r in results) / len(results),
-        "avg_avg_gap": sum(r["avg_gap"] for r in results) / len(results),
-        "avg_total_entropy": sum(r["total_entropy"] for r in results) / len(results),
-        "avg_unique_solutions": sum(r["unique_solutions"] for r in results) / len(results),
-        "avg_non_best_solutions": sum(r["non_best_solutions"] for r in results) / len(results),
-        "avg_diff_to_nearest_int": sum(r["avg_diff_to_nearest_int"] for r in results) / len(results),
-        "avg_diff_to_solution": sum(r["avg_diff_to_solution"] for r in results) / len(results),
-        "avg_diff_rounded_to_solution": sum(r["avg_diff_rounded_to_solution"] for r in results) / len(results),
-    }
-    if not is_validation_run:
-        wandb.log(agg_results)
-        agg_results["wandb_id"] = wandb.run.id
-        save_results(config, agg_results)
-        wandb.finish()
-
-
-if __name__ == "__main__":
-    pass

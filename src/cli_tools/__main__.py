@@ -4,7 +4,7 @@ import sys
 def run_difusco() -> None:
     """Run the Difusco main command."""
     from difusco.arg_parser import parse_args
-    from difusco.difusco import main_difusco
+    from difusco.difusco_main import main_difusco
 
     args = parse_args()
     main_difusco(args)
