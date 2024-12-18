@@ -1,7 +1,7 @@
 from argparse import Namespace
 
 import pytest
-from ea.config import Config
+from config.config import Config
 
 
 def test_load_from_init_args() -> None:
@@ -87,3 +87,13 @@ def test_config_iterator() -> None:
     assert len(items) == len(config_dict)
     # Test that all items match
     assert dict(items) == config_dict
+
+
+def test_update() -> None:
+    config = Config(a=1, b=2)
+    other_config = Config(b=3, c=4)
+    config = config.update(other_config, d=5)
+    assert config.a == 1
+    assert config.b == 3
+    assert config.c == 4
+    assert config.d == 5
