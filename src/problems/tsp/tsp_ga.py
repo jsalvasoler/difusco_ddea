@@ -13,7 +13,7 @@ from torch import no_grad
 from difusco.sampler import DifuscoSampler
 
 if TYPE_CHECKING:
-    from config.config import Config
+    from config.myconfig import Config
     from problems.tsp.tsp_instance import TSPInstance
 
 

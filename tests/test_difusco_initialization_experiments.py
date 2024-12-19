@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from config.config import Config
+from config.myconfig import Config
 from difusco.difusco_initialization_experiments import run_difusco_initialization_experiments
 from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config

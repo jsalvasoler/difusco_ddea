@@ -1,7 +1,7 @@
 import timeit
 
 import torch
-from config.config import Config
+from config.myconfig import Config
 from problems.mis.mis_instance import MISInstance
 
 

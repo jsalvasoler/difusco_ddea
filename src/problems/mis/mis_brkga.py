@@ -7,7 +7,7 @@ from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import GaussianMutation, OnePointCrossOver
 
 if TYPE_CHECKING:
-    from config.config import Config
+    from config.myconfig import Config
     from problems.mis.mis_instance import MISInstance
 
 

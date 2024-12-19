@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from config.config import Config
+from config.myconfig import Config
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import create_mis_instance
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
@@ -16,7 +16,7 @@ from ea.ea_arg_parser import get_arg_parser
 if TYPE_CHECKING:
     from argparse import ArgumentParser
 
-    from config.config import Config
+    from config.myconfig import Config
     from torch.utils.data import Dataset
 
     from ea.problem_instance import ProblemInstance

@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from config.config import Config
+from config.myconfig import Config
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import CrossOver, GaussianMutation

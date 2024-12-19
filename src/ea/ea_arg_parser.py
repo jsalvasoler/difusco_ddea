@@ -59,7 +59,7 @@ def get_arg_parser() -> ArgumentParser:
 
 
 def validate_args(args: Namespace) -> None:
-    assert args.task in ["tsp", "mis", "high_degree_selection"]
+    assert args.task in ["tsp", "mis"]
     assert args.algo in ["ga", "brkga"]
 
     if args.algo == "ga":

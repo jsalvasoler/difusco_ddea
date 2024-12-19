@@ -7,7 +7,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import torch
-from config.config import Config
+from config.myconfig import Config
 from config.configs.tsp_inference import config as tsp_inference_config
 from ea.ea_utils import dataset_factory
 from evotorch import Problem

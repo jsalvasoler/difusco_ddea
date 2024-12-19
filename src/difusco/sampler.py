@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import torch
 
 if TYPE_CHECKING:
-    from config.config import Config
+    from config.myconfig import Config
 
 from difusco.mis.pl_mis_model import MISModel
 from difusco.tsp.pl_tsp_model import TSPModel

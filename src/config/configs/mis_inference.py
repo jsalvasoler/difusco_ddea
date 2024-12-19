@@ -1,4 +1,4 @@
-from config.config import Config
+from config.myconfig import Config
 
 config = Config(
     task="mis",

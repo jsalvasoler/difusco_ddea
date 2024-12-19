@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import torch
-from config.config import Config
+from config.myconfig import Config
 from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
 from problems.mis.mis_dataset import MISDataset

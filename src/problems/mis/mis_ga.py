@@ -12,7 +12,7 @@ from torch import no_grad
 from difusco.sampler import DifuscoSampler
 
 if TYPE_CHECKING:
-    from config.config import Config
+    from config.myconfig import Config
     from problems.mis.mis_instance import MISInstance
 
 
@@ -129,9 +129,7 @@ class MISGACrossover(CrossOver):
         """
         Parents are two solutions of shape (num_pairings, n_nodes).
 
-        Crossover creates two children:
-         - children1: forces the selection of common nodes between parents1 and parents2.
-         - children2: forces the selection of the remaining nodes, but penalizes the common nodes.
+∑
         """
         num_pairings = parents1.shape[0]
         device = parents1.device

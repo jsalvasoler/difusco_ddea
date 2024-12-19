@@ -8,7 +8,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import torch
-from config.config import Config
+from config.myconfig import Config
 from config.configs.mis_inference import config as mis_inference_config
 from evotorch import Problem
 from problems.mis.mis_brkga import create_mis_brkga

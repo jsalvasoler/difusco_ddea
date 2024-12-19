@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import timeit
 import torch
-from config.config import Config
+from config.myconfig import Config
 from problems.tsp.tsp_instance import TSPInstance
 
 
@@ -17,9 +17,9 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     Returns:
         Dictionary containing metrics including costs, gaps and edge selection frequencies
     """
-    assert heatmaps.shape[0] == config.pop_size
-    assert heatmaps.shape[1] == instance.n
-    assert heatmaps.shape[2] == instance.n
+    assert heatmaps.shape[0] == config.pop_size, f"Heatmaps shape: {heatmaps.shape}, config.pop_size: {config.pop_size}"
+    assert heatmaps.shape[1] == instance.n, f"Heatmaps shape: {heatmaps.shape}, instance.n: {instance.n}"
+    assert heatmaps.shape[2] == instance.n, f"Heatmaps shape: {heatmaps.shape}, instance.n: {instance.n}"
 
     solutions = None
     start_time = timeit.default_timer()

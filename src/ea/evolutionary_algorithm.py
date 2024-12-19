@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 import wandb
-from config.config import Config
+from config.myconfig import Config
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_ga import create_mis_ga

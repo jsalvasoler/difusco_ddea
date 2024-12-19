@@ -1,4 +1,4 @@
-from config.config import Config
+from config.myconfig import Config
 
 config = Config(
     task="tsp",
@@ -7,21 +7,20 @@ config = Config(
     weight_decay=0.0001,
     lr_scheduler="cosine-decay",
     data_path="data",
-    test_split="tsp/tsp50_test_concorde.txt",
-    test_split_label_dir=None,
-    training_split="tsp/tsp50_train_concorde.txt",
-    training_split_label_dir=None,
-    validation_split="tsp/tsp50_test_concorde.txt",
-    validation_split_label_dir=None,
+    test_split="tsp/tsp50_test_concorde.txt", # TODO: remove from here
+    test_split_label_dir=None, # TODO: remove from here
+    training_split="tsp/tsp50_train_concorde.txt", # TODO: remove from here
+    training_split_label_dir=None, # TODO: remove from here
+    validation_split="tsp/tsp50_test_concorde.txt", # TODO: remove from here
+    validation_split_label_dir=None, # TODO: remove from here
     models_path="models",
-    ckpt_path="tsp/tsp50_categorical.ckpt",
+    ckpt_path="tsp/tsp50_categorical.ckpt", # TODO: remove from here
     batch_size=32,
     num_epochs=50,
-    diffusion_steps=2,
-    validation_examples=8,
+    diffusion_steps=50,
+    inference_diffusion_steps=50,
     diffusion_schedule="linear",
     inference_schedule="cosine",
-    inference_diffusion_steps=50,
     device="cuda",
     sparse_factor=-1,
     n_layers=12,

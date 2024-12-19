@@ -1,7 +1,7 @@
 from argparse import Namespace
 
 import pytest
-from config.config import Config
+from config.myconfig import Config
 
 
 def test_load_from_init_args() -> None:
