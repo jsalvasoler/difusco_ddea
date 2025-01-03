@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import timeit
+from typing import TYPE_CHECKING
+
 import torch
-from config.myconfig import Config
-from problems.tsp.tsp_instance import TSPInstance
+
+if TYPE_CHECKING:
+    from config.myconfig import Config
+    from problems.tsp.tsp_instance import TSPInstance
 
 
 def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, config: Config) -> dict:
@@ -25,9 +29,7 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     start_time = timeit.default_timer()
     for i in range(heatmaps.shape[0]):
         # Convert heatmap to tour using instance method
-        solution = instance.get_tour_from_adjacency_np_heatmap(
-            heatmaps[i].cpu().numpy()
-        ).unsqueeze(0)
+        solution = instance.get_tour_from_adjacency_np_heatmap(heatmaps[i].cpu().numpy()).unsqueeze(0)
         solutions = solution if solutions is None else torch.vstack((solutions, solution))
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
@@ -44,15 +46,15 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
         "avg_gap": (costs.mean() - instance.get_gt_cost()) / instance.get_gt_cost(),
         "feasibility_heuristics_time": feasibility_heuristics_time,
     }
-    
+
     adj_matrices = torch.zeros_like(heatmaps)
     # Get indices for consecutive nodes in tours (including wrap-around)
     idx_from = solutions[:, :-1]  # All nodes except last
-    idx_to = solutions[:, 1:]     # All nodes except first
-    
+    idx_to = solutions[:, 1:]  # All nodes except first
+
     # Create batch indices for scatter operation
-    batch_idx = torch.arange(solutions.shape[0]).unsqueeze(1).expand(-1, solutions.shape[1]-1)
-    
+    batch_idx = torch.arange(solutions.shape[0]).unsqueeze(1).expand(-1, solutions.shape[1] - 1)
+
     # Set 1s for edges in the tours
     adj_matrices[batch_idx, idx_from, idx_to] = 1
     # Set 1s for reverse edges (since TSP graph is undirected)
@@ -66,7 +68,7 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     f_valid = frequencies[valid]
     entropies[valid] = -f_valid * torch.log(f_valid) - (1 - f_valid) * torch.log(1 - f_valid)
     instance_results["total_entropy_heatmaps"] = entropies.mean()
-    
+
     # Calculate edge selection frequencies on heatmaps
     frequencies = adj_matrices.float().mean(dim=0)  # Shape: (n_vertices, n_vertices)
     # Calculate entropy for edge selections
@@ -99,13 +101,16 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     instance_results["avg_diff_to_nearest_int"] = heatmaps_diff.abs().mean()
 
     # Average hamming distance between pairs of solutions (adj_matrices)
-    diffs = (adj_matrices_flat.unsqueeze(0) != adj_matrices_flat.unsqueeze(1)).float()  # Shape: (n_solutions, n_solutions, n_nodes * n_nodes)
-    pairwise_distances = diffs.mean(dim=2)  # Mean over all entries in the adjacency matrix (Hamming distance)
-    
+    diffs = (
+        adj_matrices_flat.unsqueeze(0) != adj_matrices_flat.unsqueeze(1)
+    ).float()  # Shape: (n_solutions, n_solutions, n_nodes * n_nodes)
+    # Mean over all entries in the adjacency matrix (Hamming distance)
+    pairwise_distances = diffs.mean(dim=2)
+
     # Extract the upper triangle of the distance matrix (excluding the diagonal)
     upper_triangle = pairwise_distances.triu(diagonal=1)  # Exclude diagonal
     n_pairs = config.pop_size * (config.pop_size - 1) / 2  # Total number of pairs
-    
+
     # Compute the mean Hamming distance
     instance_results["avg_hamming_dist_pairs"] = upper_triangle.sum() / n_pairs
 

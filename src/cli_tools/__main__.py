@@ -44,12 +44,12 @@ def run_ea() -> None:
     args = parse_args()
     main_ea(args)
 
+
 def run_difusco_initialization_experiments() -> None:
     """Run Difusco initialization experiments."""
 
-    from difusco.difusco_initialization_experiments import (
-        run_difusco_initialization_experiments as run_dif_init_main,
-        parse_arguments)
+    from difusco.difusco_initialization_experiments import parse_arguments
+    from difusco.difusco_initialization_experiments import run_difusco_initialization_experiments as run_dif_init_main
 
     args, extra = parse_arguments()
     config = Config.load_from_args(args, extra)

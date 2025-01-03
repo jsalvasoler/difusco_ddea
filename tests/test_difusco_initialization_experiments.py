@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import pytest
-from config.myconfig import Config
-from difusco.difusco_initialization_experiments import run_difusco_initialization_experiments
 from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
+from config.myconfig import Config
+
+from difusco.difusco_initialization_experiments import run_difusco_initialization_experiments
+
 
 @pytest.fixture
 def config_factory() -> Config:
@@ -34,7 +36,11 @@ def config_factory() -> Config:
                 pop_size=pop_size,
             )
             return tsp_inference_config.update(config)
+
+        raise ValueError(f"Invalid task: {task}")
+
     return _config_factory
+
 
 @pytest.mark.parametrize("task", ["mis", "tsp"])
 def test_difusco_initialization_experiments(config_factory: Config, task: str) -> None:

@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from argparse import ArgumentParser, Namespace
+import json
 import multiprocessing as mp
+import os
 import timeit
+from argparse import ArgumentParser, Namespace
+from datetime import datetime
 from typing import Any
 
-import torch
-import os
-import json
-from datetime import datetime
 import wandb
-from config.myconfig import Config
-from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
+from config.myconfig import Config
 from ea.ea_utils import dataset_factory, instance_factory
 from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
 from problems.tsp.tsp_heatmap_experiment import metrics_on_tsp_heatmaps
@@ -70,17 +68,14 @@ def get_arg_parser() -> ArgumentParser:
     return parser
 
 
-
-
-
 def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
     """Run a single Difusco iteration and store the result in the queue."""
     try:
         print(f"Starting iteration in process: {mp.current_process().name}")
-        
+
         # Create sampler in the child process
         sampler = DifuscoSampler(config)
-        
+
         # Create problem instance to evaluate solutions
         instance = instance_factory(config, sample)
 
@@ -99,8 +94,9 @@ def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp
 
         queue.put(instance_results)
     except BaseException as e:  # noqa: BLE001
-        print(f"Error in process {mp.current_process().name}: {str(e)}")
+        print(f"Error in process {mp.current_process().name}: {e!s}")
         queue.put({"error": str(e)})
+
 
 def save_results(config: Config, results: dict[str, float | int | str]) -> None:
     data = {
@@ -112,7 +108,7 @@ def save_results(config: Config, results: dict[str, float | int | str]) -> None:
     os.makedirs(results_dir, exist_ok=True)
     with open(os.path.join(results_dir, f"{config.wandb_logger_name}.json"), "w") as f:
         json.dump(data, f)
-    
+
 
 def run_difusco_initialization_experiments(config: Config) -> None:
     """Run experiments to evaluate Difusco initialization performance.
@@ -201,9 +197,10 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         final_results["wandb_id"] = wandb.run.id
         save_results(config, final_results)
         wandb.finish()
-    
+
     # save final results to file, just in case
     import json
+
     with open(f"{config.wandb_logger_name}.json", "w") as f:
         json.dump(final_results, f)
 

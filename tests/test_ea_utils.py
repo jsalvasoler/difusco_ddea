@@ -102,9 +102,9 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
     config = Config(
         task="mis",
         algo="brkga",
-        data_path="data/mis",
-        test_split="er_test",
-        test_split_label_dir=None,  # er_test already has labels!
+        data_path="data",
+        test_split="mis/er_700_800/test",
+        test_split_label_dir=None,  # er_700_800/test already has labels!
         device="cpu",
         np_eval=True,
     )
@@ -132,7 +132,7 @@ def test_gpu_memory_cleanup(task: str, algo: str) -> None:
     if task == "tsp":
         dataset = TSPGraphDataset(data_file="data/tsp/tsp100_test_concorde.txt", sparse_factor=-1)
     elif task == "mis":
-        dataset = MISDataset(data_dir="data/mis/er_test")
+        dataset = MISDataset(data_dir="data/mis/er_700_800/test")
     else:
         error_msg = f"Invalid task: {task}"
         raise ValueError(error_msg)
@@ -199,7 +199,7 @@ def test_ea_runs(task: str, algo: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":
-        data_path = "data/mis/er_test"
+        data_path = "data/mis/er_700_800/test"
     else:
         error_msg = f"Invalid task: {task}"
         raise ValueError(error_msg)

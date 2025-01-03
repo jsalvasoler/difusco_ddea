@@ -1,8 +1,9 @@
 # ruff: noqa: ANN102
 
 from __future__ import annotations
-from argparse import ArgumentParser
+
 from typing import TYPE_CHECKING, Iterator
+
 if TYPE_CHECKING:
     from argparse import Namespace
 
@@ -13,10 +14,6 @@ class Config:
     def __init__(self, **kwargs) -> None:
         for key, value in kwargs.items():
             setattr(self, key, value)
-
-    @classmethod
-    def load_from_args(cls, args: Namespace) -> Config:
-        return cls(**vars(args))
 
     @classmethod
     def load_from_dict(cls, config_dict: dict) -> Config:
@@ -39,7 +36,7 @@ class Config:
         for key, value in kwargs.items():
             setattr(new_config, key, value)
         return new_config
-    
+
     @staticmethod
     def load_saved_config(config_name: str) -> Config:
         if config_name.endswith(".py"):
@@ -54,7 +51,7 @@ class Config:
                 raise ValueError(f"Invalid config name: {config_name}")
 
         return config
-    
+
     @staticmethod
     def load_from_namespace(args: Namespace) -> Config:
         return Config(**vars(args))
@@ -69,7 +66,7 @@ class Config:
         config = config.update(args_config)
 
         # 3. Highest priority: extra args from the command line
-        for i in range(0, len(extra) - 1):
+        for i in range(len(extra) - 1):
             current, next_elem = extra[i], extra[i + 1]
             if current.startswith("--") and not next_elem.startswith("--"):
                 key = current[2:]

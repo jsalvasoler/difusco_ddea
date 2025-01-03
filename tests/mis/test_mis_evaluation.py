@@ -44,7 +44,7 @@ def test_mis_decoding_torch(adj_matrix_torch: torch.tensor) -> None:
 def benchmark_experiment() -> None:
     device = "cpu"  # "cpu" or "cuda"
 
-    dataset = MISDataset(data_dir="/home/e12223411/repos/difusco/data/mis/er_test")
+    dataset = MISDataset(data_dir="/home/e12223411/repos/difusco/data/mis/er_700_800/test")
     times_np = []
     times_torch = []
     for sample in tqdm(dataset):
