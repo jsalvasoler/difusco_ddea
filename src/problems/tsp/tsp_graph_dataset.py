@@ -53,6 +53,25 @@ class TSPGraphDataset(Dataset):
         tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
         | tuple[torch.Tensor, GraphData, torch.Tensor, torch.Tensor, torch.Tensor]
     ):
+        """
+        A TSP dataset item depends on the sparse factor.
+
+        sparse_factor <= 0 returns a densely connected graph:
+        - idx: (1,)
+        - points: (n, 2)
+        - adj_matrix: (n, n) -> ground truth adjacency matrix
+        - tour: (n,) -> ground truth tour
+
+        sparse_factor > 0 returns a sparse graph where each node is connected to its k nearest neighbors:
+        - idx: (1,)
+        - GraphData:
+            - x: (n, 2)
+            - edge_index: (2, m)
+            - edge_attr: (m,)
+        - point_indicator: (1,)
+        - edge_indicator: (1,)
+        - tour: (n,) -> ground truth tour
+        """
         points, tour = self.get_example(idx)
         if self.sparse_factor <= 0:
             # Return a densely connected graph
