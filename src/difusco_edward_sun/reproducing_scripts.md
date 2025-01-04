@@ -343,3 +343,26 @@ python -u difusco/train.py \
 export PYTHONPATH="$PWD:$PYTHONPATH"
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
+python -u difusco/train.py \
+  --task "mis" \
+  --wandb_logger_name "mis_diffusion_graph_gaussian_er_test" \
+  --diffusion_type "gaussian" \
+  --do_test \
+  --learning_rate 0.0002 \
+  --weight_decay 0.0001 \
+  --lr_scheduler "cosine-decay" \
+  --data_path "/your/storage/path" \
+  --training_split "/your/data_er/train/*gpickle" \
+  --training_split_label_dir "/your/data_er/train_annotations/" \
+  --validation_split "/your/data_er/train/validation/*gpickle" \
+  --test_split "/your/data_er/train/test/*gpickle" \
+  --batch_size 4 \
+  --num_epochs 50 \
+  --validation_examples 8 \
+  --inference_schedule "cosine" \
+  --inference_diffusion_steps 50 \
+  --parallel_sampling 4 \
+  --use_activation_checkpoint \
+  --ckpt_path "/your/mis_er_gaussian/ckpt_path/last.ckpt" \
+  --resume_weight_only
+```
