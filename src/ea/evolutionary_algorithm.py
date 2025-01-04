@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import wandb
 from config.myconfig import Config
+from config.mytable import TableSaver
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_ga import create_mis_ga
@@ -17,7 +18,7 @@ from pyinstrument import Profiler
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
-from ea.ea_utils import dataset_factory, instance_factory, save_results
+from ea.ea_utils import dataset_factory, get_results_dict, instance_factory
 
 if TYPE_CHECKING:
     from argparse import Namespace
@@ -165,5 +166,9 @@ def run_ea(config: Config) -> None:
     if not is_validation_run:
         wandb.log(agg_results)
         agg_results["wandb_id"] = wandb.run.id
-        save_results(config, agg_results)
+
+        table_saver = TableSaver(table_name="results/ea_results.csv")
+        results_dict = get_results_dict(config, agg_results)
+        table_saver.put(results_dict)
+
         wandb.finish()

@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import pandas as pd
 from config.myconfig import Config
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import create_mis_instance
@@ -31,7 +30,7 @@ def filter_args_by_group(parser: ArgumentParser, group_name: str) -> dict:
     return [a.dest for a in group._group_actions]  # noqa: SLF001
 
 
-def save_results(config: Config, results: dict[str, float | int | str]) -> None:
+def get_results_dict(config: Config, results: dict[str, float | int | str]) -> None:
     # filter the name of the arguments of the grup ea_settings
     parser = get_arg_parser()
     ea_setting_args = filter_args_by_group(parser, "ea_settings")
@@ -49,13 +48,8 @@ def save_results(config: Config, results: dict[str, float | int | str]) -> None:
     row.update({k: getattr(config, k) for k in tsp_setting_args})
     row.update({k: getattr(config, k) for k in mis_setting_args})
     row.update(results)
-    results_df = pd.DataFrame([row])
 
-    results_file = os.path.join(config.results_path, "ea_results.csv")
-    current_results = pd.read_csv(results_file) if os.path.exists(results_file) else pd.DataFrame()
-    current_results = pd.concat([current_results, results_df])
-
-    current_results.to_csv(results_file, index=False)
+    return row
 
 
 def dataset_factory(config: Config) -> Dataset:

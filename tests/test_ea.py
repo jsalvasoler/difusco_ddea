@@ -1,13 +1,11 @@
-import os
 from typing import Generator
 
 import numpy as np
-import pandas as pd
 import pytest
 import torch
 from config.myconfig import Config
 from ea.ea_arg_parser import get_arg_parser
-from ea.ea_utils import dataset_factory, filter_args_by_group, instance_factory, save_results
+from ea.ea_utils import dataset_factory, filter_args_by_group, get_results_dict, instance_factory
 from ea.evolutionary_algorithm import (
     handle_empty_queue,
     handle_process_error,
@@ -53,49 +51,19 @@ def test_filter_args_by_group() -> None:
     assert set(ea_settings_args) == set(expected_args)
 
 
-def test_save_results_file_does_not_exist(config: Config) -> None:
+def test_get_results_dict(config: Config) -> None:
     results = {"a": 0.95, "b": 0.05}
 
-    save_results(config, results)
+    results_dict = get_results_dict(config, results)
 
-    results_file = os.path.join(config.results_path, "ea_results.csv")
-    assert os.path.exists(results_file)
-
-    df = pd.read_csv(results_file)
-    assert len(df) == 1
-    assert df["task"].iloc[0] == "mis"
-    assert df["wandb_logger_name"].iloc[0] == "test_logger"
-    assert df["device"].iloc[0] == "cpu"
-    assert df["n_parallel_evals"].iloc[0] == 0
-    assert df["pop_size"].iloc[0] == 100
-    assert df["n_generations"].iloc[0] == 100
-    assert df["a"].iloc[0] == 0.95
-    assert df["b"].iloc[0] == 0.05
-    assert "timestamp" in df.columns
-
-
-def test_save_results_file_exists(config: Config) -> None:
-    results = {"a": 0.95, "b": 0.05}
-
-    # Create an initial results file
-    initial_data = {"task": ["mis"], "wandb_logger_name": ["initial_logger"], "accuracy": [0.90], "loss": [0.10]}
-    initial_df = pd.DataFrame(initial_data)
-    results_file = os.path.join(config.results_path, "ea_results.csv")
-    initial_df.to_csv(results_file, index=False)
-
-    save_results(config, results)
-
-    df = pd.read_csv(results_file)
-    assert len(df) == 2
-    assert df["task"].iloc[1] == "mis"
-    assert df["wandb_logger_name"].iloc[1] == "test_logger"
-    assert df["device"].iloc[1] == "cpu"
-    assert df["n_parallel_evals"].iloc[1] == 0
-    assert df["pop_size"].iloc[1] == 100
-    assert df["n_generations"].iloc[1] == 100
-    assert df["a"].iloc[1] == 0.95
-    assert df["b"].iloc[1] == 0.05
-    assert "timestamp" in df.columns
+    assert results_dict["task"] == "mis"
+    assert results_dict["wandb_logger_name"] == "test_logger"
+    assert results_dict["device"] == "cpu"
+    assert results_dict["n_parallel_evals"] == 0
+    assert results_dict["pop_size"] == 100
+    assert results_dict["a"] == 0.95
+    assert results_dict["b"] == 0.05
+    assert "timestamp" in results_dict
 
 
 def test_mis_gt_avg_cost_er_test_set() -> None:
