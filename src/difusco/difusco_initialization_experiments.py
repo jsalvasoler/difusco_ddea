@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import multiprocessing as mp
-import os
 import timeit
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
@@ -11,6 +9,7 @@ from typing import Any
 import wandb
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
+from config.mytable import TableSaver
 from ea.ea_utils import dataset_factory, instance_factory
 from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
 from problems.tsp.tsp_heatmap_experiment import metrics_on_tsp_heatmaps
@@ -98,16 +97,15 @@ def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp
         queue.put({"error": str(e)})
 
 
-def save_results(config: Config, results: dict[str, float | int | str]) -> None:
+def add_config_and_timestamp(config: Config, results: dict[str, float | int | str]) -> None:
     data = {
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "config": config.__dict__,
-        "results": results,
     }
-    results_dir = os.path.join(config.results_path, "difusco_initialization_experiments")
-    os.makedirs(results_dir, exist_ok=True)
-    with open(os.path.join(results_dir, f"{config.wandb_logger_name}.json"), "w") as f:
-        json.dump(data, f)
+    print(results)
+    data.update(results)
+    data.update(config.__dict__)
+
+    return data
 
 
 def run_difusco_initialization_experiments(config: Config) -> None:
@@ -172,7 +170,7 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         return {f"avg_{key}": sum(r[key] for r in results) / len(results) for key in keys}
 
     # Compute and log aggregate results
-    final_results = agg_results(
+    aggregated_results = agg_results(
         results,
         [
             "best_cost",
@@ -190,19 +188,19 @@ def run_difusco_initialization_experiments(config: Config) -> None:
             "feasibility_heuristics_time",
         ],
     )
-    final_results["pop_size"] = config.pop_size
+
+    final_results = add_config_and_timestamp(config, aggregated_results)
+    table_saver = TableSaver("results/init_experiments.csv")
+    table_saver.put(final_results)
 
     if not is_validation_run:
         wandb.log(final_results)
         final_results["wandb_id"] = wandb.run.id
-        save_results(config, final_results)
+        final_results = add_config_and_timestamp(config, aggregated_results)
+
+        table_saver = TableSaver("results/init_experiments.csv")
+        table_saver.put(final_results)
         wandb.finish()
-
-    # save final results to file, just in case
-    import json
-
-    with open(f"{config.wandb_logger_name}.json", "w") as f:
-        json.dump(final_results, f)
 
 
 if __name__ == "__main__":

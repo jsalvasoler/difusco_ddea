@@ -5,7 +5,7 @@ from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
 
-from difusco.difusco_initialization_experiments import run_difusco_initialization_experiments
+from difusco.difusco_initialization_experiments import add_config_and_timestamp, run_difusco_initialization_experiments
 
 
 @pytest.fixture
@@ -58,3 +58,10 @@ def config_factory() -> Config:
 def test_difusco_initialization_experiments(config_factory: Config, task: str) -> None:
     config = config_factory(task)
     run_difusco_initialization_experiments(config)
+
+
+def test_get_results() -> None:
+    config = Config(hey="hey", ho="ho")
+    results = {"a": 1, "b": 2}
+    final_results = add_config_and_timestamp(config, results)
+    assert set(final_results.keys()) == {"hey", "ho", "a", "b", "timestamp"}

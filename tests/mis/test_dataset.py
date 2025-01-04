@@ -75,6 +75,7 @@ def check_dataset_samples(dataset: MISDataset, dataset_name: str, start_idx: int
         assert sample[2].item() == n
 
         assert graph_sizes[dataset_name][0] <= n <= graph_sizes[dataset_name][1]
+        assert 0 < graph_data.x.sum().item() <= n
 
 
 @pytest.mark.skipif(not Path("data/mis").exists(), reason=MIS_DATA_SKIP_REASON)
@@ -96,8 +97,9 @@ def test_er_datasets(dataset_name: str) -> None:
     if expected_length_train[dataset_name] is None:
         return
 
-    data_label_dir = data_label_dir_remap.get(dataset_name, f"data/mis/{dataset_name}/train_labels")
-    train_dataset = MISDataset(data_dir=f"data/mis/{dataset_name}/train", data_label_dir=data_label_dir)
+    train_dataset = MISDataset(
+        data_dir=f"data/mis/{dataset_name}/train", data_label_dir=f"data/mis/{dataset_name}/train_labels"
+    )
     assert len(train_dataset) == expected_length_train[dataset_name]
     check_dataset_samples(train_dataset, dataset_name)
 
