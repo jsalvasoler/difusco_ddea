@@ -14,8 +14,7 @@ __pycache__/
 
 # Run scripts
 run.sh
-src/cli_tools/train.sh
-src/cli_tools/evaluate.sh
+src/cli_tools/*.sh
 
 # IDE
 .idea/
