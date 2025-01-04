@@ -85,7 +85,7 @@ def validate_args(args: Namespace) -> None:
 
     # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
     if args.wandb_logger_name:
-        assert args.wandb_logger_name.startswith(f"{args.task}_diffusion_graph_{args.diffusion_type}_")
+        assert args.wandb_logger_name.startswith(f"{args.task}_{args.diffusion_type}_")
 
     if args.ckpt_path:
         assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
