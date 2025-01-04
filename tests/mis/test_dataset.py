@@ -5,10 +5,6 @@ import numpy as np
 import pytest
 from problems.mis.mis_dataset import MISDataset
 
-data_label_dir_remap = {
-    "er_700_800": None,
-}
-
 graph_sizes = {
     "er_50_100": (50, 100),
     "er_300_400": (300, 400),
@@ -89,8 +85,9 @@ def test_er_datasets(dataset_name: str) -> None:
     4. er_1300_1500 (test)
     5. satlib (train, test)
     """
-    data_label_dir = data_label_dir_remap.get(dataset_name, f"data/mis/{dataset_name}/test_labels")
-    test_dataset = MISDataset(data_dir=f"data/mis/{dataset_name}/test", data_label_dir=data_label_dir)
+    test_dataset = MISDataset(
+        data_dir=f"data/mis/{dataset_name}/test", data_label_dir=f"data/mis/{dataset_name}/test_labels"
+    )
     assert len(test_dataset) == expected_length_test[dataset_name]
     check_dataset_samples(test_dataset, dataset_name)
 
@@ -113,6 +110,7 @@ def test_er_datasets(dataset_name: str) -> None:
         ("er_300_400", "train"),
         ("er_300_400", "test"),
         ("er_700_800", "train"),
+        ("er_700_800", "test"),
         ("er_1300_1500", "test"),
     ],
 )
