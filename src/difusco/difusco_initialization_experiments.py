@@ -101,7 +101,6 @@ def add_config_and_timestamp(config: Config, results: dict[str, float | int | st
     data = {
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
     }
-    print(results)
     data.update(results)
     data.update(config.__dict__)
 
@@ -189,14 +188,10 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         ],
     )
 
-    final_results = add_config_and_timestamp(config, aggregated_results)
-    table_saver = TableSaver("results/init_experiments.csv")
-    table_saver.put(final_results)
-
     if not is_validation_run:
-        wandb.log(final_results)
-        final_results["wandb_id"] = wandb.run.id
+        wandb.log(aggregated_results)
         final_results = add_config_and_timestamp(config, aggregated_results)
+        final_results["wandb_id"] = wandb.run.id
 
         table_saver = TableSaver("results/init_experiments.csv")
         table_saver.put(final_results)

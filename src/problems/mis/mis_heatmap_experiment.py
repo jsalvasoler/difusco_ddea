@@ -32,6 +32,7 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
 
     # Calculate costs and gaps
     costs = solutions.float().sum(dim=1)
+
     instance_results = {
         "best_cost": costs.max(),
         "avg_cost": costs.mean(),
