@@ -31,8 +31,6 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
 
-    print("after decoding")
-
     assert solutions.shape[0] == config.pop_size
     assert solutions.shape[1] == instance.n_nodes
 
