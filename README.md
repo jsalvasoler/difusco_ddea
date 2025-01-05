@@ -51,7 +51,7 @@ There are two groups of commands: `difusco` and `ea`. Run `hatch run cli difusco
 
 ## Data
 
-We recommend saving the data in the following directory structure:
+The data should be saved following the directory structure:
 
 ```bash
 difusco/
@@ -60,9 +60,11 @@ difusco/
 │   │   ├── tsp500_train_concorde.txt  # Training data for TSP
 │   │   ├── tsp1000_train_concorde.txt # Additional training data for TSP
 │   │   └── ...                # Other TSP data files
-│   ├── problem_2/             # Data for Problem 2
-│   │   ├── problem2_train.txt  # Training data for Problem 2
-│   │   └── problem2_test.txt   # Test data for Problem 2
+│   ├── mis/                   # MIS dataset files
+│   │   ├── er_50_100/         # ER-50-100 dataset
+│   │   ├── er_700_800/        # ER-700-800 dataset
+│   │   ├── satlib/            # SATLIB dataset
+│   │   └── ...                # Other MIS data files
 │   └── etc/                   # Other datasets or resources
 │       ├── example_data.txt    # Example dataset
 │       └── ...                # Other miscellaneous data files
