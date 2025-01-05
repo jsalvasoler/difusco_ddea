@@ -109,6 +109,11 @@ def validate_config(config: Config) -> None:
         config.pop_size == config.parallel_sampling * config.sequential_sampling
     ), "Requirement: pop_size == parallel_sampling * sequential_sampling"
 
+    if "categorical" in config.ckpt_path:
+        assert config.diffusion_type == "categorical", "diffusion_type must be categorical"
+    elif "gaussian" in config.ckpt_path:
+        assert config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
+
 
 def run_difusco_initialization_experiments(config: Config) -> None:
     """Run experiments to evaluate Difusco initialization performance.

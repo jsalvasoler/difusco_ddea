@@ -90,6 +90,11 @@ def validate_args(args: Namespace) -> None:
     if args.ckpt_path:
         assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
 
+    if "categorical" in args.ckpt_path:
+        assert args.diffusion_type == "categorical", "diffusion_type must be categorical"
+    elif "gaussian" in args.ckpt_path:
+        assert args.diffusion_type == "gaussian", "diffusion_type must be gaussian"
+
     if args.task == "high_degree_selection":
         assert args.parallel_sampling == 1, "Parallel sampling must be 1 for high degree selection."
 

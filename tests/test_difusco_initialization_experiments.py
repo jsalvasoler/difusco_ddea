@@ -60,6 +60,34 @@ def test_difusco_initialization_experiments(config_factory: Config, task: str) -
     run_difusco_initialization_experiments(config)
 
 
+def test_satlib_initialization_experiments() -> None:
+    base = Config(
+        task="mis",
+        data_path="data",
+        logs_path="logs",
+        results_path="results",
+        models_path="models",
+        pop_size=2,
+        parallel_sampling=2,
+        sequential_sampling=1,
+        diffusion_steps=2,
+        inference_diffusion_steps=50,
+        validate_samples=2,
+        wandb_logger_name="justatest",
+        np_eval=True,
+        test_split="mis/satlib/test",
+        test_split_label_dir="mis/satlib/test_labels",
+        training_split="mis/satlib/train",
+        training_split_label_dir="mis/satlib/train_labels",
+        validation_split="mis/satlib/test",
+        validation_split_label_dir="mis/satlib/test_labels",
+        ckpt_path="mis/mis_sat_categorical.ckpt",
+        diffusion_type="categorical",
+    )
+    config = mis_inference_config.update(base)
+    run_difusco_initialization_experiments(config)
+
+
 def test_get_results() -> None:
     config = Config(hey="hey", ho="ho")
     results = {"a": 1, "b": 2}
