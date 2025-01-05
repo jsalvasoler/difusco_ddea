@@ -96,12 +96,12 @@ def check_for_gaps():
     print(f"missing in train_ann: {missing}")
 
 
-def transfer_test_to_train():
-    base = '/home/e12223411/repos/difusco/data/mis'
-    test = os.path.join(base, 'er_1300_1500/test')
-    test_labels = os.path.join(base, 'er_1300_1500/test_labels')
-    train = os.path.join(base, 'er_1300_1500/train')
-    train_labels = os.path.join(base, 'er_1300_1500/train_labels')
+def transfer_test_to_train(dataset_name):
+    base = '/home/joan.salva/repos/difusco/data/mis'
+    test = os.path.join(base, f'{dataset_name}/test')
+    test_labels = os.path.join(base, f'{dataset_name}/test_labels')
+    train = os.path.join(base, f'{dataset_name}/train')
+    train_labels = os.path.join(base, f'{dataset_name}/train_labels')
 
     def extract_id(s):
         return int(s.split(".")[-2].split("_")[-1])
@@ -129,10 +129,10 @@ def transfer_test_to_train():
     print(len(os.listdir(train)))
     print(len(os.listdir(train_labels)))
 
-def make_sure_all_labels_exist():
-    base = '/home/e12223411/repos/difusco/data/mis'
-    train = os.path.join(base, 'er_300_400/test')
-    train_labels = os.path.join(base, 'er_300_400/test_labels')
+def make_sure_all_labels_exist(dataset_name):
+    base = '/home/joan.salva/repos/difusco/data/mis'
+    train = os.path.join(base, f'{dataset_name}/test')
+    train_labels = os.path.join(base, f'{dataset_name}/test_labels')
     for f in tqdm(os.listdir(train)):
         if not f.endswith('.gpickle'):
             print(f"skipping {f} because it is not a graph")
@@ -146,5 +146,6 @@ if __name__ == '__main__':
     # transfer_0_to_1()
     # rename_train_degree_labels()
     # check_for_gaps()
-    # transfer_test_to_train()
-    make_sure_all_labels_exist()
+    # transfer_test_to_train('er_300_400')
+    # make_sure_all_labels_exist('er_700_800')
+    pass
