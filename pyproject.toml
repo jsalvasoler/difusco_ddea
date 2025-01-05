@@ -44,6 +44,8 @@ dependencies = [
   "pyinstrument",
   "evotorch",
   "click",
+  "ipykernel",
+  "seaborn",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"

@@ -3,6 +3,7 @@
 /models/
 /logs/
 /results/
+/notebooks/
 
 # cython
 build/
