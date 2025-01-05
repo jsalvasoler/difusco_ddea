@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 import wandb
-from config.configs.tsp_inference import config as tsp_inference_config
+from config.configs.mis_inference import config as mis_inference_config
 from config.myconfig import Config
 from config.mytable import TableSaver
 from ea.ea_utils import dataset_factory, instance_factory
@@ -70,8 +70,6 @@ def get_arg_parser() -> ArgumentParser:
 def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
     """Run a single Difusco iteration and store the result in the queue."""
     try:
-        print(f"Starting iteration in process: {mp.current_process().name}")
-
         # Create sampler in the child process
         sampler = DifuscoSampler(config)
 
@@ -90,10 +88,8 @@ def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp
         else:  # MIS
             instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
         instance_results["sampling_time"] = sampling_time
-
         queue.put(instance_results)
-    except BaseException as e:  # noqa: BLE001
-        print(f"Error in process {mp.current_process().name}: {e!s}")
+    except Exception as e:  # noqa: BLE001
         queue.put({"error": str(e)})
 
 
@@ -107,12 +103,20 @@ def add_config_and_timestamp(config: Config, results: dict[str, float | int | st
     return data
 
 
+def validate_config(config: Config) -> None:
+    assert config.pop_size > 0, "pop_size must be greater than 0"
+    assert (
+        config.pop_size == config.parallel_sampling * config.sequential_sampling
+    ), "Requirement: pop_size == parallel_sampling * sequential_sampling"
+
+
 def run_difusco_initialization_experiments(config: Config) -> None:
     """Run experiments to evaluate Difusco initialization performance.
 
     Args:
         config: Configuration object containing experiment parameters
     """
+    validate_config(config)
     print(f"Running Difusco initialization experiments with config: {config}")
 
     dataset = dataset_factory(config)
@@ -136,31 +140,26 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         process = ctx.Process(target=process_difusco_iteration, args=(config, sample, queue))
 
         process.start()
-        try:
-            process.join(timeout=30 * 60)  # 30 minutes timeout
+        process.join(timeout=30 * 60)  # 30 minutes timeout
+        if process.is_alive():
+            process.terminate()
+            raise TimeoutError(f"Process timed out for iteration {i}")
 
-            if process.is_alive():
-                process.terminate()
-                raise TimeoutError(f"Process timed out for iteration {i}")
+        if queue.empty():
+            raise RuntimeError("No result returned from the process")
 
-            if queue.empty():
-                raise RuntimeError("No result returned from the process")
+        instance_results = queue.get()
 
-            instance_results = queue.get()
+        if "error" in instance_results:
+            raise RuntimeError(instance_results["error"])
 
-            if "error" in instance_results:
-                raise RuntimeError(instance_results["error"])
+        results.append(instance_results)
+        if not is_validation_run:
+            wandb.log(instance_results, step=i)
 
-            results.append(instance_results)
-            if not is_validation_run:
-                wandb.log(instance_results, step=i)
-
-        except (TimeoutError, RuntimeError) as e:
-            print(f"Error in iteration {i}: {e}")
-        finally:
-            if process.is_alive():
-                process.terminate()
-                process.join()
+        if process.is_alive():
+            process.terminate()
+            process.join()
 
         if is_validation_run and i >= config.validate_samples - 1:
             break
@@ -199,29 +198,40 @@ def run_difusco_initialization_experiments(config: Config) -> None:
 
 
 if __name__ == "__main__":
-    # pop_size = 2
-    # config = Config(
-    #     task="mis",
-    #     parallel_sampling=pop_size,
-    #     sequential_sampling=1,
-    #     diffusion_steps=2,
-    #     inference_diffusion_steps=50,
-    #     validate_samples=2,
-    #     np_eval=True,
-    #     pop_size=pop_size,
-    # )
-    # config = mis_inference_config.update(config)
-    # run_difusco_initialization_experiments(config)
-    pop_size = 50
+    pop_size = 4
     config = Config(
-        task="tsp",
+        task="mis",
+        data_path="/home/joan.salva/repos/difusco/data",
+        logs_path="/home/joan.salva/repos/difusco/logs",
+        results_path="/home/joan.salva/repos/difusco/results",
+        models_path="/home/joan.salva/repos/difusco/models",
+        test_split="mis/er_50_100/test",
+        test_split_label_dir="mis/er_50_100/test_labels",
+        training_split="mis/er_50_100/train",
+        training_split_label_dir="mis/er_50_100/train_labels",
+        validation_split="mis/er_50_100/test",
+        validation_split_label_dir="mis/er_50_100/test_labels",
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         parallel_sampling=pop_size,
         sequential_sampling=1,
-        diffusion_steps=50,
+        diffusion_steps=2,
         inference_diffusion_steps=50,
-        validate_samples=1,
+        validate_samples=2,
         np_eval=True,
         pop_size=pop_size,
     )
-    config = tsp_inference_config.update(config)
+    config = mis_inference_config.update(config)
     run_difusco_initialization_experiments(config)
+    # pop_size = 50
+    # config = Config(
+    #     task="tsp",
+    #     parallel_sampling=pop_size,
+    #     sequential_sampling=1,
+    #     diffusion_steps=50,
+    #     inference_diffusion_steps=50,
+    #     validate_samples=1,
+    #     np_eval=True,
+    #     pop_size=pop_size,
+    # )
+    # config = tsp_inference_config.update(config)
+    # run_difusco_initialization_experiments(config)

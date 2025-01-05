@@ -16,8 +16,12 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
     Returns:
         Dictionary containing metrics including costs, gaps and selection frequencies
     """
-    assert heatmaps.shape[0] == config.pop_size
-    assert heatmaps.shape[1] == instance.n_nodes
+    assert (
+        heatmaps.shape[0] == config.pop_size
+    ), f"heatmaps.shape[0] {heatmaps.shape[0]} != config.pop_size {config.pop_size}"
+    assert (
+        heatmaps.shape[1] == instance.n_nodes
+    ), f"heatmaps.shape[1] {heatmaps.shape[1]} != instance.n_nodes {instance.n_nodes}"
 
     solutions = None
     start_time = timeit.default_timer()
@@ -26,6 +30,8 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
         solutions = solution if solutions is None else torch.vstack((solutions, solution))
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
+
+    print("after decoding")
 
     assert solutions.shape[0] == config.pop_size
     assert solutions.shape[1] == instance.n_nodes
