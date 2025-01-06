@@ -81,6 +81,9 @@ def validate_args(args: Namespace) -> None:
         full_path = os.path.join(args.data_path, getattr(args, split))
         assert os.path.exists(full_path), f"Path {getattr(args, split)} does not exist."
 
+    assert isinstance(args.parallel_sampling, int), "parallel_sampling must be an integer"
+    assert args.parallel_sampling >= 0, "parallel_sampling must be greater than or equal to 0"
+
     assert args.project_name == "difusco", "Project name must be of the form difusco."
 
     # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
