@@ -162,6 +162,8 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         results.append(instance_results)
         if not is_validation_run:
             wandb.log(instance_results, step=i)
+        else:
+            print(instance_results)
 
         if process.is_alive():
             process.terminate()
