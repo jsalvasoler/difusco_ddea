@@ -240,7 +240,11 @@ class TSPModel(COMetaModel):
 
         Output has shape (parallel_sampling, n, n), where n in the graph size.
         """
-        xt = torch.randn(1, points.shape[1], points.shape[1], device=device, dtype=torch.float)
+        if not self.sparse:
+            xt = torch.randn(1, points.shape[1], points.shape[1], device=device, dtype=torch.float)
+        else:
+            xt = torch.randn(1, points.shape[0] // self.args.parallel_sampling * self.args.sparse_factor, device=device, dtype=torch.float)
+
         if self.args.parallel_sampling > 1:
             if not self.sparse:
                 xt = xt.repeat(self.args.parallel_sampling, 1, 1)

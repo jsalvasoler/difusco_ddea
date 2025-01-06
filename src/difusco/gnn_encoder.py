@@ -443,7 +443,8 @@ class GNNEncoder(nn.Module):
         edge_index = edge_index.long()
 
         x, e = self.sparse_encoding(x, e, edge_index, time_emb)
-        return e.reshape((1, x.shape[0], -1, e.shape[-1])).permute((0, 3, 1, 2))
+        e = e.reshape((1, x.shape[0], -1, e.shape[-1])).permute((0, 3, 1, 2))
+        return self.out(e).reshape(-1, edge_index.shape[1]).permute((1, 0))
 
     def sparse_forward_node_feature_only(
         self, x: torch.Tensor, timesteps: torch.Tensor, edge_index: torch.Tensor
