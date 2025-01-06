@@ -13,12 +13,26 @@ from torch_geometric.loader import DataLoader
 
 from difusco.sampler import DifuscoSampler
 
+common = Config(
+    data_path="data",
+    logs_path="logs",
+    results_path="results",
+    models_path="models",
+    np_eval=True,
+)
+
 
 @pytest.fixture(params=[(1, 1), (3, 1), (1, 3), (3, 3)])
 def config_tsp(request: tuple[int, int]) -> Config:
     """Fixture to create a Config object for the tests."""
     parallel_sampling, sequential_sampling = request.param
-    config = Config(
+
+    config = common.update(
+        task="tsp",
+        test_split="tsp/tsp50_test_concorde.txt",
+        training_split="tsp/tsp50_train_concorde.txt",
+        validation_split="tsp/tsp50_test_concorde.txt",
+        ckpt_path="tsp/tsp50_categorical.ckpt",
         parallel_sampling=parallel_sampling,
         sequential_sampling=sequential_sampling,
     )
@@ -29,7 +43,16 @@ def config_tsp(request: tuple[int, int]) -> Config:
 def config_mis(request: tuple[int, int]) -> Config:
     """Fixture to create a Config object for MIS tests."""
     parallel_sampling, sequential_sampling = request.param
-    config = Config(
+
+    config = common.update(
+        task="mis",
+        test_split="mis/er_50_100/test",
+        test_split_label_dir="mis/er_50_100/test_labels",
+        training_split="mis/er_50_100/train",
+        training_split_label_dir="mis/er_50_100/train_labels",
+        validation_split="mis/er_50_100/test",
+        validation_split_label_dir="mis/er_50_100/test_labels",
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         parallel_sampling=parallel_sampling,
         sequential_sampling=sequential_sampling,
     )
@@ -65,7 +88,7 @@ def run_test_on_config(config: Config) -> None:
         assert heatmaps.shape[1] == 50, "Incorrect number of nodes"
         assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
     elif config.task == "mis":
-        assert heatmaps.shape[1] == 796, "Incorrect number of nodes"
+        assert heatmaps.shape[1] == 60, "Incorrect number of nodes"
 
     # Check output range for categorical diffusion
     assert torch.all(heatmaps >= 0), "Heatmap values below 0"
