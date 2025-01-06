@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import timeit
+import traceback
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any
@@ -89,8 +90,8 @@ def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp
             instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
         instance_results["sampling_time"] = sampling_time
         queue.put(instance_results)
-    except Exception as e:  # noqa: BLE001
-        queue.put({"error": str(e)})
+    except Exception:  # noqa: BLE001
+        queue.put({"error": traceback.format_exc()})
 
 
 def add_config_and_timestamp(config: Config, results: dict[str, float | int | str]) -> None:
