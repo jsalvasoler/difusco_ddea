@@ -29,10 +29,11 @@ class Config:
     def __repr__(self) -> str:
         return f"Config({self.__dict__})"
 
-    def update(self, other_config: Config, **kwargs) -> Config:
+    def update(self, other_config: Config | None = None, **kwargs) -> Config:
         new_config = Config(**self.__dict__)
-        for key, value in other_config:
-            setattr(new_config, key, value)
+        if other_config is not None:
+            for key, value in other_config:
+                setattr(new_config, key, value)
         for key, value in kwargs.items():
             setattr(new_config, key, value)
         return new_config

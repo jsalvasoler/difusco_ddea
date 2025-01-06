@@ -97,3 +97,10 @@ def test_update() -> None:
     assert config.b == 3
     assert config.c == 4
     assert config.d == 5
+
+def test_update_with_no_other_config() -> None:
+    config = Config(a=1, b=2)
+    config = config.update(d=5)
+    assert config.a == 1
+    assert config.b == 2
+    assert config.d == 5
