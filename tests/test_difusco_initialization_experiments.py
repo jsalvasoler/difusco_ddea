@@ -88,6 +88,33 @@ def test_satlib_initialization_experiments() -> None:
     run_difusco_initialization_experiments(config)
 
 
+def test_tsp500_sparse_initialization_experiments() -> None:
+    base = Config(
+        task="tsp",
+        data_path="data",
+        logs_path="logs",
+        results_path="results",
+        models_path="models",
+    )
+    config = base.update(
+        task="tsp",
+        test_split="tsp/tsp500_test_concorde.txt",
+        training_split="tsp/tsp500_test_concorde.txt",
+        validation_split="tsp/tsp500_test_concorde.txt",
+        ckpt_path="tsp/tsp500_categorical.ckpt",
+        sparse_factor=50,
+        pop_size=2,
+        parallel_sampling=2,
+        sequential_sampling=1,
+        diffusion_steps=2,
+        inference_diffusion_steps=50,
+        validate_samples=2,
+        np_eval=True,
+    )
+    config = tsp_inference_config.update(config)
+    run_difusco_initialization_experiments(config)
+
+
 def test_get_results() -> None:
     config = Config(hey="hey", ho="ho")
     results = {"a": 1, "b": 2}

@@ -105,6 +105,8 @@ class DifuscoSampler:
         elif points is None:
             error_msg = "Must provide either batch or both edge_index and points"
             raise ValueError(error_msg)
+        if self.model.sparse:
+            edge_index = edge_index.to(self.device)
 
         # Handle parallel sampling if enabled
         if self.model.args.parallel_sampling > 1:
@@ -118,8 +120,7 @@ class DifuscoSampler:
 
         heatmaps = None
         points = points.to(self.device)
-        if self.model.sparse:
-            edge_index = edge_index.to(self.device)
+
         for _ in range(self.model.args.sequential_sampling):
             adj_mat = self.model.diffusion_sample(
                 points=points,
@@ -127,6 +128,8 @@ class DifuscoSampler:
                 device=self.device,
             )
             adj_mat = torch.from_numpy(adj_mat).to(self.device)
+            if self.model.sparse:
+                adj_mat = adj_mat.reshape(self.model.args.parallel_sampling, -1)
             heatmaps = adj_mat if heatmaps is None else torch.cat((heatmaps, adj_mat), dim=0)
 
         # clip heatmaps to be between 0 and 1

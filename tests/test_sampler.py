@@ -19,6 +19,7 @@ common = Config(
     results_path="results",
     models_path="models",
     np_eval=True,
+    device="cuda",
 )
 
 
@@ -55,6 +56,7 @@ def config_mis(request: tuple[int, int]) -> Config:
         ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         parallel_sampling=parallel_sampling,
         sequential_sampling=sequential_sampling,
+        sparse_factor=-1,
     )
     return mis_inference_config.update(config)
 
@@ -101,3 +103,28 @@ def test_sampler_tsp_sampling(config_tsp: Config) -> None:
 
 def test_sampler_mis_sampling(config_mis: Config) -> None:
     run_test_on_config(config_mis)
+
+
+@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int) -> None:
+    config = common.update(
+        task="tsp",
+        test_split="tsp/tsp500_test_concorde.txt",
+        training_split="tsp/tsp500_test_concorde.txt",
+        validation_split="tsp/tsp500_test_concorde.txt",
+        ckpt_path="tsp/tsp500_categorical.ckpt",
+        parallel_sampling=parallel_sampling,
+        sequential_sampling=sequential_sampling,
+        sparse_factor=50,
+    )
+    config = tsp_inference_config.update(config)
+    dataloader = get_dataloader(config)
+
+    sampler = DifuscoSampler(config=config)
+
+    batch = next(iter(dataloader))
+    heatmaps = sampler.sample(batch)
+
+    expected_samples = parallel_sampling * sequential_sampling
+    assert heatmaps.shape[0] == expected_samples, "Incorrect number of samples"
+    assert heatmaps.shape[1] == 500 * config.sparse_factor, "Incorrect number of nodes"

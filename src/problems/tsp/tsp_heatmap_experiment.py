@@ -3,6 +3,7 @@ from __future__ import annotations
 import timeit
 from typing import TYPE_CHECKING
 
+import scipy.sparse
 import torch
 
 if TYPE_CHECKING:
@@ -22,8 +23,12 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
         Dictionary containing metrics including costs, gaps and edge selection frequencies
     """
     assert heatmaps.shape[0] == config.pop_size, f"Heatmaps shape: {heatmaps.shape}, config.pop_size: {config.pop_size}"
-    assert heatmaps.shape[1] == instance.n, f"Heatmaps shape: {heatmaps.shape}, instance.n: {instance.n}"
-    assert heatmaps.shape[2] == instance.n, f"Heatmaps shape: {heatmaps.shape}, instance.n: {instance.n}"
+    if config.sparse_factor <= 0:
+        assert heatmaps.shape[1] == instance.n, f"Heatmaps shape: {heatmaps.shape}x{instance.n}x{instance.n}"
+        assert heatmaps.shape[2] == instance.n, f"Heatmaps shape: {heatmaps.shape}x{instance.n}x{instance.n}"
+    else:
+        n_edges = instance.n * config.sparse_factor
+        assert heatmaps.shape[1] == n_edges, f"Heatmaps shape: {heatmaps.shape}x{n_edges}"
 
     solutions = None
     start_time = timeit.default_timer()
@@ -47,7 +52,34 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
         "feasibility_heuristics_time": feasibility_heuristics_time,
     }
 
+    if config.sparse_factor > 0:
+        # reconstruct heatmap in adj. matrix form
+        new_heatmaps = None
+        for i in range(config.pop_size):
+            sparse_heatmap = heatmaps[i].cpu().numpy()
+            heatmap = (
+                scipy.sparse.coo_matrix(
+                    (sparse_heatmap, (instance.np_edge_index[0], instance.np_edge_index[1])),
+                ).toarray()
+                + scipy.sparse.coo_matrix(
+                    (sparse_heatmap, (instance.np_edge_index[1], instance.np_edge_index[0])),
+                ).toarray()
+            )
+            heatmap = torch.tensor(heatmap, device=heatmaps.device)
+            assert heatmap.shape == (instance.n, instance.n)
+            new_heatmaps = (
+                heatmap.unsqueeze(0) if new_heatmaps is None else torch.vstack((new_heatmaps, heatmap.unsqueeze(0)))
+            )
+
+        heatmaps = new_heatmaps
+        del new_heatmaps
+        assert heatmaps.shape[0] == config.pop_size
+        assert heatmaps.shape[1] == instance.n
+        assert heatmaps.shape[2] == instance.n
+
+    # Get indices for consecutive nodes in tours (including wrap-around)
     adj_matrices = torch.zeros_like(heatmaps)
+
     # Get indices for consecutive nodes in tours (including wrap-around)
     idx_from = solutions[:, :-1]  # All nodes except last
     idx_to = solutions[:, 1:]  # All nodes except first

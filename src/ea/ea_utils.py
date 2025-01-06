@@ -62,7 +62,7 @@ def dataset_factory(config: Config) -> Dataset:
         return MISDataset(data_dir=data_path, data_label_dir=data_label_dir)
 
     if config.task == "tsp":
-        return TSPGraphDataset(data_file=data_path)
+        return TSPGraphDataset(data_file=data_path, sparse_factor=config.sparse_factor)
 
     error_msg = f"No dataset for task {config.task}."
     raise ValueError(error_msg)

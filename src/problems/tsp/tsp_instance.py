@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import scipy.sparse
 import torch
 from ea.problem_instance import ProblemInstance
 from problems.tsp.tsp_evaluation import adj_mat_to_tour, cython_merge, evaluate_tsp_route_torch
@@ -25,6 +26,7 @@ class TSPInstance(ProblemInstance):
         self.points = points
         self.np_points = points.cpu().numpy()
         self.edge_index = edge_index
+        self.np_edge_index = edge_index.cpu().numpy() if edge_index is not None else None
         self.device = points.device
         self.n = points.shape[0]
         self.gt_tour = gt_tour
@@ -34,15 +36,17 @@ class TSPInstance(ProblemInstance):
     @staticmethod
     def create_from_batch_sample(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
         """Create a TSPInstance from a batch sample. The batch must have size 1, i.e. a single sample."""
-        assert sample[1].shape[0] == 1, "Batch must have size 1"
+        check_idx = 3 if sparse_factor > 0 else 1
+        assert sample[check_idx].shape[0] == 1, "Batch must have size 1"
 
         if sparse_factor <= 0:
             _, edge_index, _, points, _, _, gt_tour = TSPModel.process_dense_batch(sample)
+            points = points[0].to(device)
         else:
             _, edge_index, _, points, _, _, gt_tour = TSPModel.process_sparse_batch(sample)
-            edge_index = edge_index[0].to(device)
+            edge_index = edge_index.to(device)
+            points = points.to(device)
 
-        points = points[0].to(device)
         gt_tour = torch.from_numpy(gt_tour).to(device)
 
         return TSPInstance(points, edge_index, gt_tour)
@@ -60,12 +64,26 @@ class TSPInstance(ProblemInstance):
 
     def get_tour_from_adjacency_np_heatmap(self, heatmap: np.ndarray) -> torch.Tensor:
         """
-        Heatmap is a tensor of shape (n, n).
+        If sparse, heatmap is an np.array of shape (n, n).
+        If dense, heatmap is an np.array of shape (n, n_edges).
 
         Returns the tour of size n + 1, with the last value being the first value.
         """
-        adj_mat, _ = cython_merge(self.np_points, heatmap)
-        tour = adj_mat_to_tour(adj_mat)
+        if self.sparse:
+            # convert to sparse adjacency matrix
+            adj_mat = (
+                scipy.sparse.coo_matrix(
+                    (heatmap, (self.np_edge_index[0], self.np_edge_index[1])),
+                ).toarray()
+                + scipy.sparse.coo_matrix(
+                    (heatmap, (self.np_edge_index[1], self.np_edge_index[0])),
+                ).toarray()
+            )
+        else:
+            adj_mat = heatmap
+
+        solved_adj_mat, _ = cython_merge(self.np_points, adj_mat)
+        tour = adj_mat_to_tour(solved_adj_mat)
         return torch.tensor(tour, device=self.device)
 
     def edge_recombination_crossover(self, parents1: torch.Tensor, parents2: torch.Tensor) -> torch.Tensor:
