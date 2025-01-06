@@ -19,6 +19,7 @@ def arg_parser():
   parser = ArgumentParser(description='Train a Pytorch-Lightning diffusion model on a TSP dataset.')
   parser.add_argument('--task', type=str, required=True)
   parser.add_argument('--storage_path', type=str, required=True)
+  parser.add_argument('--data_path', type=str, required=True)
   parser.add_argument('--training_split', type=str, default='data/tsp/tsp50_train_concorde.txt')
   parser.add_argument('--training_split_label_dir', type=str, default=None,
                       help="Directory containing labels for training split (used for MIS).")
