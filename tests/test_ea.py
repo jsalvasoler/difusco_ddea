@@ -189,7 +189,21 @@ def test_ea_runs(task: str, algo: str) -> None:
     run_ea(config)
 
 
-if __name__ == "__main__":
-    # for task in ["tsp", "mis"]:
-    #     for algo in ["ga", "brkga"]:
-    test_ea_runs("mis", "ga")
+def test_ea_for_sparse_tsp() -> None:
+    config = Config(
+        task="tsp",
+        algo="ga",
+        sparse_factor=50,
+        n_generations=10,
+        pop_size=10,
+        n_parallel_evals=0,
+        max_two_opt_it=1,
+        np_eval=True,
+        test_split="data/tsp/tsp500_test_concorde.txt",
+        test_split_label_dir=None,
+        data_path=".",
+        device="cuda",
+        initialization="random_feasible",
+        validate_samples=2,
+    )
+    run_ea(config)
