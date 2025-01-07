@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import timeit
+import traceback
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -107,8 +108,8 @@ def process_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) 
     try:
         result = run_single_iteration(config, sample)
         queue.put(result)
-    except BaseException as e:  # noqa: BLE001 blind exception required
-        queue.put({"error": str(e)})
+    except Exception:  # noqa: BLE001
+        queue.put({"error": traceback.format_exc()})
 
 
 def run_ea(config: Config) -> None:
@@ -134,23 +135,27 @@ def run_ea(config: Config) -> None:
         process = ctx.Process(target=process_iteration, args=(config, sample, queue))
 
         process.start()
-        try:
-            process.join(timeout=30 * 60)  # 30 minutes timeout
-            handle_timeout(process, i)
-            handle_empty_queue(queue)
+        process.join(timeout=30 * 60)  # 30 minutes timeout
+        if process.is_alive():
+            process.terminate()
+            raise TimeoutError(f"Process timed out for iteration {i}")
 
-            run_results = queue.get()
-            handle_process_error(run_results)
+        if queue.empty():
+            raise RuntimeError("No result returned from the process")
 
-            results.append(run_results)
-            if not is_validation_run:
-                wandb.log(run_results, step=i)
-        except (TimeoutError, RuntimeError) as e:
-            print(f"Error in iteration {i}: {e}")
-        finally:
-            if process.is_alive():
-                process.terminate()
-                process.join()
+        run_results = queue.get()
+        if "error" in run_results:
+            raise RuntimeError(run_results["error"])
+
+        results.append(run_results)
+        if not is_validation_run:
+            wandb.log(run_results, step=i)
+        else:
+            print(run_results)
+
+        if process.is_alive():
+            process.terminate()
+            process.join()
 
         if is_validation_run and i >= config.validate_samples - 1:
             break
