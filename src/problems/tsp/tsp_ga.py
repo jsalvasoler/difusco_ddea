@@ -52,7 +52,7 @@ class TSPGAProblem(Problem):
             shape = (self.instance.n * self.config.sparse_factor,)
 
         for i in range(values.shape[0]):
-            random_heatmap = np.ones(*shape) if i == 0 else np.random.rand(*shape)
+            random_heatmap = np.ones(shape, dtype=np.float16) if i == 0 else np.random.rand(*shape).astype(np.float16)
             values[i] = self.instance.get_tour_from_adjacency_np_heatmap(random_heatmap)
 
     def _fill_difusco_sampling(self, values: torch.Tensor) -> None:

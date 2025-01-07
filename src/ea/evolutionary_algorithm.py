@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 import wandb
-from config.myconfig import Config
 from config.mytable import TableSaver
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_brkga import create_mis_brkga
@@ -22,8 +21,7 @@ from tqdm import tqdm
 from ea.ea_utils import dataset_factory, get_results_dict, instance_factory
 
 if TYPE_CHECKING:
-    from argparse import Namespace
-
+    from config.myconfig import Config
     from evotorch.algorithms import GeneticAlgorithm
 
     from ea.problem_instance import ProblemInstance
@@ -44,10 +42,8 @@ def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
     raise ValueError(error_msg)
 
 
-def main_ea(args: Namespace) -> None:
-    config = Config.load_from_args(args)
-
-    if args.profiler:
+def main_ea(config: Config) -> None:
+    if config.profiler:
         with Profiler() as profiler:
             run_ea(config)
         print(profiler.output_text(unicode=True, color=True))

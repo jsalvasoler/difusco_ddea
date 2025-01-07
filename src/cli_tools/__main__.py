@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 
 from config.myconfig import Config
@@ -41,8 +43,9 @@ def run_ea() -> None:
     from ea.ea_arg_parser import parse_args
     from ea.evolutionary_algorithm import main_ea
 
-    args = parse_args()
-    main_ea(args)
+    args, extra = parse_args()
+    config = Config.load_from_args(args, extra)
+    main_ea(config)
 
 
 def run_difusco_initialization_experiments() -> None:

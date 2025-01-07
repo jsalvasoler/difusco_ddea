@@ -58,7 +58,7 @@ class Config:
         return Config(**vars(args))
 
     @staticmethod
-    def load_from_args(args: Namespace, extra: list[str]) -> Config:
+    def load_from_args(args: Namespace, extra: list[str] | None = None) -> Config:
         # 1. Lowest priority: saved config
         config = Config.load_saved_config(args.config_name)
 
@@ -67,6 +67,9 @@ class Config:
         config = config.update(args_config)
 
         # 3. Highest priority: extra args from the command line
+        if extra is None:
+            return config
+
         for i in range(len(extra) - 1):
             current, next_elem = extra[i], extra[i + 1]
             if current.startswith("--") and not next_elem.startswith("--"):

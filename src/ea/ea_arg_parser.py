@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from argparse import ArgumentParser, Namespace
 
@@ -26,6 +28,7 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--n_generations", type=int, default=100)
     ea_settings.add_argument("--max_two_opt_it", type=int, default=-1)
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
+    ea_settings.add_argument("--config_name", type=str, default=None)
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
@@ -79,14 +82,15 @@ def validate_args(args: Namespace) -> None:
         assert os.path.exists(full_path), f"Path {getattr(args, split)} does not exist."
 
     assert args.project_name == "difusco", "Project name must be of the form difusco."
+    assert args.config_name is not None, "Config name must be provided."
 
     # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
     if args.wandb_logger_name:
         assert args.wandb_logger_name.startswith(f"{args.task}_ea_"), "Wandb logger name must start with task_ea_"
 
 
-def parse_args() -> Namespace:
+def parse_args() -> tuple[Namespace, list[str]]:
     parser = get_arg_parser()
-    args, _ = parser.parse_known_args()
+    args, extra = parser.parse_known_args()
     validate_args(args)
-    return args
+    return args, extra

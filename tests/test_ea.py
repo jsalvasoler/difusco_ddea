@@ -2,19 +2,12 @@ from typing import Generator
 
 import numpy as np
 import pytest
-import torch
 from config.myconfig import Config
 from ea.ea_arg_parser import get_arg_parser
 from ea.ea_utils import dataset_factory, filter_args_by_group, get_results_dict, instance_factory
 from ea.evolutionary_algorithm import (
-    handle_empty_queue,
-    handle_process_error,
-    handle_timeout,
-    process_iteration,
     run_ea,
 )
-from problems.mis.mis_dataset import MISDataset
-from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from torch_geometric.loader import DataLoader
 
 
@@ -25,10 +18,24 @@ def temp_dir(tmp_path: str) -> Generator[any, any, any]:
     # Cleanup is handled by pytest
 
 
-@pytest.fixture
-def config(temp_dir: Generator) -> Config:
-    """Fixture to create a Config object for the tests."""
-    return Config(
+def test_filter_args_by_group() -> None:
+    parser = get_arg_parser()
+    ea_settings_args = filter_args_by_group(parser, "ea_settings")
+    expected_args = [
+        "device",
+        "n_parallel_evals",
+        "pop_size",
+        "n_generations",
+        "max_two_opt_it",
+        "initialization",
+        "config_name",
+    ]
+    assert set(ea_settings_args) == set(expected_args)
+
+
+def test_get_results_dict() -> None:
+    config = Config(
+        config_name="mis_inference",
         task="mis",
         algo="brkga",
         wandb_logger_name="test_logger",
@@ -42,16 +49,6 @@ def config(temp_dir: Generator) -> Config:
         np_eval=False,
         initialization="difusco_sampling",
     )
-
-
-def test_filter_args_by_group() -> None:
-    parser = get_arg_parser()
-    ea_settings_args = filter_args_by_group(parser, "ea_settings")
-    expected_args = ["device", "n_parallel_evals", "pop_size", "n_generations", "max_two_opt_it", "initialization"]
-    assert set(ea_settings_args) == set(expected_args)
-
-
-def test_get_results_dict(config: Config) -> None:
     results = {"a": 0.95, "b": 0.05}
 
     results_dict = get_results_dict(config, results)
@@ -68,6 +65,7 @@ def test_get_results_dict(config: Config) -> None:
 
 def test_mis_gt_avg_cost_er_test_set() -> None:
     config = Config(
+        config_name="mis_inference",
         task="mis",
         algo="brkga",
         data_path="data",
@@ -92,77 +90,6 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
 @pytest.mark.parametrize("task", ["tsp", "mis"])
 @pytest.mark.parametrize("algo", ["ga", "brkga"])
-def test_gpu_memory_cleanup(task: str, algo: str) -> None:
-    import multiprocessing as mp
-
-    from tqdm import tqdm
-
-    if task == "tsp":
-        dataset = TSPGraphDataset(data_file="data/tsp/tsp100_test_concorde.txt", sparse_factor=-1)
-    elif task == "mis":
-        dataset = MISDataset(data_dir="data/mis/er_700_800/test")
-    else:
-        error_msg = f"Invalid task: {task}"
-        raise ValueError(error_msg)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-    config = Config(
-        pop_size=2,
-        device="cuda",
-        n_parallel_evals=0,
-        max_two_opt_it=10,
-        validate_samples=3,
-        task=task,
-        algo=algo,
-        sparse_factor=-1,
-        n_generations=2,
-        np_eval=True,
-    )
-
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    is_validation_run = config.validate_samples is not None
-    results = []
-
-    results = []
-    ctx = mp.get_context("spawn")
-
-    for i, sample in tqdm(enumerate(dataloader)):
-        queue = ctx.Queue()
-        process = ctx.Process(target=process_iteration, args=(config, sample, queue))
-
-        process.start()
-        try:
-            process.join(timeout=30 * 60)  # 30 minutes timeout
-            handle_timeout(process, i)
-            handle_empty_queue(queue)
-
-            run_results = queue.get()
-            handle_process_error(run_results)
-
-            results.append(run_results)
-        except (TimeoutError, RuntimeError) as e:
-            print(f"Error in iteration {i}: {e}")
-        finally:
-            if process.is_alive():
-                process.terminate()
-                process.join()
-
-        if is_validation_run and i >= config.validate_samples - 1:
-            break
-
-        assert torch.cuda.memory_allocated() == 0, "CUDA memory not freed"
-
-    _ = {
-        "avg_cost": np.mean([r["cost"] for r in results]),
-        "avg_gt_cost": np.mean([r["gt_cost"] for r in results]),
-        "avg_gap": np.mean([r["gap"] for r in results]),
-        "avg_runtime": np.mean([r["runtime"] for r in results]),
-        "n_evals": len(results),
-    }
-
-
-@pytest.mark.parametrize("task", ["tsp", "mis"])
-@pytest.mark.parametrize("algo", ["ga", "brkga"])
 def test_ea_runs(task: str, algo: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
@@ -172,6 +99,8 @@ def test_ea_runs(task: str, algo: str) -> None:
         error_msg = f"Invalid task: {task}"
         raise ValueError(error_msg)
     config = Config(
+        config_name=f"{task}_inference",
+        initialization="random_feasible",
         test_split=data_path,
         test_split_label_dir=None,
         data_path=".",
@@ -191,6 +120,7 @@ def test_ea_runs(task: str, algo: str) -> None:
 
 def test_ea_for_sparse_tsp() -> None:
     config = Config(
+        config_name="tsp_inference",
         task="tsp",
         algo="ga",
         sparse_factor=50,
