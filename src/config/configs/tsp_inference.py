@@ -9,7 +9,6 @@ config = Config(
     data_path="data",
     models_path="models",
     batch_size=32,
-    num_epochs=50,
     diffusion_steps=50,
     inference_diffusion_steps=50,
     diffusion_schedule="linear",
