@@ -91,3 +91,10 @@ def test_tsp_datasets(dataset_name: str, dataset_params: dict) -> None:
             assert sample[2].item() == n
             assert sample[3].item() == m
         it += 1
+
+
+def test_get_file_name_from_sample_idx() -> None:
+    dataset_name = "tsp50_test_concorde.txt"
+    dataset = TSPGraphDataset(data_file=f"data/tsp/{dataset_name}", sparse_factor=-1)
+    assert dataset.get_file_name_from_sample_idx(0) == "0"
+    assert dataset.get_file_name_from_sample_idx(1280) == "1280"

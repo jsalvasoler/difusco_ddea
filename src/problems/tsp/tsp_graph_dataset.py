@@ -113,3 +113,7 @@ class TSPGraphDataset(Dataset):
             torch.from_numpy(edge_indicator).long(),
             torch.from_numpy(tour).long(),
         )
+
+    def get_file_name_from_sample_idx(self, idx: int) -> str:
+        """For TSP, we define file name as the string index of the sample"""
+        return str(idx)
