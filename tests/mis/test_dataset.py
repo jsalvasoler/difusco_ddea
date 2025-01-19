@@ -132,3 +132,12 @@ def test_er_train_annotations_match(dataset_name: str, split: str) -> None:
     print(set(ids_train) - set(ids_train_ann))
 
     assert set(ids_train_ann) == set(ids_train)
+
+
+def test_get_file_name_from_sample_idx() -> None:
+    dataset_name = "er_50_100"
+    dataset = MISDataset(
+        data_dir=f"data/mis/{dataset_name}/test", data_label_dir=f"data/mis/{dataset_name}/test_labels"
+    )
+    assert dataset.get_file_name_from_sample_idx(0) == "ER_50_100_0.15_0.gpickle"
+    assert dataset.get_file_name_from_sample_idx(120) == "ER_50_100_0.15_120.gpickle"

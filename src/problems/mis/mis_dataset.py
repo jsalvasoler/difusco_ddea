@@ -21,6 +21,7 @@ class MISDataset(Dataset):
         self.sample_files = [
             os.path.join(self.data_dir, f) for f in os.listdir(self.data_dir) if f.endswith(".gpickle")
         ]
+        self.sample_files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
         assert len(self.sample_files) > 0, f"No files found in {data_dir}"
         self.data_label_dir = data_label_dir
         print(f'Loaded "{data_dir}" with {len(self.sample_files)} examples in {time.time() - start_time:.2f}s')
@@ -69,3 +70,6 @@ class MISDataset(Dataset):
             graph_data,
             torch.from_numpy(point_indicator).long(),
         )
+
+    def get_file_name_from_sample_idx(self, idx: int) -> str:
+        return os.path.basename(self.sample_files[idx])

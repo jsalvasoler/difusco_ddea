@@ -127,9 +127,7 @@ class MISGACrossover(CrossOver):
     @no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
         """
-                Parents are two solutions of shape (num_pairings, n_nodes).
-
-        ∑
+        Parents are two solutions of shape (num_pairings, n_nodes).
         """
         num_pairings = parents1.shape[0]
         device = parents1.device

@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 
 from config.myconfig import Config
 from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_ga import MISGaProblem
 from problems.mis.mis_instance import create_mis_instance
+from problems.tsp.tsp_ga import TSPGAProblem
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import create_tsp_instance
 
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
     from argparse import ArgumentParser
 
     from config.myconfig import Config
+    from evotorch import Problem
     from torch.utils.data import Dataset
 
     from ea.problem_instance import ProblemInstance
@@ -52,10 +55,15 @@ def get_results_dict(config: Config, results: dict[str, float | int | str]) -> N
     return row
 
 
-def dataset_factory(config: Config) -> Dataset:
-    data_path = os.path.join(config.data_path, config.test_split)
+def dataset_factory(config: Config, split: str = "test") -> Dataset:
+    if split == "train":
+        split = "training"
+    assert split in ["test", "training", "validation"], f"Invalid split: {split}"
+    data_path = os.path.join(config.data_path, getattr(config, f"{split}_split"))
     data_label_dir = (
-        os.path.join(config.data_path, config.test_split_label_dir) if config.test_split_label_dir else None
+        os.path.join(config.data_path, getattr(config, f"{split}_split_label_dir"))
+        if getattr(config, f"{split}_split_label_dir", None)
+        else None
     )
 
     if config.task == "mis":
@@ -74,4 +82,13 @@ def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
     if config.task == "tsp":
         return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
     error_msg = f"No instance for task {config.task}."
+    raise ValueError(error_msg)
+
+
+def problem_factory(task: str) -> Problem:
+    if task == "mis":
+        return MISGaProblem()
+    if task == "tsp":
+        return TSPGAProblem()
+    error_msg = f"No problem for task {task}."
     raise ValueError(error_msg)
