@@ -15,6 +15,7 @@ from problems.mis.mis_ga import create_mis_ga
 from problems.tsp.tsp_brkga import create_tsp_brkga
 from problems.tsp.tsp_ga import create_tsp_ga
 from pyinstrument import Profiler
+from torch.profiler import ProfilerActivity, profile
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
@@ -101,11 +102,20 @@ def handle_process_error(run_results: dict) -> None:
 
 def process_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
     """Run the single iteration and store the result in the queue."""
-    try:
-        result = run_single_iteration(config, sample)
-        queue.put(result)
-    except Exception:  # noqa: BLE001
-        queue.put({"error": traceback.format_exc()})
+
+    def run_iteration() -> None:
+        try:
+            result = run_single_iteration(config, sample)
+            queue.put(result)
+        except Exception:  # noqa: BLE001
+            queue.put({"error": traceback.format_exc()})
+
+    if config.profiler:
+        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as p:
+            run_iteration()
+        print(p.key_averages().table(sort_by="cpu_time_total"))
+    else:
+        run_iteration()
 
 
 def run_ea(config: Config) -> None:

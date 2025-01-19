@@ -14,6 +14,8 @@ from config.mytable import TableSaver
 from ea.ea_utils import dataset_factory, instance_factory
 from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
 from problems.tsp.tsp_heatmap_experiment import metrics_on_tsp_heatmaps
+from pyinstrument import Profiler
+from torch.profiler import ProfilerActivity, profile
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
@@ -70,28 +72,37 @@ def get_arg_parser() -> ArgumentParser:
 
 def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
     """Run a single Difusco iteration and store the result in the queue."""
-    try:
-        # Create sampler in the child process
-        sampler = DifuscoSampler(config)
 
-        # Create problem instance to evaluate solutions
-        instance = instance_factory(config, sample)
+    def run_iteration() -> None:
+        try:
+            # Create sampler in the child process
+            sampler = DifuscoSampler(config)
 
-        # Sample solutions using Difusco
-        start_time = timeit.default_timer()
-        heatmaps = sampler.sample(sample)
-        end_time = timeit.default_timer()
-        sampling_time = end_time - start_time
+            # Create problem instance to evaluate solutions
+            instance = instance_factory(config, sample)
 
-        # Convert heatmaps to solutions and evaluate
-        if config.task == "tsp":
-            instance_results = metrics_on_tsp_heatmaps(heatmaps, instance, config)
-        else:  # MIS
-            instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
-        instance_results["sampling_time"] = sampling_time
-        queue.put(instance_results)
-    except Exception:  # noqa: BLE001
-        queue.put({"error": traceback.format_exc()})
+            # Sample solutions using Difusco
+            start_time = timeit.default_timer()
+            heatmaps = sampler.sample(sample)
+            end_time = timeit.default_timer()
+            sampling_time = end_time - start_time
+
+            # Convert heatmaps to solutions and evaluate
+            if config.task == "tsp":
+                instance_results = metrics_on_tsp_heatmaps(heatmaps, instance, config)
+            else:  # MIS
+                instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
+            instance_results["sampling_time"] = sampling_time
+            queue.put(instance_results)
+        except Exception:  # noqa: BLE001
+            queue.put({"error": traceback.format_exc()})
+
+    if config.profiler:
+        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as p:
+            run_iteration()
+        print(p.key_averages().table(sort_by="cpu_time_total"))
+    else:
+        run_iteration()
 
 
 def add_config_and_timestamp(config: Config, results: dict[str, float | int | str]) -> None:
@@ -205,6 +216,15 @@ def run_difusco_initialization_experiments(config: Config) -> None:
         wandb.finish()
 
 
+def main_init_experiments(config: Config) -> None:
+    if config.profiler:
+        with Profiler() as p:
+            run_difusco_initialization_experiments(config)
+        print(p.output_text(unicode=True, color=True))
+    else:
+        run_difusco_initialization_experiments(config)
+
+
 if __name__ == "__main__":
     pop_size = 4
     config = Config(
@@ -229,7 +249,7 @@ if __name__ == "__main__":
         pop_size=pop_size,
     )
     config = mis_inference_config.update(config)
-    run_difusco_initialization_experiments(config)
+    main_init_experiments(config)
     # pop_size = 50
     # config = Config(
     #     task="tsp",
