@@ -44,10 +44,11 @@ def solve_problem(instance: MISInstance, solution_1: np.array, solution_2: np.ar
     env = gp.Env(empty=True)
     env.setParam("ThreadLimit", 8)
     env.setParam("TimeLimit", 60)
+    env.setParam("OutputFlag", 0)
 
     start_time = time.time()
     with env:
-        mwis = maximum_weighted_independent_set(adj_matrix, weights=weights)
+        mwis = maximum_weighted_independent_set(adj_matrix, weights)
         print(mwis.x.tolist())
         print(f"parent obj: {len(solution_1)}, {len(solution_2)}")
         print(f"children obj: {len(mwis.x)}")
@@ -63,14 +64,25 @@ def solve_problem(instance: MISInstance, solution_1: np.array, solution_2: np.ar
     }
 
 
-def solve_difuscombination() -> None:
+def get_arg_parser() -> argparse.ArgumentParser:
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--data_dir", type=str, required=True)
+    arg_parser.add_argument("--data_label_dir", type=str, required=True)
+    arg_parser.add_argument("--file_path", type=str, required=True)
+    arg_parser.add_argument("--num_batches", type=int, required=True)
+    arg_parser.add_argument("--batch_idx", type=int, required=True)
+    arg_parser.add_argument("--output_dir", type=str, required=True)
+    return arg_parser
+
+
+def solve_difuscombination(config: Config) -> None:
     """
     We want to do the following:
 
     Input params:
     - file_path: path to the difuscombination_samples_{snapshot}.csv file
-    - batch_size: number of graphs to solve (lines in the csv file)
-    - batch_idx: which batch to solve -> i <= lines // batch_size + 1
+    - num_batches: number of batches to split the file into (lines in the csv file)
+    - batch_idx: which batch to solve -> i = 0 .. num_batches - 1
     - output_dir: path to the directory where the solutions will be saved
 
     1. Load a specified difuscombination_samples_{snapshot}.csv file
@@ -81,33 +93,29 @@ def solve_difuscombination() -> None:
         - Save the solution in output_dir with name:
           {graph_name}_0_1.txt, or {graph_name}_2_3.txt, ... {graph_name}_7_8.txt
     """
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("--data_dir", type=str, required=True)
-    arg_parser.add_argument("--data_label_dir", type=str, required=True)
-    arg_parser.add_argument("--file_path", type=str, required=True)
-    arg_parser.add_argument("--batch_size", type=int, required=True)
-    arg_parser.add_argument("--batch_idx", type=int, required=True)
-    arg_parser.add_argument("--output_dir", type=str, required=True)
-    args = arg_parser.parse_args()
+    assert config.batch_idx in list(range(config.num_batches)), "batch_idx must be in range(num_batches)"
+    assert Path(config.file_path).exists(), "file_path must exist"
 
-    df = pd.read_csv(args.file_path)
-    batch_size = args.batch_size
-    batch_idx = args.batch_idx
-    data_dir = args.data_dir
-    data_label_dir = args.data_label_dir
-    output_dir = args.output_dir
+    df = pd.read_csv(config.file_path)
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(config.output_dir):
+        os.makedirs(config.output_dir)
 
-    first_index = batch_idx * batch_size
-    first_index_next = (batch_idx + 1) * batch_size
+    batch_size = len(df) // config.num_batches
+    remainder = len(df) % config.num_batches  # Number of extra elements to distribute
 
-    config = Config(task="mis", np_eval=True, device="cpu")
+    if config.batch_idx < remainder:
+        first_index = config.batch_idx * (batch_size + 1)
+        first_index_next = first_index + (batch_size + 1)
+    else:
+        first_index = remainder * (batch_size + 1) + (config.batch_idx - remainder) * batch_size
+        first_index_next = first_index + batch_size
 
-    mis_dataset = MISDataset(data_dir=data_dir, data_label_dir=data_label_dir)
+    config = config.update(Config(task="mis", np_eval=True, device="cpu"))
 
-    table_saver = TableSaver(str(Path(output_dir) / f"results_{batch_idx}.csv"))
+    mis_dataset = MISDataset(data_dir=config.data_dir, data_label_dir=config.data_label_dir)
+
+    table_saver = TableSaver(str(Path(config.output_dir) / f"results_{config.batch_idx}.csv"))
 
     for i in range(first_index, min(first_index_next, len(df))):
         print(f"Solving {i} / {len(df)}")
@@ -135,7 +143,7 @@ def solve_difuscombination() -> None:
             result = solve_problem(instance, solution_1, solution_2)
 
             sample_file_name = f"{instance_file_name}___{2 * j}_{2 * j + 1}.txt"
-            with open(os.path.join(output_dir, sample_file_name), "w") as f:
+            with open(os.path.join(config.output_dir, sample_file_name), "w") as f:
                 # write result["children_np_labels"] to file
                 np.savetxt(f, result["children_np_labels"], fmt="%d")
 
@@ -146,22 +154,13 @@ def solve_difuscombination() -> None:
 
 
 if __name__ == "__main__":
-    import sys
+    config = Config(
+        data_dir="/home/e12223411/repos/difusco/data/mis/er_50_100/test",
+        data_label_dir="/home/e12223411/repos/difusco/data/mis/er_50_100/test_labels",
+        file_path="/home/e12223411/repos/difusco/data/difuscombination/mis/er_50_100/test/difuscombination_samples_2025-01-30_14-36-45.csv",
+        num_batches=10,
+        batch_idx=0,
+        output_dir="/home/e12223411/repos/difusco/data/difuscombination/mis/er_50_100/test_labels",
+    )
 
-    sys.argv = [
-        "solve_difuscombination.py",  # script name
-        "--data_dir",
-        "/home/e12223411/repos/difusco/data/mis/er_50_100/test",
-        "--data_label_dir",
-        "/home/e12223411/repos/difusco/data/mis/er_50_100/test_labels",
-        "--file_path",
-        "/home/e12223411/repos/difusco/data/difuscombination/mis/er_50_100/test/difuscombination_samples_2025-01-30_14-36-45.csv",
-        "--batch_size",
-        "10",
-        "--batch_idx",
-        "0",
-        "--output_dir",
-        "/home/e12223411/repos/difusco/data/difuscombination/mis/er_50_100/test_labels",
-    ]
-
-    solve_difuscombination()
+    solve_difuscombination(config)

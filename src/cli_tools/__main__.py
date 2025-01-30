@@ -67,6 +67,14 @@ def generate_difuscombination_samples() -> None:
     run_training_data_generation(config)
 
 
+def solve_difuscombination() -> None:
+    from data.solve_difuscombination import get_arg_parser, solve_difuscombination
+
+    args, _ = get_arg_parser().parse_known_args()
+    config = Config.load_from_namespace(args)
+    solve_difuscombination(config)
+
+
 def main() -> None:
     # Top-level commands and usage help
     commands = {
@@ -81,12 +89,16 @@ def main() -> None:
         "ea": {
             "run-ea": run_ea,
         },
+        "data": {
+            "solve-difuscombination": solve_difuscombination,
+        },
     }
 
     if len(sys.argv) < 2 or sys.argv[1] not in commands:
         print("Usage:")
         print(" - hatch run cli difusco <subcommand>")
         print(" - hatch run cli ea <subcommand>")
+        print(" - hatch run cli data <subcommand>")
         print("\nCommands:")
         for group, subcommands in commands.items():
             print(f" - {group}:")
