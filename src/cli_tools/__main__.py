@@ -58,6 +58,15 @@ def run_difusco_initialization_experiments() -> None:
     main_init_experiments(config)
 
 
+def generate_difuscombination_samples() -> None:
+    """Generate training samples for difuscombination."""
+    from ea.generate_difuscombination_samples import parse_arguments, run_training_data_generation
+
+    args, extra = parse_arguments()
+    config = Config.load_from_args(args, extra)
+    run_training_data_generation(config)
+
+
 def main() -> None:
     # Top-level commands and usage help
     commands = {
@@ -67,6 +76,7 @@ def main() -> None:
             "generate-node-degree-labels": generate_node_degree_labels,
             "run-tsp-heuristics": run_tsp_heuristics,
             "run-difusco-initialization-experiments": run_difusco_initialization_experiments,
+            "generate-difuscombination-samples": generate_difuscombination_samples,
         },
         "ea": {
             "run-ea": run_ea,

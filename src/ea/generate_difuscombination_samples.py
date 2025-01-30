@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import multiprocessing as mp
+import time
 import traceback
+from datetime import datetime
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any
+import json
 
 import pandas as pd
 import torch
@@ -112,6 +115,7 @@ def process_sample_generation(
 
         num_solutions = solutions.shape[0]
         assert num_solutions == config.pop_size + 2 * config.pop_size * config.num_generations
+        assert num_solutions >= config.num_samples_per_graph * 2, "Not enough solutions"
 
         if solutions.unique(dim=0).shape[0] >= config.num_samples_per_graph * 2:
             solutions = solutions.unique(dim=0)
@@ -153,9 +157,11 @@ def run_training_data_generation(config: Config) -> None:
         - 4 mutations of mutations
         - 4 recombinations of initial population
     """
+    start_time = time.time()
     config = config.update(initialization="difusco_sampling", device="cuda", np_eval=True, algo="ga")
 
     dataset = dataset_factory(config, split=config.split)
+    torch.manual_seed(42)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
     assert (
         len(dataloader) >= config.num_graph_instances
@@ -169,6 +175,7 @@ def run_training_data_generation(config: Config) -> None:
     results = []
 
     for i, sample in tqdm(enumerate(dataloader)):
+
         queue = ctx.Queue()
         process = ctx.Process(
             target=process_sample_generation, args=(config, sample, queue, dataset.get_file_name_from_sample_idx(i))
@@ -194,12 +201,24 @@ def run_training_data_generation(config: Config) -> None:
             process.terminate()
             process.join()
 
-        if i >= config.num_graph_instances:
+        if i == config.num_graph_instances - 1:
             break
 
     # save the results by converting to pandas dataframe
     df = pd.DataFrame(results)
-    df.to_csv(output_path / "difuscombination_samples.csv", index=False)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    output_path.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path / f"difuscombination_samples_{timestamp}.csv", index=False)
+
+    metadata = {
+        "timestamp": timestamp,
+        "config": config.__dict__,
+        "runtime": time.time() - start_time,
+        "num_graph_instances": config.num_graph_instances,
+        "runtime_per_instance": (time.time() - start_time) / config.num_graph_instances,
+    }
+    with open(output_path / f"difuscombination_samples_{timestamp}.json", "w") as f:
+        json.dump(metadata, f)
 
 
 if __name__ == "__main__":
