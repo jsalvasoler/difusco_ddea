@@ -96,7 +96,7 @@ class KaMIS(MWISSolver):
             results_path=results_path,
             parameters=parameters)
 
-        res_list = imap_unordered_bar(argumented_solve_graph, solve_data_path.rglob("*.gpickle"), n_processes=8)
+        res_list = imap_unordered_bar(argumented_solve_graph, solve_data_path.rglob("*.gpickle"), n_processes=1)
 
         results = {}
         for res in res_list:
@@ -111,7 +111,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 
-def imap_unordered_bar(func, args, n_processes=2):
+def imap_unordered_bar(func, args, n_processes=1):
     p = Pool(n_processes)
     args = list(args)
     res_list = []

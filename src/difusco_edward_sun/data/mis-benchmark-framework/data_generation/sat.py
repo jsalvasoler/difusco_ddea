@@ -59,7 +59,7 @@ class SATGraphDataGenerator(DataGenerator):
         #     self._build_graph(f, self.output_path / (f.stem + ".gpickle"), gen_labels, weighted)
         import functools
         imap_unordered_bar(functools.partial(self.func, gen_labels=gen_labels, weighted=weighted),
-                           self.input_path.rglob("*.cnf"), n_processes=2)
+                           self.input_path.rglob("*.cnf"), n_processes=1)
 
     def func(self, f, gen_labels, weighted):
         self._build_graph(f, self.output_path / (f.stem + ".gpickle"), gen_labels, weighted)
@@ -70,7 +70,7 @@ from multiprocessing import Pool
 from tqdm import *
 
 
-def imap_unordered_bar(func, args, n_processes=2):
+def imap_unordered_bar(func, args, n_processes=1):
     p = Pool(n_processes)
     args = list(args)
     # print(args)

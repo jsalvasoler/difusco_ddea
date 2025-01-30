@@ -35,7 +35,7 @@ class MWISSolver(ABC):
         )
 
         imap_unordered_bar(prepare_instance, resolved_graph_paths,
-                           n_processes=20)
+                           n_processes=1)
 
     @abstractmethod
     def train(self, train_data_path: pathlib.Path, results_path: pathlib.Path, parameters):
@@ -50,7 +50,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 
-def imap_unordered_bar(func, args, n_processes=2):
+def imap_unordered_bar(func, args, n_processes=1):
     p = Pool(n_processes)
     args = list(args)
     res_list = []

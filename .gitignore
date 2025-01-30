@@ -18,3 +18,6 @@ run.sh
 # IDE
 .idea/
 .vscode/
+
+myenv/
+scripts/
