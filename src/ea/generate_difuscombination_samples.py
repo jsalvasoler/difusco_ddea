@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import json
 import multiprocessing as mp
 import time
 import traceback
-from datetime import datetime
 from argparse import ArgumentParser, Namespace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
-import json
 
 import pandas as pd
 import torch
@@ -116,9 +116,13 @@ def process_sample_generation(
         num_solutions = solutions.shape[0]
         assert num_solutions == config.pop_size + 2 * config.pop_size * config.num_generations
         assert num_solutions >= config.num_samples_per_graph * 2, "Not enough solutions"
+        # check that all the values in the solutions are in the range [0, n_nodes)
+        assert torch.all(solutions < instance.n_nodes), "Solution contains invalid indices"
 
         if solutions.unique(dim=0).shape[0] >= config.num_samples_per_graph * 2:
+            print("We managed to generate enough unique solutions")
             solutions = solutions.unique(dim=0)
+            num_solutions = solutions.shape[0]
         else:
             print("Not enough unique solutions, some pairs will be repeated")
 
@@ -175,10 +179,10 @@ def run_training_data_generation(config: Config) -> None:
     results = []
 
     for i, sample in tqdm(enumerate(dataloader)):
-
         queue = ctx.Queue()
+        idx = sample[0].item()
         process = ctx.Process(
-            target=process_sample_generation, args=(config, sample, queue, dataset.get_file_name_from_sample_idx(i))
+            target=process_sample_generation, args=(config, sample, queue, dataset.get_file_name_from_sample_idx(idx))
         )
 
         process.start()
