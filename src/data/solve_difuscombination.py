@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import gurobipy as gp
 import numpy as np
 import pandas as pd
 from config.myconfig import Config
@@ -41,19 +40,21 @@ def solve_problem(instance: MISInstance, solution_1: np.array, solution_2: np.ar
     # Convert back to csr_matrix
     adj_matrix = adj_matrix_lil.tocsr()
 
-    env = gp.Env(empty=True)
-    env.setParam("ThreadLimit", 8)
-    env.setParam("TimeLimit", 60)
-    env.setParam("OutputFlag", 0)
-
     start_time = time.time()
-    with env:
-        mwis = maximum_weighted_independent_set(adj_matrix, weights)
-        print(mwis.x.tolist())
-        print(f"parent obj: {len(solution_1)}, {len(solution_2)}")
-        print(f"children obj: {len(mwis.x)}")
-        np_labels = np.zeros(instance.n_nodes)
-        np_labels[mwis.x] = 1
+    mwis = maximum_weighted_independent_set(
+        adj_matrix,
+        weights,
+        time_limit=60,
+        solver_params={
+            "ThreadLimit": 8,
+            "DisplayInterval": 20,
+        },
+    )
+    print(mwis.x.tolist())
+    print(f"parent obj: {len(solution_1)}, {len(solution_2)}")
+    print(f"children obj: {len(mwis.x)}")
+    np_labels = np.zeros(instance.n_nodes)
+    np_labels[mwis.x] = 1
 
     return {
         "runtime": round(time.time() - start_time, 4),
@@ -94,7 +95,17 @@ def solve_difuscombination(config: Config) -> None:
           {graph_name}_0_1.txt, or {graph_name}_2_3.txt, ... {graph_name}_7_8.txt
     """
     assert config.batch_idx in list(range(config.num_batches)), "batch_idx must be in range(num_batches)"
-    assert Path(config.file_path).exists(), "file_path must exist"
+
+    if config.file_path.endswith("csv"):
+        assert Path(config.file_path).exists(), "file_path must exist"
+    else:
+        # check if it is a directory
+        assert os.path.isdir(config.file_path), "If not a csv file, file_path must be a directory"
+        # in such case, find the csv file in the directory, with the latest timestamp
+        csv_files = [f for f in os.listdir(config.file_path) if f.endswith(".csv")]
+        assert len(csv_files) > 0, "No csv files found in the directory"
+        csv_files.sort()
+        config.file_path = os.path.join(config.file_path, csv_files[-1])
 
     df = pd.read_csv(config.file_path)
 
