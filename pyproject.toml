@@ -46,6 +46,7 @@ dependencies = [
   "click",
   "ipykernel",
   "seaborn",
+  "gurobi-optimods",
 ]
 [project.urls]
 Documentation = "https://github.com/jsalvasoler/difusco#readme"

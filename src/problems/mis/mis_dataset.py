@@ -73,3 +73,6 @@ class MISDataset(Dataset):
 
     def get_file_name_from_sample_idx(self, idx: int) -> str:
         return os.path.basename(self.sample_files[idx])
+
+    def get_sample_idx_from_file_name(self, file_name: str) -> int:
+        return self.sample_files.index(os.path.join(self.data_dir, file_name))
