@@ -6,19 +6,15 @@ import os
 from typing import TYPE_CHECKING
 
 import numpy as np
-import scipy.sparse
 import torch
 import torch.utils.data
-
-# TODO: migrate diffusion schedulers
-from difusco_edward_sun.difusco.utils.diffusion_schedulers import InferenceSchedule
-
-# TODO: migrate mis_decode_np
-from difusco_edward_sun.difusco.utils.mis_utils import mis_decode_np
+from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_evaluation import mis_decode_np
+from scipy.sparse import coo_matrix
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
-from difusco.mis.mis_dataset import MISDataset
+from difusco.diffusion_schedulers import InferenceSchedule
 from difusco.pl_meta_model import COMetaModel
 
 if TYPE_CHECKING:
@@ -29,21 +25,28 @@ class MISModel(COMetaModel):
     def __init__(self, param_args: Namespace | None = None) -> None:
         super().__init__(param_args=param_args, node_feature_only=True)
 
-        data_label_dir = None
+        train_label_dir, test_label_dir, validation_label_dir = None, None, None
+
         if self.args.training_split_label_dir is not None:
-            data_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
+            train_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
+        if self.args.test_split_label_dir is not None:
+            test_label_dir = os.path.join(self.args.data_path, self.args.test_split_label_dir)
+        if self.args.validation_split_label_dir is not None:
+            validation_label_dir = os.path.join(self.args.data_path, self.args.validation_split_label_dir)
 
         self.train_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.training_split),
-            data_label_dir=data_label_dir,
+            data_label_dir=train_label_dir,
         )
 
         self.test_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.test_split),
+            data_label_dir=test_label_dir,
         )
 
         self.validation_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.validation_split),
+            data_label_dir=validation_label_dir,
         )
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
@@ -170,6 +173,82 @@ class MISModel(COMetaModel):
             pred = pred.squeeze(1)
             return self.gaussian_posterior(target_t, t, pred, xt)
 
+    @torch.no_grad()
+    def diffusion_sample(
+        self,
+        n_nodes: int,
+        edge_index: torch.Tensor,
+        device: torch.device,
+    ) -> np.ndarray:
+        """
+        Denoise to get a diffusion sample.
+
+        If parallel_sampling is greater than 1, the output has shape (parallel_sampling, num_nodes),
+        where num_nodes is the number of nodes in the graph. Otherwise, the output has shape (num_nodes,).
+        """
+        xt = torch.rand(n_nodes, device=device, dtype=torch.float)
+        if self.args.parallel_sampling > 1:
+            xt = xt.repeat(self.args.parallel_sampling, 1)
+            xt = torch.randn_like(xt)
+
+        if self.diffusion_type == "gaussian":
+            xt.requires_grad = True
+        else:
+            xt = (xt > 0).long()
+        xt = xt.reshape(-1)
+
+        if self.args.parallel_sampling > 1:
+            edge_index = self.duplicate_edge_index(edge_index, n_nodes, device)
+
+        steps = self.args.inference_diffusion_steps
+        time_schedule = InferenceSchedule(
+            inference_schedule=self.args.inference_schedule, T=self.diffusion.T, inference_T=steps
+        )
+
+        # Diffusion iterations
+        for i in range(steps):
+            t1, t2 = time_schedule(i)
+            t1 = np.array([t1]).astype(int)
+            t2 = np.array([t2]).astype(int)
+
+            if self.diffusion_type == "gaussian":
+                xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2)
+            else:
+                xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2)
+
+        if self.diffusion_type == "gaussian":  # noqa: SIM108
+            predict_labels = xt.float() * 0.5 + 0.5
+        else:
+            predict_labels = xt.float() + 1e-6
+
+        return predict_labels
+
+    @staticmethod
+    def process_batch(batch: tuple) -> tuple:
+        """
+        Process the input batch and return node labels, edge index, and adjacency matrix.
+
+        Args:
+            batch: Input batch containing graph data
+
+        Returns:
+            tuple containing:
+                - node_labels: Tensor of node labels
+                - edge_index: Edge index tensor
+                - adj_mat: Sparse adjacency matrix in CSR format
+        """
+        _, graph_data, _ = batch
+        node_labels = graph_data.x
+        edge_index = graph_data.edge_index
+
+        edge_index = edge_index.to(node_labels.device).reshape(2, -1)
+        edge_index_np = edge_index.cpu().numpy()
+        adj_mat = coo_matrix(
+            (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
+        ).tocsr()
+
+        return node_labels, edge_index, adj_mat
+
     def test_step(
         self,
         batch: torch.Tensor,
@@ -177,53 +256,12 @@ class MISModel(COMetaModel):
         split: str = "test",
     ) -> None:
         device = batch[-1].device
-
-        real_batch_idx, graph_data, point_indicator = batch
-        node_labels = graph_data.x
-        edge_index = graph_data.edge_index
+        node_labels, edge_index, adj_mat = self.process_batch(batch)
 
         stacked_predict_labels = []
-        edge_index = edge_index.to(node_labels.device).reshape(2, -1)
-        edge_index_np = edge_index.cpu().numpy()
-        adj_mat = scipy.sparse.coo_matrix(
-            (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
-        )
-
         for _ in range(self.args.sequential_sampling):
-            xt = torch.randn_like(node_labels.float())
-            if self.args.parallel_sampling > 1:
-                xt = xt.repeat(self.args.parallel_sampling, 1, 1)
-                xt = torch.randn_like(xt)
-
-            if self.diffusion_type == "gaussian":
-                xt.requires_grad = True
-            else:
-                xt = (xt > 0).long()
-            xt = xt.reshape(-1)
-
-            if self.args.parallel_sampling > 1:
-                edge_index = self.duplicate_edge_index(edge_index, node_labels.shape[0], device)
-
-            batch_size = 1
-            steps = self.args.inference_diffusion_steps
-            time_schedule = InferenceSchedule(
-                inference_schedule=self.args.inference_schedule, T=self.diffusion.T, inference_T=steps
-            )
-
-            for i in range(steps):
-                t1, t2 = time_schedule(i)
-                t1 = np.array([t1 for _ in range(batch_size)]).astype(int)
-                t2 = np.array([t2 for _ in range(batch_size)]).astype(int)
-
-                if self.diffusion_type == "gaussian":
-                    xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2)
-                else:
-                    xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2)
-
-            if self.diffusion_type == "gaussian":
-                predict_labels = xt.float().cpu().detach().numpy() * 0.5 + 0.5
-            else:
-                predict_labels = xt.float().cpu().detach().numpy() + 1e-6
+            predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device)
+            predict_labels = predict_labels.cpu().detach().numpy()
             stacked_predict_labels.append(predict_labels)
 
         predict_labels = np.concatenate(stacked_predict_labels, axis=0)

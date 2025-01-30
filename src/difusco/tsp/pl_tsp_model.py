@@ -10,14 +10,15 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import torch
 import torch.utils.data
-from difusco_edward_sun.difusco.utils.diffusion_schedulers import InferenceSchedule
+from problems.tsp.tsp_evaluation import TSPEvaluator, merge_tours
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_operators import batched_two_opt_torch
 from pytorch_lightning.utilities import rank_zero_info
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
+from difusco.diffusion_schedulers import InferenceSchedule
 from difusco.pl_meta_model import COMetaModel
-from difusco.tsp.tsp_graph_dataset import TSPGraphDataset
-from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 if TYPE_CHECKING:
     from argparse import Namespace
@@ -27,19 +28,31 @@ class TSPModel(COMetaModel):
     def __init__(self, param_args: Namespace) -> None:
         super().__init__(param_args=param_args, node_feature_only=False)
 
-        self.train_dataset = TSPGraphDataset(
-            data_file=os.path.join(self.args.data_path, self.args.training_split),
-            sparse_factor=self.args.sparse_factor,
+        self.train_dataset = (
+            TSPGraphDataset(
+                data_file=os.path.join(self.args.data_path, self.args.training_split),
+                sparse_factor=self.args.sparse_factor,
+            )
+            if self.args.training_split
+            else None
         )
 
-        self.test_dataset = TSPGraphDataset(
-            data_file=os.path.join(self.args.data_path, self.args.test_split),
-            sparse_factor=self.args.sparse_factor,
+        self.test_dataset = (
+            TSPGraphDataset(
+                data_file=os.path.join(self.args.data_path, self.args.test_split),
+                sparse_factor=self.args.sparse_factor,
+            )
+            if self.args.test_split
+            else None
         )
 
-        self.validation_dataset = TSPGraphDataset(
-            data_file=os.path.join(self.args.data_path, self.args.validation_split),
-            sparse_factor=self.args.sparse_factor,
+        self.validation_dataset = (
+            TSPGraphDataset(
+                data_file=os.path.join(self.args.data_path, self.args.validation_split),
+                sparse_factor=self.args.sparse_factor,
+            )
+            if self.args.validation_split
+            else None
         )
 
     def forward(self, x: torch.Tensor, adj: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
@@ -185,36 +198,98 @@ class TSPModel(COMetaModel):
             pred = pred.squeeze(1)
             return self.gaussian_posterior(target_t, t, pred, xt)
 
+    @staticmethod
+    def process_dense_batch(batch: tuple) -> tuple:
+        """Process a batch of size 1 corresponding to a dense TSP instance"""
+        real_batch_idx, points, adj_matrix, gt_tour = batch
+        np_points = points.cpu().numpy()[0]
+        np_gt_tour = gt_tour.cpu().numpy()[0]
+        return real_batch_idx, None, None, points, adj_matrix, np_points, np_gt_tour
+
+    @staticmethod
+    def process_sparse_batch(batch: tuple) -> tuple:
+        """Process a batch of size 1 corresponding to a sparse TSP instance"""
+        real_batch_idx, graph_data, point_indicator, edge_indicator, gt_tour = batch
+        route_edge_flags = graph_data.edge_attr
+        points = graph_data.x
+        edge_index = graph_data.edge_index
+        num_edges = edge_index.shape[1]
+        batch_size = point_indicator.shape[0]
+        adj_matrix = route_edge_flags.reshape((batch_size, num_edges // batch_size))
+        points = points.reshape((-1, 2))
+        edge_index = edge_index.reshape((2, -1))
+        np_points = points.cpu().numpy()
+        np_gt_tour = gt_tour.cpu().numpy().reshape(-1)
+        np_edge_index = edge_index.cpu().numpy()
+        return real_batch_idx, edge_index, np_edge_index, points, adj_matrix, np_points, np_gt_tour
+
+    def process_batch(self, batch: tuple) -> tuple:
+        if not self.sparse:
+            return self.process_dense_batch(batch)
+        return self.process_sparse_batch(batch)
+
+    @torch.no_grad()
+    def diffusion_sample(
+        self,
+        points: torch.Tensor,
+        edge_index: torch.Tensor,
+        device: str,
+    ) -> np.ndarray:
+        """
+        Denoise to get a diffusion sample.
+
+        Output has shape (parallel_sampling, n, n), where n in the graph size.
+        """
+        if not self.sparse:
+            xt_shape = (self.args.parallel_sampling, points.shape[1], points.shape[1])
+        else:
+            sparse_dim = points.shape[0] // self.args.parallel_sampling * self.args.sparse_factor
+            xt_shape = (self.args.parallel_sampling, sparse_dim)
+
+        xt = torch.randn(*xt_shape, device=device, dtype=torch.float)
+
+        if self.diffusion_type == "gaussian":
+            xt.requires_grad = True
+        else:
+            xt = (xt > 0).long()
+
+        if self.sparse:
+            xt = xt.reshape(-1)
+
+        steps = self.args.inference_diffusion_steps
+        time_schedule = InferenceSchedule(
+            inference_schedule=self.args.inference_schedule,
+            T=self.diffusion.T,
+            inference_T=steps,
+        )
+
+        # Diffusion iterations
+        for i in range(steps):
+            t1, t2 = time_schedule(i)
+            t1 = np.array([t1]).astype(int)
+            t2 = np.array([t2]).astype(int)
+
+            if self.diffusion_type == "gaussian":
+                xt = self.gaussian_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
+            else:
+                xt = self.categorical_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
+
+        if self.diffusion_type == "gaussian":
+            adj_mat = xt.cpu().detach().numpy() * 0.5 + 0.5
+        else:
+            adj_mat = xt.float().cpu().detach().numpy() + 1e-6
+
+        return adj_mat
+
     def test_step(
         self,
         batch: tuple,
         batch_idx: int,  # noqa: ARG002
         split: str = "test",
     ) -> None:
-        edge_index = None
-        np_edge_index = None
         device = batch[-1].device
 
-        if not self.sparse:
-            real_batch_idx, points, adj_matrix, gt_tour = batch
-            np_points = points.cpu().numpy()[0]
-            np_gt_tour = gt_tour.cpu().numpy()[0]
-        else:
-            real_batch_idx, graph_data, point_indicator, edge_indicator, gt_tour = batch
-            route_edge_flags = graph_data.edge_attr
-            points = graph_data.x
-            edge_index = graph_data.edge_index
-            num_edges = edge_index.shape[1]
-            batch_size = point_indicator.shape[0]
-            adj_matrix = route_edge_flags.reshape((batch_size, num_edges // batch_size))
-            points = points.reshape((-1, 2))
-            edge_index = edge_index.reshape((2, -1))
-            np_points = points.cpu().numpy()
-            np_gt_tour = gt_tour.cpu().numpy().reshape(-1)
-            np_edge_index = edge_index.cpu().numpy()
-
-        stacked_tours = []
-        ns, merge_iterations = 0, 0
+        real_batch_idx, edge_index, np_edge_index, points, adj_matrix, np_points, np_gt_tour = self.process_batch(batch)
 
         if self.args.parallel_sampling > 1:
             if not self.sparse:
@@ -223,45 +298,9 @@ class TSPModel(COMetaModel):
                 points = points.repeat(self.args.parallel_sampling, 1)
                 edge_index = self.duplicate_edge_index(edge_index, np_points.shape[0], device)
 
+        stacked_tours = []
         for _ in range(self.args.sequential_sampling):
-            xt = torch.randn_like(adj_matrix.float())
-            if self.args.parallel_sampling > 1:
-                if not self.sparse:
-                    xt = xt.repeat(self.args.parallel_sampling, 1, 1)
-                else:
-                    xt = xt.repeat(self.args.parallel_sampling, 1)
-                xt = torch.randn_like(xt)
-
-            if self.diffusion_type == "gaussian":
-                xt.requires_grad = True
-            else:
-                xt = (xt > 0).long()
-
-            if self.sparse:
-                xt = xt.reshape(-1)
-
-            steps = self.args.inference_diffusion_steps
-            time_schedule = InferenceSchedule(
-                inference_schedule=self.args.inference_schedule,
-                T=self.diffusion.T,
-                inference_T=steps,
-            )
-
-            # Diffusion iterations
-            for i in range(steps):
-                t1, t2 = time_schedule(i)
-                t1 = np.array([t1]).astype(int)
-                t2 = np.array([t2]).astype(int)
-
-                if self.diffusion_type == "gaussian":
-                    xt = self.gaussian_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
-                else:
-                    xt = self.categorical_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
-
-            if self.diffusion_type == "gaussian":
-                adj_mat = xt.cpu().detach().numpy() * 0.5 + 0.5
-            else:
-                adj_mat = xt.float().cpu().detach().numpy() + 1e-6
+            adj_mat = self.diffusion_sample(points, edge_index, device)
 
             if self.args.save_numpy_heatmap:
                 self.run_save_numpy_heatmap(adj_mat, np_points, real_batch_idx, split)
@@ -274,14 +313,15 @@ class TSPModel(COMetaModel):
                 parallel_sampling=self.args.parallel_sampling,
             )
 
-        # Refine using 2-opt
-        solved_tours, ns = batched_two_opt_torch(
-            np_points.astype("float64"),
-            np.array(tours).astype("int64"),
-            max_iterations=self.args.two_opt_iterations,
-            device=device,
-        )
-        stacked_tours.append(solved_tours)
+            # Refine using 2-opt
+            solved_tours, ns = batched_two_opt_torch(
+                np_points.astype("float64"),
+                np.array(tours).astype("int64"),
+                max_iterations=self.args.two_opt_iterations,
+                device=device,
+            )
+
+            stacked_tours.append(solved_tours)
 
         solved_tours = np.concatenate(stacked_tours, axis=0)
 

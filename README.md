@@ -12,16 +12,15 @@ This repository contains the code of my Master Thesis, which is based on the wor
 - [Models](#models)
 - [License](#license)
 
-## Dependencies
+## Dependencies and Installation
 
 This project uses [hatch](https://hatch.pypa.io/) as a project manager. To install it, just `pip install hatch`. 
 
 Unfortunately, two dependencies (`torch-scatter` and `torch-sparse`) require `torch` as an runtime dependency. The usual `hatch` dependency sync will not work for these two packages. To install them, do:
 
 ```bash
-hatch run true # to create the environment and install basic dependencies
 
-hatch shell # to enter the environment
+hatch shell # to create and enter the environment
 
 pip install torch-scatter torch-sparse -f https://pytorch-geometric.com/whl/torch-2.3.1+cu121.html
 
@@ -39,9 +38,20 @@ python setup.py build_ext --inplace
 ```
 
 
+## CLI Usage
+
+There is a simple click CLI that can be used to run all the relevant modules. To see the available commands, run:
+
+```bash
+hatch run cli --help
+```
+
+There are two groups of commands: `difusco` and `ea`. Run `hatch run cli difusco --help` and `hatch run cli ea --help` to see the available commands for each group.
+
+
 ## Data
 
-We recommend saving the data in the following directory structure:
+The data should be saved following the directory structure:
 
 ```bash
 difusco/
@@ -50,9 +60,11 @@ difusco/
 │   │   ├── tsp500_train_concorde.txt  # Training data for TSP
 │   │   ├── tsp1000_train_concorde.txt # Additional training data for TSP
 │   │   └── ...                # Other TSP data files
-│   ├── problem_2/             # Data for Problem 2
-│   │   ├── problem2_train.txt  # Training data for Problem 2
-│   │   └── problem2_test.txt   # Test data for Problem 2
+│   ├── mis/                   # MIS dataset files
+│   │   ├── er_50_100/         # ER-50-100 dataset
+│   │   ├── er_700_800/        # ER-700-800 dataset
+│   │   ├── satlib/            # SATLIB dataset
+│   │   └── ...                # Other MIS data files
 │   └── etc/                   # Other datasets or resources
 │       ├── example_data.txt    # Example dataset
 │       └── ...                # Other miscellaneous data files

@@ -5,15 +5,15 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from difusco_edward_sun.difusco.co_datasets.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_evaluation import TSPEvaluator, merge_tours
+from problems.tsp.tsp_graph_dataset import TSPGraphDataset
+from problems.tsp.tsp_operators import batched_two_opt_torch
 from tqdm import tqdm
 
 from difusco.arg_parser import parse_args
-from difusco.tsp.utils import TSPEvaluator, batched_two_opt_torch, merge_tours
 
 
-def run_tsp_heuristics() -> None:
-    args = parse_args()
+def run_tsp_heuristics_main(args: Namespace) -> None:
     assert args.strategy in ["construction", "construction+2opt"]
 
     print(f"Running heuristic evaluation with strategy: {args.strategy}")
@@ -115,4 +115,5 @@ def write_results(args: Namespace, results: dict) -> None:
 
 
 if __name__ == "__main__":
-    run_tsp_heuristics()
+    args = parse_args()
+    run_tsp_heuristics_main(args)

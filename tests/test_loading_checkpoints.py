@@ -8,7 +8,6 @@ import pytest
 import pytorch_lightning as pl
 import torch
 import wandb
-from difusco_edward_sun.difusco.pl_tsp_model import TSPModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
@@ -16,6 +15,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
 from difusco.arg_parser import get_arg_parser
+from difusco.tsp.pl_tsp_model import TSPModel
 
 print(f"PyTorch version: {torch.__version__}")
 print(f"PyTorch Lightning version: {pl.__version__}")

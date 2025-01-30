@@ -102,10 +102,6 @@ def solve_tsp_wrapper(args: tuple[list, argparse.Namespace]) -> None:
     return solve_tsp(nodes_coord, opts)
 
 
-def main_tsp_data_generation() -> None:
+if __name__ == "__main__":
     opts = parse_arguments()
     generate_tsp_data(opts)
-
-
-if __name__ == "__main__":
-    main_tsp_data_generation()

@@ -3,6 +3,7 @@
 /models/
 /logs/
 /results/
+/notebooks/
 
 # cython
 build/
@@ -14,6 +15,7 @@ __pycache__/
 
 # Run scripts
 run.sh
+src/cli_tools/*.sh
 
 # IDE
 .idea/

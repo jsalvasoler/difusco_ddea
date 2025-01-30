@@ -43,7 +43,7 @@ class MWISSolver(ABC):
 
     @abstractmethod
     def solve(self, solve_data_path: pathlib.Path, results_path: pathlib.Path, parameters):
-	    pass
+        pass
 
 from multiprocessing import Pool
 

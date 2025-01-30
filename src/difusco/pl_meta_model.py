@@ -1,17 +1,21 @@
 """A meta PyTorch Lightning model for training and evaluating DIFUSCO models."""
 
+from abc import abstractmethod
 from argparse import Namespace
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from difusco_edward_sun.difusco.models.gnn_encoder import GNNEncoder
-from difusco_edward_sun.difusco.utils.diffusion_schedulers import CategoricalDiffusion, GaussianDiffusion
-from difusco_edward_sun.difusco.utils.lr_schedulers import get_schedule_fn
 from pytorch_lightning.utilities import rank_zero_info
 from torch.nn.functional import one_hot
 from torch_geometric.loader import DataLoader
+
+from difusco.diffusion_schedulers import CategoricalDiffusion, GaussianDiffusion
+from difusco.gnn_encoder import GNNEncoder
+from difusco.lr_schedulers import get_schedule_fn
+
+torch.set_float32_matmul_precision("medium")
 
 
 class COMetaModel(pl.LightningModule):
@@ -173,7 +177,7 @@ class COMetaModel(pl.LightningModule):
         edge_index_indent = torch.arange(0, self.args.parallel_sampling).view(1, -1, 1).to(device)
         edge_index_indent = edge_index_indent * num_nodes
         edge_index = edge_index + edge_index_indent
-        return edge_index.reshape((2, -1))
+        return edge_index.reshape((2, -1)).to(device)
 
     def train_dataloader(self):  # noqa: ANN201
         batch_size = self.args.batch_size
@@ -200,3 +204,19 @@ class COMetaModel(pl.LightningModule):
         val_dataset = torch.utils.data.Subset(self.validation_dataset, range(self.args.validation_examples))
         print("Validation dataset size:", len(val_dataset))
         return DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+    @abstractmethod
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Define the forward pass."""
+
+    @abstractmethod
+    def diffusion_sample(self, x: torch.Tensor) -> torch.Tensor:
+        """Sample heatmaps from Difusco."""
+
+    @abstractmethod
+    def validation_step(self, batch: tuple, batch_idx: int) -> None:
+        """Define one validation step."""
+
+    @abstractmethod
+    def test_step(self, batch: tuple, batch_idx: int) -> None:
+        """Define one test step."""

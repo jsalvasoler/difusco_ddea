@@ -3,21 +3,18 @@ from argparse import ArgumentParser, Namespace
 
 
 def get_arg_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Train a Pytorch-Lightning diffusion model on a TSP dataset.")
+    parser = ArgumentParser(description="Train a Pytorch-Lightning diffusion model graph COP dataset.")
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--data_path", type=str, required=True)
     parser.add_argument("--models_path", type=str, default=None)
     parser.add_argument("--logs_path", type=str, default=None)
     parser.add_argument("--results_path", type=str, default=None)
-    parser.add_argument(
-        "--training_split_label_dir",
-        type=str,
-        default=None,
-        help="Directory containing labels for training split (used for MIS).",
-    )
+    parser.add_argument("--training_split_label_dir", type=str, default=None)
     parser.add_argument("--training_split", type=str, default=None)
-    parser.add_argument("--validation_split", type=str, default=None)
     parser.add_argument("--test_split", type=str, default=None)
+    parser.add_argument("--test_split_label_dir", type=str, default=None)
+    parser.add_argument("--validation_split", type=str, default=None)
+    parser.add_argument("--validation_split_label_dir", type=str, default=None)
     parser.add_argument("--validation_examples", type=int, default=64)
 
     parser.add_argument("--batch_size", type=int, default=64)
@@ -66,7 +63,7 @@ def get_arg_parser() -> ArgumentParser:
 
 
 def validate_args(args: Namespace) -> None:
-    assert args.task in ["tsp", "mis"]
+    assert args.task in ["tsp", "mis", "high_degree_selection"]
     assert args.diffusion_type in ["gaussian", "categorical"]
     assert args.diffusion_schedule in ["linear", "cosine"]
 
@@ -77,20 +74,32 @@ def validate_args(args: Namespace) -> None:
     if args.do_test or args.do_train or args.do_valid_only:
         assert all(x for x in [args.data_path, args.models_path, args.logs_path])
 
-    for split in ["training_split", "validation_split", "test_split"]:
+    split_names = ["training_split", "validation_split", "test_split"]
+    for split in split_names + [f"{split}_label_dir" for split in split_names]:
         if not getattr(args, split):
             continue
         full_path = os.path.join(args.data_path, getattr(args, split))
         assert os.path.exists(full_path), f"Path {getattr(args, split)} does not exist."
 
+    assert isinstance(args.parallel_sampling, int), "parallel_sampling must be an integer"
+    assert args.parallel_sampling >= 0, "parallel_sampling must be greater than or equal to 0"
+
     assert args.project_name == "difusco", "Project name must be of the form difusco."
 
     # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
     if args.wandb_logger_name:
-        assert args.wandb_logger_name.startswith(f"{args.task}_diffusion_graph_{args.diffusion_type}_")
+        assert args.wandb_logger_name.startswith(f"{args.task}_")
 
     if args.ckpt_path:
         assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
+
+        if "categorical" in args.ckpt_path:
+            assert args.diffusion_type == "categorical", "diffusion_type must be categorical"
+        elif "gaussian" in args.ckpt_path:
+            assert args.diffusion_type == "gaussian", "diffusion_type must be gaussian"
+
+    if args.task == "high_degree_selection":
+        assert args.parallel_sampling == 1, "Parallel sampling must be 1 for high degree selection."
 
     # Heuristic evaluation
     if args.heuristic_eval:
