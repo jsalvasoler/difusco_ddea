@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 import os
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gurobipy as gp
 import numpy as np
 import pandas as pd
 from config.myconfig import Config
+from config.mytable import TableSaver
 from ea.ea_utils import instance_factory
 from gurobi_optimods.mwis import maximum_weighted_independent_set
 from problems.mis.mis_dataset import MISDataset
@@ -39,9 +41,9 @@ def solve_problem(instance: MISInstance, solution_1: np.array, solution_2: np.ar
     # Convert back to csr_matrix
     adj_matrix = adj_matrix_lil.tocsr()
 
-    env = gp.Env()
-    env.setParam("TimeLimit", 60)
+    env = gp.Env(empty=True)
     env.setParam("ThreadLimit", 8)
+    env.setParam("TimeLimit", 60)
 
     start_time = time.time()
     with env:
@@ -53,7 +55,7 @@ def solve_problem(instance: MISInstance, solution_1: np.array, solution_2: np.ar
         np_labels[mwis.x] = 1
 
     return {
-        "runtime": time.time() - start_time,
+        "runtime": round(time.time() - start_time, 4),
         "parent_1_obj": len(solution_1),
         "parent_2_obj": len(solution_2),
         "children_obj": len(mwis.x),
@@ -105,6 +107,8 @@ def solve_difuscombination() -> None:
 
     mis_dataset = MISDataset(data_dir=data_dir, data_label_dir=data_label_dir)
 
+    table_saver = TableSaver(str(Path(output_dir) / f"results_{batch_idx}.csv"))
+
     for i in range(first_index, min(first_index_next, len(df))):
         print(f"Solving {i} / {len(df)}")
         instance_file_name = df.iloc[i]["instance_file_name"]
@@ -135,7 +139,10 @@ def solve_difuscombination() -> None:
                 # write result["children_np_labels"] to file
                 np.savetxt(f, result["children_np_labels"], fmt="%d")
 
-        break
+            del result["children_np_labels"]
+            result["instance_file_name"] = instance_file_name
+            result["sample_file_name"] = sample_file_name
+            table_saver.put(result)
 
 
 if __name__ == "__main__":
