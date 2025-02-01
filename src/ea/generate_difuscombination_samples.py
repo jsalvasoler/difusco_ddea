@@ -49,7 +49,9 @@ def get_arg_parser() -> ArgumentParser:
     general.add_argument("--num_samples_per_graph", type=int, required=True)
     general.add_argument("--pop_size", type=int, required=True)
     general.add_argument("--num_generations", type=int, required=True)
-
+    general.add_argument("--device", type=str, required=False, default="cuda")
+    general.add_argument("--process_idx", type=int, required=False, default=0)
+    general.add_argument("--num_processes", type=int, required=False, default=1)
     # Add any additional arguments needed
     return parser
 
@@ -69,6 +71,10 @@ def validate_config(config: Config) -> None:
     output_path.mkdir(parents=True, exist_ok=True)
     assert output_path.is_dir(), "Output path is not a directory"
     assert output_path.exists(), "Output path does not exist"
+
+    # validate process_idx and num_processes
+    assert 0 <= config.process_idx < config.num_processes, "Invalid process index"
+    assert config.num_processes > 0, "Number of processes must be greater than 0"
 
 
 def process_sample_generation(
@@ -95,7 +101,7 @@ def process_sample_generation(
         if config.task == "mis":
             values = torch.zeros(config.pop_size, instance.n_nodes, dtype=torch.bool, device=config.device)
         else:  # tsp
-            values = torch.zeros(config.pop_size, instance.n + 1, dtype=torch.int64)
+            values = torch.zeros(config.pop_size, instance.n + 1, dtype=torch.int64, device=config.device)
 
         problem._fill(values)  # noqa: SLF001
         solutions = values
@@ -162,7 +168,7 @@ def run_training_data_generation(config: Config) -> None:
         - 4 recombinations of initial population
     """
     start_time = time.time()
-    config = config.update(initialization="difusco_sampling", device="cuda", np_eval=True, algo="ga")
+    config = config.update(initialization="difusco_sampling", np_eval=True, algo="ga", device=config.device)
 
     dataset = dataset_factory(config, split=config.split)
     torch.manual_seed(42)
@@ -181,6 +187,10 @@ def run_training_data_generation(config: Config) -> None:
     for i, sample in tqdm(enumerate(dataloader)):
         queue = ctx.Queue()
         idx = sample[0].item()
+
+        if i % config.num_processes != config.process_idx:
+            continue
+
         process = ctx.Process(
             target=process_sample_generation, args=(config, sample, queue, dataset.get_file_name_from_sample_idx(idx))
         )
@@ -212,7 +222,7 @@ def run_training_data_generation(config: Config) -> None:
     df = pd.DataFrame(results)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_path.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path / f"difuscombination_samples_{timestamp}.csv", index=False)
+    df.to_csv(output_path / f"difuscombination_samples_{timestamp}_{config.process_idx}.csv", index=False)
 
     metadata = {
         "timestamp": timestamp,
@@ -221,7 +231,7 @@ def run_training_data_generation(config: Config) -> None:
         "num_graph_instances": config.num_graph_instances,
         "runtime_per_instance": (time.time() - start_time) / config.num_graph_instances,
     }
-    with open(output_path / f"difuscombination_samples_{timestamp}.json", "w") as f:
+    with open(output_path / f"difuscombination_samples_{timestamp}_{config.process_idx}.json", "w") as f:
         json.dump(metadata, f)
 
 

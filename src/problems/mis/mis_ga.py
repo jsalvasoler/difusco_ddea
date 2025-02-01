@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -34,8 +35,11 @@ class MISGaProblem(Problem):
             return self._fill_random_feasible_initialization(values)
         if self.config.initialization == "difusco_sampling":
             if self.config.device != "cuda":
-                error_msg = "Difusco sampling is only supported on CUDA"
-                raise ValueError(error_msg)
+                warnings.warn(
+                    "We recommend using CUDA for Difusco sampling. Performance may be degraded.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             return self._fill_difusco_sampling(values)
         error_msg = f"Invalid initialization method: {self.config.initialization}"
         raise ValueError(error_msg)
