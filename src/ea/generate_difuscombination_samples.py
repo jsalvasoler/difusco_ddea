@@ -228,8 +228,8 @@ def run_training_data_generation(config: Config) -> None:
         "timestamp": timestamp,
         "config": config.__dict__,
         "runtime": time.time() - start_time,
-        "num_graph_instances": config.num_graph_instances,
-        "runtime_per_instance": (time.time() - start_time) / config.num_graph_instances,
+        "num_graph_instances": len(dataloader),
+        "runtime_per_instance": (time.time() - start_time) / len(dataloader),
     }
     with open(output_path / f"difuscombination_samples_{timestamp}_{config.process_idx}.json", "w") as f:
         json.dump(metadata, f)
