@@ -33,8 +33,7 @@ http://akira.ruc.dk/~keld/research/LKH-3/). Make sure to specify the ``--lkh_pat
 Finally, we need to compile the `cython` code for the TSP heuristics. To do so, run the following command:
 
 ```bash
-cd src/difusco/tsp/cython_merge
-python setup.py build_ext --inplace
+./src/problems/tsp/cython_merge/compile.sh
 ```
 
 
