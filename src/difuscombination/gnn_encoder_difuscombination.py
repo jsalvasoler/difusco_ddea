@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from config.myconfig import Config
 from torch import nn
@@ -24,27 +26,46 @@ class GNNEncoderDifuscombination(GNNEncoder):
         )
 
         self.node_embed = nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.node_embed_feat0 = nn.Linear(self.hidden_dim, self.hidden_dim)
         self.node_embed_feat1 = nn.Linear(self.hidden_dim, self.hidden_dim)
-        self.node_embed_feat2 = nn.Linear(self.hidden_dim, self.hidden_dim)
 
         if not self.node_feature_only:
             self.pos_embed = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
+            self.pos_embed_feat0 = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
             self.pos_embed_feat1 = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
-            self.pos_embed_feat2 = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
 
             self.edge_pos_embed = ScalarEmbeddingSine(self.hidden_dim, normalize=False)
         else:
             self.pos_embed = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
+            self.pos_embed_feat0 = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
             self.pos_embed_feat1 = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
-            self.pos_embed_feat2 = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        timesteps: torch.Tensor,
+        features: torch.Tensor,
+        graph: torch.Tensor | None = None,
+        edge_index: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if self.node_feature_only:
+            if self.sparse:
+                return self.sparse_forward_node_feature_only(x, features, timesteps, edge_index)
+            error_msg = "Dense node feature only is not supported"
+            raise NotImplementedError(error_msg)
+        # TODO: implement features for other cases
+        raise NotImplementedError("Features are not supported for non-node feature only cases")
+        if self.sparse:
+            return self.sparse_forward(x, graph, timesteps, edge_index)
+        return self.dense_forward(x, graph, timesteps, edge_index)
 
     def sparse_forward_node_feature_only(
-        self, x: torch.Tensor, timesteps: torch.Tensor, edge_index: torch.Tensor
+        self, x: torch.Tensor, features: torch.Tensor, timesteps: torch.Tensor, edge_index: torch.Tensor
     ) -> torch.Tensor:
-        x0 = self.node_embed(self.pos_embed(x[:, 0]))
-        x1 = self.node_embed_feat1(self.pos_embed_feat1(x[:, 1]))
-        x2 = self.node_embed_feat2(self.pos_embed_feat2(x[:, 2]))
-        x = x0 + x1 + x2
+        """Assume x is of shape (num_nodes,), features is of shape (num_nodes, 2)"""
+        x = self.node_embed(self.pos_embed(x))
+        x += self.node_embed_feat0(self.pos_embed_feat0(features[:, 0]))
+        x += self.node_embed_feat1(self.pos_embed_feat1(features[:, 1]))
 
         x_shape = x.shape
         e = torch.zeros(edge_index.size(1), self.hidden_dim, device=x.device)

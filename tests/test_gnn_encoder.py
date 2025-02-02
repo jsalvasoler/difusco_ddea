@@ -45,15 +45,15 @@ def gnn_model() -> GNNEncoder:
 def get_random_difuscombination_x_sample(graph_data: GraphData) -> torch.tensor:
     # Stack two more features in the node feature dimension -> we expect failure
     x = torch.randn_like(graph_data.x, dtype=torch.float32)
-    return torch.cat(
+    features = torch.cat(
         [
             x.unsqueeze(1),
-            torch.randn_like(graph_data.x, dtype=torch.float32).unsqueeze(1),
-            torch.randn_like(graph_data.x, dtype=torch.float32).unsqueeze(1),
+            torch.randn_like(x.unsqueeze(1), dtype=torch.float32),
+            torch.randn_like(x.unsqueeze(1), dtype=torch.float32),
         ],
         dim=1,
     )
-
+    return x, features
 
 def test_gnn_encoder_mis_inference(
     mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor], gnn_model: GNNEncoder
@@ -76,21 +76,6 @@ def test_gnn_encoder_mis_inference(
     assert output.shape[1] == 1, "Output should have 1 channel for Gaussian diffusion"
 
 
-def test_gnn_encoder_mis_invalid_features(
-    mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor], gnn_model: GNNEncoder
-) -> None:
-    _, graph_data, _ = mis_sample
-
-    # Create fake timesteps for testing
-    batch_size = 1
-    timesteps = torch.ones((batch_size,), dtype=torch.float32)
-
-    # Stack two more features in the node feature dimension -> we expect failure
-    x = get_random_difuscombination_x_sample(graph_data)
-    with pytest.raises(RuntimeError):
-        _ = gnn_model(x, timesteps, edge_index=graph_data.edge_index)
-
-
 def test_gnn_encoder_difuscombination_mis(mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor]) -> None:
     from config.configs.mis_inference import config as mis_inf_config
 
@@ -105,5 +90,5 @@ def test_gnn_encoder_difuscombination_mis(mis_sample: tuple[torch.Tensor, GraphD
     _, graph_data, _ = mis_sample
 
     timesteps = torch.ones((1,), dtype=torch.float32)
-    x = get_random_difuscombination_x_sample(graph_data)
-    _ = gnn_model(x, timesteps, edge_index=graph_data.edge_index)
+    x, features = get_random_difuscombination_x_sample(graph_data)
+    _ = gnn_model(x, timesteps, features, edge_index=graph_data.edge_index)
