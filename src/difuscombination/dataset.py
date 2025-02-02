@@ -29,8 +29,19 @@ class MISDatasetComb(Dataset):
         self.mis_dataset = MISDataset(data_dir=graphs_dir, data_label_dir=None)
 
         self.samples_file = samples_file
-        assert os.path.exists(os.path.dirname(self.samples_file)), f"File {samples_file} does not exist"
-        assert str(self.samples_file).endswith(".csv"), f"File {samples_file} is not a csv file"
+        if str(self.samples_file).endswith(".csv"):
+            assert os.path.exists(self.samples_file), f"File {self.samples_file} does not exist"
+        else:
+            # check that is a directory
+            assert os.path.isdir(self.samples_file), f"File {self.samples_file} is not a directory"
+            # check that it contains a csv file
+            assert any(f.endswith(".csv") for f in os.listdir(self.samples_file)), \
+                  f"No csv file found in {self.samples_file}"
+            # sort the csv files by timestamp, take the latest one
+            csv_files = sorted([f for f in os.listdir(self.samples_file) if f.endswith(".csv")])
+            self.samples_file = os.path.join(self.samples_file, csv_files[-1])
+            assert os.path.exists(self.samples_file), f"File {self.samples_file} does not exist"
+            print(f"Using samples file {self.samples_file}")
 
         start_time = time.time()
 
