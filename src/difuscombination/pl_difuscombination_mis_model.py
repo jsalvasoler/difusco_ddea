@@ -31,6 +31,7 @@ class DifusCombinationMISModel(MISModel):
             test_split_label_dir=None,
             validation_split=config.validation_graphs_dir,
             validation_split_label_dir=None,
+            node_feature_only=True,  # because we are in MIS
         )
 
         super().__init__(param_args=config)

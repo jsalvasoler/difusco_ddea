@@ -75,6 +75,15 @@ def solve_difuscombination() -> None:
     solve_difuscombination(config)
 
 
+def run_difuscombination() -> None:
+    from difuscombination.arg_parser import get_arg_parser
+    from difuscombination.difuscombination_main import main_difuscombination
+
+    args, _ = get_arg_parser().parse_known_args()
+    config = Config.load_from_namespace(args)
+    main_difuscombination(config)
+
+
 def main() -> None:
     # Top-level commands and usage help
     commands = {
@@ -84,13 +93,16 @@ def main() -> None:
             "generate-node-degree-labels": generate_node_degree_labels,
             "run-tsp-heuristics": run_tsp_heuristics,
             "run-difusco-initialization-experiments": run_difusco_initialization_experiments,
-            "generate-difuscombination-samples": generate_difuscombination_samples,
         },
         "ea": {
             "run-ea": run_ea,
         },
         "data": {
+            "generate-difuscombination-samples": generate_difuscombination_samples,
             "solve-difuscombination": solve_difuscombination,
+        },
+        "difuscombination": {
+            "run-difuscombination": run_difuscombination,
         },
     }
 
@@ -99,6 +111,7 @@ def main() -> None:
         print(" - hatch run cli difusco <subcommand>")
         print(" - hatch run cli ea <subcommand>")
         print(" - hatch run cli data <subcommand>")
+        print(" - hatch run cli difuscombination <subcommand>")
         print("\nCommands:")
         for group, subcommands in commands.items():
             print(f" - {group}:")
