@@ -60,7 +60,7 @@ def run_difusco_initialization_experiments() -> None:
 
 def generate_difuscombination_samples() -> None:
     """Generate training samples for difuscombination."""
-    from ea.generate_difuscombination_samples import parse_arguments, run_training_data_generation
+    from data.generate_difuscombination_samples import parse_arguments, run_training_data_generation
 
     args, extra = parse_arguments()
     config = Config.load_from_args(args, extra)

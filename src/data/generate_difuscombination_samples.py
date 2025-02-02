@@ -13,12 +13,11 @@ import pandas as pd
 import torch
 from config.configs.mis_inference import config as mis_inference_config
 from config.myconfig import Config
+from ea.ea_utils import dataset_factory, instance_factory
+from ea.evolutionary_algorithm import ea_factory
 from evotorch.operators import CopyingOperator, CrossOver
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
-
-from ea.ea_utils import dataset_factory, instance_factory
-from ea.evolutionary_algorithm import ea_factory
 
 
 def parse_arguments() -> tuple[Namespace, list[str]]:
