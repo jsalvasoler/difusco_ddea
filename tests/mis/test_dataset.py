@@ -141,3 +141,23 @@ def test_get_file_name_from_sample_idx() -> None:
     )
     assert dataset.get_file_name_from_sample_idx(0) == "ER_50_100_0.15_0.gpickle"
     assert dataset.get_file_name_from_sample_idx(120) == "ER_50_100_0.15_120.gpickle"
+
+
+def dataloader_for_er_700_800_train() -> None:
+    dataset_name = "er_700_800"
+    dataset = MISDataset(
+        data_dir=f"data/mis/{dataset_name}/train", data_label_dir=f"data/mis/{dataset_name}/train_labels"
+    )
+
+    for i in range(len(dataset)):
+        print(f"getting sample {i} - {dataset.sample_files[i]}")
+        # get label file
+        label_file = os.path.join(
+            dataset.data_label_dir, os.path.basename(dataset.sample_files[i]).replace(".gpickle", "_unweighted.result")
+        )
+        print(f"label file: {label_file}")
+        dataset.__getitem__(i)
+
+
+if __name__ == "__main__":
+    dataloader_for_er_700_800_train()
