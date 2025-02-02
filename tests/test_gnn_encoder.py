@@ -55,6 +55,7 @@ def get_random_difuscombination_x_sample(graph_data: GraphData) -> torch.tensor:
     )
     return x, features
 
+
 def test_gnn_encoder_mis_inference(
     mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor], gnn_model: GNNEncoder
 ) -> None:

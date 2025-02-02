@@ -35,8 +35,9 @@ class MISDatasetComb(Dataset):
             # check that is a directory
             assert os.path.isdir(self.samples_file), f"File {self.samples_file} is not a directory"
             # check that it contains a csv file
-            assert any(f.endswith(".csv") for f in os.listdir(self.samples_file)), \
-                  f"No csv file found in {self.samples_file}"
+            assert any(
+                f.endswith(".csv") for f in os.listdir(self.samples_file)
+            ), f"No csv file found in {self.samples_file}"
             # sort the csv files by timestamp, take the latest one
             csv_files = sorted([f for f in os.listdir(self.samples_file) if f.endswith(".csv")])
             self.samples_file = os.path.join(self.samples_file, csv_files[-1])
@@ -113,7 +114,7 @@ class MISDatasetComb(Dataset):
         solution_2_mask = solution_2_mask[:, np.newaxis]
 
         # Concatenate along axis=1
-        features = torch.from_numpy(np.concatenate([node_labels, solution_1_mask, solution_2_mask], axis=1))
+        features = torch.from_numpy(np.concatenate([node_labels, solution_1_mask, solution_2_mask], axis=1)).long()
         assert features.shape[0] == num_nodes, f"Features shape mismatch: {features.shape[0]} != {num_nodes}"
         assert features.shape[1] == 3, f"Features shape mismatch: {features.shape[1]} != 3"
 
