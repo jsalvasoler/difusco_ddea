@@ -7,46 +7,61 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-import torch.utils.data
 from problems.mis.mis_evaluation import mis_decode_np
 from scipy.sparse import coo_matrix
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
-from difusco.diffusion_schedulers import InferenceSchedule
-from difusco.pl_meta_model import COMetaModel
+from difusco.mis.pl_mis_model import MISModel
 from difuscombination.dataset import MISDatasetComb
+from difuscombination.gnn_encoder_difuscombination import GNNEncoderDifuscombination
 
 if TYPE_CHECKING:
-    from argparse import Namespace
+    from config.myconfig import Config
 
 
-class DifusCombinationMISModel(COMetaModel):
-    def __init__(self, param_args: Namespace | None = None) -> None:
-        super().__init__(param_args=param_args, node_feature_only=True)
+class DifusCombinationMISModel(MISModel):
+    # TODO: extract the common code to some MIS Meta model, and then have a Difusco and Recombination chilfren
+    def __init__(self, config: Config | None = None) -> None:
+        # we need to update the config with fake datasets that allow the initialization of the MISModel
+        config = config.update(
+            training_split=config.training_graphs_dir,
+            training_split_label_dir=None,
+            test_split=config.test_graphs_dir,
+            test_split_label_dir=None,
+            validation_split=config.validation_graphs_dir,
+            validation_split_label_dir=None,
+        )
+
+        super().__init__(param_args=config)
 
         self.train_dataset = MISDatasetComb(
-            samples_file=os.path.join(self.args.data_path, self.args.training_split),
-            graphs_dir=os.path.join(self.args.data_path, self.args.training_split),
-            labels_dir=os.path.join(self.args.data_path, self.args.training_split_label_dir),
+            samples_file=os.path.join(config.data_path, config.training_samples_file),
+            graphs_dir=os.path.join(config.data_path, config.training_graphs_dir),
+            labels_dir=os.path.join(config.data_path, config.training_labels_dir),
         )
 
         self.test_dataset = MISDatasetComb(
-            samples_file=os.path.join(self.args.data_path, self.args.test_split),
-            graphs_dir=os.path.join(self.args.data_path, self.args.test_split),
-            labels_dir=os.path.join(self.args.data_path, self.args.test_split_label_dir),
+            samples_file=os.path.join(config.data_path, config.test_samples_file),
+            graphs_dir=os.path.join(config.data_path, config.test_graphs_dir),
+            labels_dir=os.path.join(config.data_path, config.test_labels_dir),
         )
 
         self.validation_dataset = MISDatasetComb(
-            samples_file=os.path.join(self.args.data_path, self.args.validation_split),
-            graphs_dir=os.path.join(self.args.data_path, self.args.validation_split),
-            labels_dir=os.path.join(self.args.data_path, self.args.validation_split_label_dir),
+            samples_file=os.path.join(config.data_path, config.validation_samples_file),
+            graphs_dir=os.path.join(config.data_path, config.validation_graphs_dir),
+            labels_dir=os.path.join(config.data_path, config.validation_labels_dir),
         )
 
-        # TODO: override self.model
+        self.config = config
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
-        return self.model(x, t, edge_index=edge_index)
+        # Override self.model
+        self.model = GNNEncoderDifuscombination(config)
+
+    def forward(
+        self, x: torch.Tensor, t: torch.Tensor, features: torch.Tensor, edge_index: torch.Tensor
+    ) -> torch.Tensor:
+        return self.model(x, t, features, edge_index=edge_index)
 
     def categorical_training_step(
         self,
@@ -55,7 +70,8 @@ class DifusCombinationMISModel(COMetaModel):
     ) -> torch.Tensor:
         _, graph_data, point_indicator = batch
         t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(int)
-        node_labels = graph_data.x
+        node_labels = graph_data.x[:, 0]  # first dim are the labels
+        features = graph_data.x[:, 1:]  # rest of the dims are the features
         edge_index = graph_data.edge_index
 
         # Sample from diffusion
@@ -78,6 +94,7 @@ class DifusCombinationMISModel(COMetaModel):
         x0_pred = self.forward(
             xt.float().to(node_labels.device),
             t.float().to(node_labels.device),
+            features,
             edge_index,
         )
 
@@ -93,7 +110,8 @@ class DifusCombinationMISModel(COMetaModel):
     ) -> torch.Tensor:
         _, graph_data, point_indicator = batch
         t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(int)
-        node_labels = graph_data.x
+        node_labels = graph_data.x[:, 0]
+        features = graph_data.x[:, 1:]
         edge_index = graph_data.edge_index
         device = node_labels.device
 
@@ -116,6 +134,7 @@ class DifusCombinationMISModel(COMetaModel):
         epsilon_pred = self.forward(
             xt.float().to(device),
             t.float().to(device),
+            features,
             edge_index,
         )
         epsilon_pred = epsilon_pred.squeeze(1)
@@ -124,100 +143,6 @@ class DifusCombinationMISModel(COMetaModel):
         loss = mse_loss(epsilon_pred, epsilon.float())
         self.log("train/loss", loss)
         return loss
-
-    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        if self.diffusion_type == "gaussian":
-            return self.gaussian_training_step(batch, batch_idx)
-        if self.diffusion_type == "categorical":
-            return self.categorical_training_step(batch, batch_idx)
-        error_message = f"Diffusion type {self.diffusion_type} not supported."
-        raise ValueError(error_message)
-
-    def categorical_denoise_step(
-        self,
-        xt: torch.Tensor,
-        t: np.ndarray | torch.Tensor,
-        device: torch.device,
-        edge_index: torch.Tensor | None = None,
-        target_t: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        with torch.no_grad():
-            t = torch.from_numpy(t).view(1)
-            x0_pred = self.forward(
-                xt.float().to(device),
-                t.float().to(device),
-                edge_index.long().to(device) if edge_index is not None else None,
-            )
-            x0_pred_prob = x0_pred.reshape((1, xt.shape[0], -1, 2)).softmax(dim=-1)
-            return self.categorical_posterior(target_t, t, x0_pred_prob, xt)
-
-    def gaussian_denoise_step(
-        self,
-        xt: torch.Tensor,
-        t: np.ndarray | torch.Tensor,
-        device: torch.device,
-        edge_index: torch.Tensor | None = None,
-        target_t: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        with torch.no_grad():
-            t = torch.from_numpy(t).view(1)
-            pred = self.forward(
-                xt.float().to(device),
-                t.float().to(device),
-                edge_index.long().to(device) if edge_index is not None else None,
-            )
-            pred = pred.squeeze(1)
-            return self.gaussian_posterior(target_t, t, pred, xt)
-
-    @torch.no_grad()
-    def diffusion_sample(
-        self,
-        n_nodes: int,
-        edge_index: torch.Tensor,
-        device: torch.device,
-    ) -> np.ndarray:
-        """
-        Denoise to get a diffusion sample.
-
-        If parallel_sampling is greater than 1, the output has shape (parallel_sampling, num_nodes),
-        where num_nodes is the number of nodes in the graph. Otherwise, the output has shape (num_nodes,).
-        """
-        xt = torch.rand(n_nodes, device=device, dtype=torch.float)
-        if self.args.parallel_sampling > 1:
-            xt = xt.repeat(self.args.parallel_sampling, 1)
-            xt = torch.randn_like(xt)
-
-        if self.diffusion_type == "gaussian":
-            xt.requires_grad = True
-        else:
-            xt = (xt > 0).long()
-        xt = xt.reshape(-1)
-
-        if self.args.parallel_sampling > 1:
-            edge_index = self.duplicate_edge_index(edge_index, n_nodes, device)
-
-        steps = self.args.inference_diffusion_steps
-        time_schedule = InferenceSchedule(
-            inference_schedule=self.args.inference_schedule, T=self.diffusion.T, inference_T=steps
-        )
-
-        # Diffusion iterations
-        for i in range(steps):
-            t1, t2 = time_schedule(i)
-            t1 = np.array([t1]).astype(int)
-            t2 = np.array([t2]).astype(int)
-
-            if self.diffusion_type == "gaussian":
-                xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2)
-            else:
-                xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2)
-
-        if self.diffusion_type == "gaussian":  # noqa: SIM108
-            predict_labels = xt.float() * 0.5 + 0.5
-        else:
-            predict_labels = xt.float() + 1e-6
-
-        return predict_labels
 
     @staticmethod
     def process_batch(batch: tuple) -> tuple:
@@ -234,7 +159,8 @@ class DifusCombinationMISModel(COMetaModel):
                 - adj_mat: Sparse adjacency matrix in CSR format
         """
         _, graph_data, _ = batch
-        node_labels = graph_data.x
+        node_labels = graph_data.x[:, 0]
+        features = graph_data.x[:, 1:]
         edge_index = graph_data.edge_index
 
         edge_index = edge_index.to(node_labels.device).reshape(2, -1)
@@ -243,7 +169,7 @@ class DifusCombinationMISModel(COMetaModel):
             (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
         ).tocsr()
 
-        return node_labels, edge_index, adj_mat
+        return node_labels, edge_index, adj_mat, features
 
     def test_step(
         self,
@@ -252,11 +178,11 @@ class DifusCombinationMISModel(COMetaModel):
         split: str = "test",
     ) -> None:
         device = batch[-1].device
-        node_labels, edge_index, adj_mat = self.process_batch(batch)
+        node_labels, edge_index, adj_mat, features = self.process_batch(batch)
 
         stacked_predict_labels = []
         for _ in range(self.args.sequential_sampling):
-            predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device)
+            predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device, features)
             predict_labels = predict_labels.cpu().detach().numpy()
             stacked_predict_labels.append(predict_labels)
 
@@ -278,6 +204,3 @@ class DifusCombinationMISModel(COMetaModel):
         self.log(f"{split}/solved_cost", best_solved_cost, prog_bar=True, on_epoch=True, sync_dist=True)
 
         self.test_outputs.append(metrics)
-
-    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> dict:
-        return self.test_step(batch, batch_idx, split="val")

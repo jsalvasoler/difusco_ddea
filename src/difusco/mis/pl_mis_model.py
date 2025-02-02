@@ -143,6 +143,7 @@ class MISModel(COMetaModel):
         t: np.ndarray | torch.Tensor,
         device: torch.device,
         edge_index: torch.Tensor | None = None,
+        features: torch.Tensor | None = None,
         target_t: torch.Tensor | None = None,
     ) -> torch.Tensor:
         with torch.no_grad():
@@ -150,6 +151,7 @@ class MISModel(COMetaModel):
             x0_pred = self.forward(
                 xt.float().to(device),
                 t.float().to(device),
+                features.float().to(device) if features is not None else None,
                 edge_index.long().to(device) if edge_index is not None else None,
             )
             x0_pred_prob = x0_pred.reshape((1, xt.shape[0], -1, 2)).softmax(dim=-1)
@@ -162,12 +164,14 @@ class MISModel(COMetaModel):
         device: torch.device,
         edge_index: torch.Tensor | None = None,
         target_t: torch.Tensor | None = None,
+        features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         with torch.no_grad():
             t = torch.from_numpy(t).view(1)
             pred = self.forward(
                 xt.float().to(device),
                 t.float().to(device),
+                features.float().to(device) if features is not None else None,
                 edge_index.long().to(device) if edge_index is not None else None,
             )
             pred = pred.squeeze(1)
@@ -179,6 +183,7 @@ class MISModel(COMetaModel):
         n_nodes: int,
         edge_index: torch.Tensor,
         device: torch.device,
+        features: torch.Tensor | None = None,
     ) -> np.ndarray:
         """
         Denoise to get a diffusion sample.
@@ -212,9 +217,9 @@ class MISModel(COMetaModel):
             t2 = np.array([t2]).astype(int)
 
             if self.diffusion_type == "gaussian":
-                xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2)
+                xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2, features=features)
             else:
-                xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2)
+                xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2, features=features)
 
         if self.diffusion_type == "gaussian":  # noqa: SIM108
             predict_labels = xt.float() * 0.5 + 0.5

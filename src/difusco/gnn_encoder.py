@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import functools
 from math import pi
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.utils.checkpoint as activation_checkpoint
@@ -503,6 +503,7 @@ class GNNEncoder(nn.Module):
         timesteps: torch.Tensor,
         graph: torch.Tensor | None = None,
         edge_index: torch.Tensor | None = None,
+        **kwargs: dict[str, Any],  # noqa: ARG002
     ) -> torch.Tensor:
         if self.node_feature_only:
             if self.sparse:

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import torch
-from config.myconfig import Config
 from torch import nn
 
 from difusco.gnn_encoder import GNNEncoder, PositionEmbeddingSine, ScalarEmbeddingSine, ScalarEmbeddingSine1D
 from difusco.nn_utils import timestep_embedding
+
+if TYPE_CHECKING:
+    from config.myconfig import Config
 
 
 class GNNEncoderDifuscombination(GNNEncoder):
