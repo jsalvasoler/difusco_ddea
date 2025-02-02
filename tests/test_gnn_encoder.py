@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import torch
+from difuscombination.gnn_encoder_difuscombination import GNNEncoderDifuscombination
 from problems.mis.mis_dataset import MISDataset
 
 if TYPE_CHECKING:
@@ -41,6 +42,19 @@ def gnn_model() -> GNNEncoder:
     )
 
 
+def get_random_difuscombination_x_sample(graph_data: GraphData) -> torch.tensor:
+    # Stack two more features in the node feature dimension -> we expect failure
+    x = torch.randn_like(graph_data.x, dtype=torch.float32)
+    return torch.cat(
+        [
+            x.unsqueeze(1),
+            torch.randn_like(graph_data.x, dtype=torch.float32).unsqueeze(1),
+            torch.randn_like(graph_data.x, dtype=torch.float32).unsqueeze(1),
+        ],
+        dim=1,
+    )
+
+
 def test_gnn_encoder_mis_inference(
     mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor], gnn_model: GNNEncoder
 ) -> None:
@@ -72,15 +86,24 @@ def test_gnn_encoder_mis_invalid_features(
     timesteps = torch.ones((batch_size,), dtype=torch.float32)
 
     # Stack two more features in the node feature dimension -> we expect failure
-    x = torch.randn_like(graph_data.x, dtype=torch.float32)
-    x = torch.cat(
-        [
-            x.unsqueeze(1),
-            torch.randn_like(graph_data.x, dtype=torch.float32).unsqueeze(1),
-            torch.randn_like(graph_data.x, dtype=torch.float32).unsqueeze(1),
-        ],
-        dim=1,
-    )
-
+    x = get_random_difuscombination_x_sample(graph_data)
     with pytest.raises(RuntimeError):
         _ = gnn_model(x, timesteps, edge_index=graph_data.edge_index)
+
+
+def test_gnn_encoder_difuscombination_mis(mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor]) -> None:
+    from config.configs.mis_inference import config as mis_inf_config
+
+    config = mis_inf_config.update(
+        task="mis",
+        device="cuda",
+        diffusion_type="gaussian",
+        node_feature_only=True,
+    )
+
+    gnn_model = GNNEncoderDifuscombination(config)
+    _, graph_data, _ = mis_sample
+
+    timesteps = torch.ones((1,), dtype=torch.float32)
+    x = get_random_difuscombination_x_sample(graph_data)
+    _ = gnn_model(x, timesteps, edge_index=graph_data.edge_index)
