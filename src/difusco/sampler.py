@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
+from difuscombination.pl_difuscombination_mis_model import DifusCombinationMISModel
 
 if TYPE_CHECKING:
     from config.myconfig import Config
@@ -27,17 +28,28 @@ class DifuscoSampler:
             ckpt_path: Path to the model checkpoint
             param_args: Arguments for model initialization
             device: Device to run inference on
+            mode: Literal["difusco", "recombination"]
         """
         self.task = config.task
         self.device = config.device
+        self.mode = config.mode if "mode" in config else "difusco"  # default to difusco
 
         ckpt_path = Path(config.models_path) / config.ckpt_path
 
         # Load the appropriate model
         if self.task == "tsp":
+            assert self.mode == "difusco"
             self.model = TSPModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
         elif self.task == "mis":
-            self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
+            if self.mode == "difusco":
+                self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
+            elif self.mode == "difuscombination":
+                self.model = DifusCombinationMISModel.load_from_checkpoint(
+                    ckpt_path, param_args=config, map_location=self.device
+                )
+            else:
+                error_msg = f"Unknown mode: {self.mode}"
+                raise ValueError(error_msg)
         else:
             error_msg = f"Unknown task: {self.task}"
             raise ValueError(error_msg)
@@ -45,31 +57,40 @@ class DifuscoSampler:
         self.model.eval()
         self.model.to(self.device)
 
-    def sample(self, batch: tuple) -> torch.Tensor:
+    def sample(self, batch: tuple, features: torch.Tensor | None = None) -> torch.Tensor:
         """Sample heatmaps from Difusco"""
         if self.task == "tsp":
             return self.sample_tsp(batch=batch)
         if self.task == "mis":
-            return self.sample_mis(batch=batch)
+            return self.sample_mis(batch=batch, features=features)
         error_msg = f"Unknown task: {self.task}"
         raise ValueError(error_msg)
 
     @torch.no_grad()
     def sample_mis(
-        self, batch: tuple | None = None, edge_index: torch.Tensor | None = None, n_nodes: int | None = None
+        self,
+        batch: tuple | None = None,
+        edge_index: torch.Tensor | None = None,
+        n_nodes: int | None = None,
+        features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Sample heatmaps from Difusco
 
         Args:
             batch: Input batch in the format expected by the model
+            edge_index: Edge index tensor (only if batch is None)
+            n_nodes: Number of nodes (only if batch is None)
+            features: Features tensor (optional, only used with batch). Size: (n_nodes, 2)
 
         Returns:
             Tensor containing the sampled heatmaps
         """
         if batch is not None:
-            node_labels, edge_index, _ = self.model.process_batch(batch)
+            node_labels, edge_index, _, sample_features = self.model.process_batch(batch)
             n_nodes = node_labels.shape[0]
+            if features is None:
+                features = sample_features
         elif edge_index is None or n_nodes is None:
             error_msg = "Must provide either batch or (edge_index and n_nodes)"
             raise ValueError(error_msg)
@@ -78,7 +99,7 @@ class DifuscoSampler:
 
         heatmaps = None
         for _ in range(self.model.args.sequential_sampling):
-            labels_pred = self.model.diffusion_sample(n_nodes, edge_index, self.device)
+            labels_pred = self.model.diffusion_sample(n_nodes, edge_index, self.device, features=features)
             labels_pred = labels_pred.reshape((self.model.args.parallel_sampling, -1))
             heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=0)
 
