@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import argparse
 import os
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+
 
 def get_id_from_filename(filename: str) -> int | None:
     try:
@@ -16,7 +20,6 @@ def merge_parallel_exec_files() -> None:
     arg_parser.add_argument("--output_path", type=str, required=True)
     args = arg_parser.parse_args()
 
-    
     # assert path exists
     assert os.path.exists(args.output_path), f"Output path {args.output_path} does not exist"
 
@@ -30,7 +33,6 @@ def merge_parallel_exec_files() -> None:
     files = [f for f in files if get_id_from_filename(f) in set(range(args.num_processes))]
 
     assert len(files) == args.num_processes, f"Expected {args.num_processes} files, got {len(files)}"
-
 
     # we will sort the files by the index
     files = sorted(files, key=lambda x: get_id_from_filename(x))
