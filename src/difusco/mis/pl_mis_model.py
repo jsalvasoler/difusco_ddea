@@ -49,8 +49,8 @@ class MISModel(COMetaModel):
             data_label_dir=validation_label_dir,
         )
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
-        return self.model(x, t, edge_index=edge_index)
+    def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor, **kwargs) -> torch.Tensor:
+        return self.model(x, t, edge_index=edge_index, **kwargs)
 
     def categorical_training_step(
         self,
@@ -151,8 +151,8 @@ class MISModel(COMetaModel):
             x0_pred = self.forward(
                 xt.float().to(device),
                 t.float().to(device),
-                features.float().to(device) if features is not None else None,
-                edge_index.long().to(device) if edge_index is not None else None,
+                features=features.float().to(device) if features is not None else None,
+                edge_index=edge_index.long().to(device) if edge_index is not None else None,
             )
             x0_pred_prob = x0_pred.reshape((1, xt.shape[0], -1, 2)).softmax(dim=-1)
             return self.categorical_posterior(target_t, t, x0_pred_prob, xt)
@@ -171,8 +171,8 @@ class MISModel(COMetaModel):
             pred = self.forward(
                 xt.float().to(device),
                 t.float().to(device),
-                features.float().to(device) if features is not None else None,
-                edge_index.long().to(device) if edge_index is not None else None,
+                features=features.float().to(device) if features is not None else None,
+                edge_index=edge_index.long().to(device) if edge_index is not None else None,
             )
             pred = pred.squeeze(1)
             return self.gaussian_posterior(target_t, t, pred, xt)

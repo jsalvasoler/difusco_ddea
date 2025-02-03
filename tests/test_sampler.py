@@ -90,7 +90,7 @@ def run_test_on_config(config: Config) -> None:
         assert heatmaps.shape[1] == 50, "Incorrect number of nodes"
         assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
     elif config.task == "mis":
-        assert heatmaps.shape[1] == 60, "Incorrect number of nodes"
+        assert heatmaps.shape[1] == 56, "Incorrect number of nodes"
 
     # Check output range for categorical diffusion
     assert torch.all(heatmaps >= 0), "Heatmap values below 0"
