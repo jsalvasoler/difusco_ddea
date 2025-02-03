@@ -188,7 +188,7 @@ def test_mis_ga_fill_difusco(np_eval: bool) -> None:
         test_split_label_dir="mis/er_50_100/test_labels",
         validation_split="mis/er_50_100/test",
         validation_split_label_dir="mis/er_50_100/test_labels",
-        ckpt_path="mis/mis_er_50_100_gaussian.ckpt"
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
     )
 
     config = mis_inference_config.update(config)
