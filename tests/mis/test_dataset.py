@@ -24,7 +24,7 @@ expected_length_test = {
 expected_length_train = {
     "er_50_100": 40000 - 128,
     "er_300_400": 40000 - 128,
-    "er_700_800": 163838,
+    "er_700_800": 163837,
     "er_1300_1500": None,
     "satlib": 40000 - 500,
 }

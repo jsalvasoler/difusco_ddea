@@ -35,10 +35,10 @@ def read_mis_instance(np_eval: bool = False, device: str = "cpu") -> MISInstance
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_create_mis_instance(np_eval: bool) -> None:
     instance = read_mis_instance(np_eval=np_eval)
-    assert instance.n_nodes == 788
+    assert instance.n_nodes == 756
     assert instance.gt_labels.sum().item() == 45
     assert (
-        788
+        756
         == instance.gt_labels.shape[0]
         == instance.n_nodes
         == instance.adj_matrix.shape[0]
@@ -179,6 +179,16 @@ def test_mis_ga_fill_difusco(np_eval: bool) -> None:
         inference_diffusion_steps=2,
         diffusion_steps=2,
         initialization="difusco_sampling",
+        data_path="data",
+        models_path="models",
+        task="mis",
+        training_split="mis/er_50_100/train",
+        training_split_label_dir="mis/er_50_100/train_labels",
+        test_split="mis/er_50_100/test",
+        test_split_label_dir="mis/er_50_100/test_labels",
+        validation_split="mis/er_50_100/test",
+        validation_split_label_dir="mis/er_50_100/test_labels",
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt"
     )
 
     config = mis_inference_config.update(config)

@@ -60,7 +60,10 @@ class Config:
     @staticmethod
     def load_from_args(args: Namespace, extra: list[str] | None = None) -> Config:
         # 1. Lowest priority: saved config
-        config = Config.load_saved_config(args.config_name)
+        if "config_name" in args:
+            config = Config.load_saved_config(args.config_name)
+        else:
+            config = Config()
 
         # 2. Middle priority: args from the arg parser, can have default values overriding saved config
         args_config = Config.load_from_namespace(args)

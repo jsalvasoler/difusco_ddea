@@ -114,6 +114,7 @@ def test_ea_runs(task: str, algo: str) -> None:
         n_generations=5,
         np_eval=True,
         validate_samples=2,
+        profiler=False,
     )
     run_ea(config)
 
@@ -135,5 +136,6 @@ def test_ea_for_sparse_tsp() -> None:
         device="cuda",
         initialization="random_feasible",
         validate_samples=2,
+        profiler=False,
     )
     run_ea(config)

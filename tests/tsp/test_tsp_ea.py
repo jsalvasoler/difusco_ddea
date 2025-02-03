@@ -220,6 +220,7 @@ def test_tsp_brkga_runs_with_dataloader() -> None:
             test_split="tsp50_example_dataset_two_samples.txt",
             test_split_label_dir=None,
             task="tsp",
+            sparse_factor=-1,
         )
     )
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -289,6 +290,13 @@ def test_tsp_ga_fill_difusco_sampling(batch_sample_size_one: tuple) -> None:
         inference_diffusion_steps=2,
         pop_size=2,
         initialization="difusco_sampling",
+        ckpt_path="tsp/tsp50_categorical.ckpt",
+        training_split="tsp/tsp50_train_concorde.txt",
+        test_split="tsp/tsp50_test_concorde.txt",
+        validation_split="tsp/tsp50_test_concorde.txt",
+        task="tsp",
+        device="cuda",
+        sparse_factor=-1,
     )
 
     config = tsp_inference_config.update(config)
