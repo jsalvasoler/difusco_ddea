@@ -24,6 +24,7 @@ def config_factory() -> Config:
             validate_samples=2,
             wandb_logger_name="justatest",
             np_eval=True,
+            profiler=False,
         )
         if task == "mis":
             config = Config(
@@ -83,6 +84,7 @@ def test_satlib_initialization_experiments() -> None:
         validation_split_label_dir="mis/satlib/test_labels",
         ckpt_path="mis/mis_sat_categorical.ckpt",
         diffusion_type="categorical",
+        profiler=False,
     )
     config = mis_inference_config.update(base)
     run_difusco_initialization_experiments(config)
@@ -95,6 +97,7 @@ def test_tsp500_sparse_initialization_experiments() -> None:
         logs_path="logs",
         results_path="results",
         models_path="models",
+        profiler=False,
     )
     config = base.update(
         task="tsp",
