@@ -41,6 +41,7 @@ class DifusCombinationMISModel(MISModelBase):
         self.config = config
 
         # Override self.model
+        config.node_feature_only = True
         self.model = GNNEncoderDifuscombination(config)
 
     @staticmethod
