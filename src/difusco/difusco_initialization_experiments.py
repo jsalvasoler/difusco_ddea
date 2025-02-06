@@ -62,6 +62,7 @@ def get_arg_parser() -> ArgumentParser:
 
     return parser
 
+
 class DifuscoInitializationExperiment(Experiment):
     def __init__(self, config: Config) -> None:
         super().__init__(config)
@@ -95,6 +96,7 @@ class DifuscoInitializationExperiment(Experiment):
 
     def get_final_results(self, results: list[dict]) -> dict:
         """Compute and return the final aggregated results."""
+
         def agg_results(results: list[dict], keys: list[str]) -> dict:
             return {f"avg_{key}": sum(r[key] for r in results) / len(results) for key in keys}
 

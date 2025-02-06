@@ -121,5 +121,5 @@ def test_tsp500_sparse_initialization_experiments() -> None:
 def test_get_results() -> None:
     config = Config(hey="hey", ho="ho")
     results = {"a": 1, "b": 2}
-    final_results = DifuscoInitializationExperiment._add_config_and_timestamp(results, config) # noqa: SLF001
+    final_results = DifuscoInitializationExperiment._add_config_and_timestamp(results, config)  # noqa: SLF001
     assert set(final_results.keys()) == {"hey", "ho", "a", "b", "timestamp"}
