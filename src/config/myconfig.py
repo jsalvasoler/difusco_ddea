@@ -81,3 +81,12 @@ class Config:
                 setattr(config, key, value)
 
         return config
+
+    def __getitem__(self, key: str) -> any:
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value: any) -> None:
+        setattr(self, key, value)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.__dict__

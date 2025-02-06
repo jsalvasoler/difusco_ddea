@@ -105,3 +105,38 @@ def test_update_with_no_other_config() -> None:
     assert config.a == 1
     assert config.b == 2
     assert config.d == 5
+
+
+def test_getitem() -> None:
+    config = Config(a=1, b=2)
+
+    # Test accessing existing attributes
+    assert config["a"] == 1
+    assert config["b"] == 2
+
+    # Test accessing a nonexistent attribute raises an error
+    with pytest.raises(AttributeError):
+        _ = config["c"]
+
+
+def test_setitem() -> None:
+    config = Config(a=1, b=2)
+
+    # Test setting existing attributes
+    config["a"] = 10
+    assert config.a == 10
+
+    # Test setting a new attribute
+    config["c"] = 3
+    assert config.c == 3
+
+
+def test_contains() -> None:
+    config = Config(a=1, b=2)
+
+    # Test checking existing attributes
+    assert "a" in config
+    assert "b" in config
+
+    # Test checking a nonexistent attribute
+    assert "c" not in config
