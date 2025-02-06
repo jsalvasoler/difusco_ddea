@@ -84,6 +84,14 @@ def run_difuscombination() -> None:
     main_difuscombination(config)
 
 
+def run_recombination_experiments() -> None:
+    from difuscombination.recombination_experiments import main_recombination_experiments, parse_arguments
+
+    args, extra = parse_arguments()
+    config = Config.load_from_args(args, extra)
+    main_recombination_experiments(config)
+
+
 def main() -> None:
     # Top-level commands and usage help
     commands = {
@@ -103,6 +111,7 @@ def main() -> None:
         },
         "difuscombination": {
             "run-difuscombination": run_difuscombination,
+            "recombination-experiments": run_recombination_experiments,
         },
     }
 

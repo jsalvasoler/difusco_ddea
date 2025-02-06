@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from argparse import ArgumentParser, Namespace
 
+import numpy as np
 import torch
 from config.myconfig import Config
 from ea.evolutionary_algorithm import ea_factory
@@ -46,7 +47,6 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--pop_size", type=int, default=100)
 
     recombination_settings = parser.add_argument_group("recombination_settings")
-    recombination_settings.add_argument("--models_path", type=str, default=".")
     recombination_settings.add_argument("--ckpt_path_difusco", type=str, default=None)
     recombination_settings.add_argument("--ckpt_path_difuscombination", type=str, default=None)
 
@@ -192,10 +192,15 @@ class RecombinationExperiment(Experiment):
         return DataLoader(dataset, batch_size=1, shuffle=False)
 
     def get_final_results(self, results: list[dict]) -> dict:
-        pass
+        # results is a list of dicts, each with the same keys
+        # we want to compute the mean of each key
+        final = {key: np.mean([result[key] for result in results]) for key in results[0]}
+        # we also add all the config parameters
+        final.update(self.config.__dict__)
+        return final
 
     def get_table_name(self) -> str:
-        pass
+        return "results/recombination_results.csv"
 
 
 def main_recombination_experiments(config: Config) -> None:
