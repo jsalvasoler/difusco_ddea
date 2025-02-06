@@ -46,7 +46,7 @@ class MISInstance(MISInstanceBase):
     def create_from_batch_sample(sample: tuple, device: str) -> MISInstance:
         """Create a MISInstance from a batch sample. The batch must have size 1."""
 
-        node_labels, edge_index, _ = MISModel.process_batch(batch=sample)
+        node_labels, edge_index, _, _ = MISModel.process_batch(batch=sample)
 
         edge_index = edge_index.to(device)
         n_nodes = node_labels.shape[0]
@@ -96,7 +96,7 @@ class MISInstanceNumPy(MISInstanceBase):
     def create_from_batch_sample(sample: tuple, device: str) -> MISInstanceNumPy:
         """Create a MISInstanceNumPy from a batch sample. The batch must have size 1."""
 
-        node_labels, edge_index, _ = MISModel.process_batch(batch=sample)
+        node_labels, edge_index, _, _ = MISModel.process_batch(batch=sample)
         edge_index = edge_index.to(device)
         edge_index_np = edge_index.cpu().numpy()
         n_nodes = node_labels.shape[0]
