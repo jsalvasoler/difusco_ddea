@@ -5,7 +5,7 @@ from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
 
-from difusco.difusco_initialization_experiments import add_config_and_timestamp, run_difusco_initialization_experiments
+from difusco.difusco_initialization_experiments import DifuscoInitializationExperiment, main_init_experiments
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def config_factory() -> Config:
 @pytest.mark.parametrize("task", ["mis", "tsp"])
 def test_difusco_initialization_experiments(config_factory: Config, task: str) -> None:
     config = config_factory(task)
-    run_difusco_initialization_experiments(config)
+    main_init_experiments(config)
 
 
 def test_satlib_initialization_experiments() -> None:
@@ -87,7 +87,7 @@ def test_satlib_initialization_experiments() -> None:
         profiler=False,
     )
     config = mis_inference_config.update(base)
-    run_difusco_initialization_experiments(config)
+    main_init_experiments(config)
 
 
 def test_tsp500_sparse_initialization_experiments() -> None:
@@ -115,11 +115,11 @@ def test_tsp500_sparse_initialization_experiments() -> None:
         np_eval=True,
     )
     config = tsp_inference_config.update(config)
-    run_difusco_initialization_experiments(config)
+    main_init_experiments(config)
 
 
 def test_get_results() -> None:
     config = Config(hey="hey", ho="ho")
     results = {"a": 1, "b": 2}
-    final_results = add_config_and_timestamp(config, results)
+    final_results = DifuscoInitializationExperiment._add_config_and_timestamp(results, config) # noqa: SLF001
     assert set(final_results.keys()) == {"hey", "ho", "a", "b", "timestamp"}

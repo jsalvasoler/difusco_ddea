@@ -1,24 +1,17 @@
 from __future__ import annotations
 
-import multiprocessing as mp
 import timeit
-import traceback
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any
 
-import wandb
-from config.configs.mis_inference import config as mis_inference_config
 from config.myconfig import Config
-from config.mytable import TableSaver
 from ea.ea_utils import dataset_factory, instance_factory
 from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
 from problems.tsp.tsp_heatmap_experiment import metrics_on_tsp_heatmaps
-from pyinstrument import Profiler
-from torch.profiler import ProfilerActivity, profile
 from torch_geometric.loader import DataLoader
-from tqdm import tqdm
 
+from difusco.experiment_runner import Experiment, ExperimentRunner
 from difusco.sampler import DifuscoSampler
 
 
@@ -69,163 +62,99 @@ def get_arg_parser() -> ArgumentParser:
 
     return parser
 
+class DifuscoInitializationExperiment(Experiment):
+    def __init__(self, config: Config) -> None:
+        super().__init__(config)
+        self.sampler = DifuscoSampler(config)
+        self._validate_config()
 
-def process_difusco_iteration(config: Config, sample: tuple[Any, ...], queue: mp.Queue) -> None:
-    """Run a single Difusco iteration and store the result in the queue."""
+    def run_single_iteration(self, sample: tuple[Any, ...]) -> dict:
+        """Run a single Difusco iteration and return the results."""
+        # Create problem instance to evaluate solutions
+        instance = instance_factory(self.config, sample)
 
-    def run_iteration() -> None:
-        try:
-            # Create sampler in the child process
-            sampler = DifuscoSampler(config)
+        # Sample solutions using Difusco
+        start_time = timeit.default_timer()
+        heatmaps = self.sampler.sample(sample)
+        end_time = timeit.default_timer()
+        sampling_time = end_time - start_time
 
-            # Create problem instance to evaluate solutions
-            instance = instance_factory(config, sample)
+        # Convert heatmaps to solutions and evaluate
+        if self.config.task == "tsp":
+            instance_results = metrics_on_tsp_heatmaps(heatmaps, instance, self.config)
+        else:  # MIS
+            instance_results = metrics_on_mis_heatmaps(heatmaps, instance, self.config)
+        instance_results["sampling_time"] = sampling_time
 
-            # Sample solutions using Difusco
-            start_time = timeit.default_timer()
-            heatmaps = sampler.sample(sample)
-            end_time = timeit.default_timer()
-            sampling_time = end_time - start_time
+        return instance_results
 
-            # Convert heatmaps to solutions and evaluate
-            if config.task == "tsp":
-                instance_results = metrics_on_tsp_heatmaps(heatmaps, instance, config)
-            else:  # MIS
-                instance_results = metrics_on_mis_heatmaps(heatmaps, instance, config)
-            instance_results["sampling_time"] = sampling_time
-            queue.put(instance_results)
-        except Exception:  # noqa: BLE001
-            queue.put({"error": traceback.format_exc()})
+    def get_dataloader(self) -> DataLoader:
+        """Get the dataloader for the experiment."""
+        dataset = dataset_factory(self.config)
+        return DataLoader(dataset, batch_size=1, shuffle=False)
 
-    if config.profiler:
-        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as p:
-            run_iteration()
-        print(p.key_averages().table(sort_by="cpu_time_total"))
-    else:
-        run_iteration()
+    def get_final_results(self, results: list[dict]) -> dict:
+        """Compute and return the final aggregated results."""
+        def agg_results(results: list[dict], keys: list[str]) -> dict:
+            return {f"avg_{key}": sum(r[key] for r in results) / len(results) for key in keys}
 
-
-def add_config_and_timestamp(config: Config, results: dict[str, float | int | str]) -> None:
-    data = {
-        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-    }
-    data.update(results)
-    data.update(config.__dict__)
-
-    return data
-
-
-def validate_config(config: Config) -> None:
-    assert config.pop_size > 0, "pop_size must be greater than 0"
-    assert (
-        config.pop_size == config.parallel_sampling * config.sequential_sampling
-    ), "Requirement: pop_size == parallel_sampling * sequential_sampling"
-
-    if "categorical" in config.ckpt_path:
-        assert config.diffusion_type == "categorical", "diffusion_type must be categorical"
-    elif "gaussian" in config.ckpt_path:
-        assert config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
-
-
-def run_difusco_initialization_experiments(config: Config) -> None:
-    """Run experiments to evaluate Difusco initialization performance.
-
-    Args:
-        config: Configuration object containing experiment parameters
-    """
-    validate_config(config)
-    print(f"Running Difusco initialization experiments with config: {config}")
-
-    dataset = dataset_factory(config)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    is_validation_run = config.validate_samples is not None
-    if not is_validation_run:
-        wandb.init(
-            project=config.project_name,
-            name=config.wandb_logger_name,
-            entity=config.wandb_entity,
-            config=config.__dict__,
-            dir=config.logs_path,
+        aggregated_results = agg_results(
+            results,
+            [
+                "best_cost",
+                "avg_cost",
+                "best_gap",
+                "avg_gap",
+                "total_entropy_heatmaps",
+                "total_entropy_solutions",
+                "unique_solutions",
+                "non_best_solutions",
+                "avg_diff_to_nearest_int",
+                "avg_diff_to_solution",
+                "avg_diff_rounded_to_solution",
+                "sampling_time",
+                "feasibility_heuristics_time",
+            ],
         )
 
-    results = []
-    ctx = mp.get_context("spawn")
+        return self._add_config_and_timestamp(aggregated_results)
 
-    for i, sample in tqdm(enumerate(dataloader)):
-        queue = ctx.Queue()
-        process = ctx.Process(target=process_difusco_iteration, args=(config, sample, queue))
+    def get_table_name(self) -> str:
+        """Get the name of the table to save results to."""
+        return "results/init_experiments.csv"
 
-        process.start()
-        process.join(timeout=30 * 60)  # 30 minutes timeout
-        if process.is_alive():
-            process.terminate()
-            raise TimeoutError(f"Process timed out for iteration {i}")
+    @staticmethod
+    def _add_config_and_timestamp(results: dict[str, float | int | str], config: Config) -> dict:
+        """Add configuration and timestamp to results."""
+        data = {
+            "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        }
+        data.update(results)
+        data.update(config.__dict__)
+        return data
 
-        if queue.empty():
-            raise RuntimeError("No result returned from the process")
+    def _validate_config(self) -> None:
+        """Validate the configuration."""
+        assert self.config.pop_size > 0, "pop_size must be greater than 0"
+        assert (
+            self.config.pop_size == self.config.parallel_sampling * self.config.sequential_sampling
+        ), "Requirement: pop_size == parallel_sampling * sequential_sampling"
 
-        instance_results = queue.get()
-
-        if "error" in instance_results:
-            raise RuntimeError(instance_results["error"])
-
-        results.append(instance_results)
-        if not is_validation_run:
-            wandb.log(instance_results, step=i)
-        else:
-            print(instance_results)
-
-        if process.is_alive():
-            process.terminate()
-            process.join()
-
-        if is_validation_run and i >= config.validate_samples - 1:
-            break
-
-    def agg_results(results: list[dict], keys: list[str]) -> dict:
-        return {f"avg_{key}": sum(r[key] for r in results) / len(results) for key in keys}
-
-    # Compute and log aggregate results
-    aggregated_results = agg_results(
-        results,
-        [
-            "best_cost",
-            "avg_cost",
-            "best_gap",
-            "avg_gap",
-            "total_entropy_heatmaps",
-            "total_entropy_solutions",
-            "unique_solutions",
-            "non_best_solutions",
-            "avg_diff_to_nearest_int",
-            "avg_diff_to_solution",
-            "avg_diff_rounded_to_solution",
-            "sampling_time",
-            "feasibility_heuristics_time",
-        ],
-    )
-
-    if not is_validation_run:
-        wandb.log(aggregated_results)
-        final_results = add_config_and_timestamp(config, aggregated_results)
-        final_results["wandb_id"] = wandb.run.id
-
-        table_saver = TableSaver("results/init_experiments.csv")
-        table_saver.put(final_results)
-        wandb.finish()
+        if "categorical" in self.config.ckpt_path:
+            assert self.config.diffusion_type == "categorical", "diffusion_type must be categorical"
+        elif "gaussian" in self.config.ckpt_path:
+            assert self.config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
 
 
 def main_init_experiments(config: Config) -> None:
-    if config.profiler:
-        with Profiler() as p:
-            run_difusco_initialization_experiments(config)
-        print(p.output_text(unicode=True, color=True))
-    else:
-        run_difusco_initialization_experiments(config)
+    experiment = DifuscoInitializationExperiment(config)
+    runner = ExperimentRunner(config, experiment)
+    runner.main()
 
 
 if __name__ == "__main__":
+    from config.configs.mis_inference import config as mis_inference_config
+
     pop_size = 4
     config = Config(
         task="mis",
@@ -250,16 +179,3 @@ if __name__ == "__main__":
     )
     config = mis_inference_config.update(config)
     main_init_experiments(config)
-    # pop_size = 50
-    # config = Config(
-    #     task="tsp",
-    #     parallel_sampling=pop_size,
-    #     sequential_sampling=1,
-    #     diffusion_steps=50,
-    #     inference_diffusion_steps=50,
-    #     validate_samples=1,
-    #     np_eval=True,
-    #     pop_size=pop_size,
-    # )
-    # config = tsp_inference_config.update(config)
-    # run_difusco_initialization_experiments(config)

@@ -33,7 +33,7 @@ def filter_args_by_group(parser: ArgumentParser, group_name: str) -> dict:
     return [a.dest for a in group._group_actions]  # noqa: SLF001
 
 
-def get_results_dict(config: Config, results: dict[str, float | int | str]) -> None:
+def get_results_dict(config: Config, results: dict) -> None:
     # filter the name of the arguments of the grup ea_settings
     parser = get_arg_parser()
     ea_setting_args = filter_args_by_group(parser, "ea_settings")
