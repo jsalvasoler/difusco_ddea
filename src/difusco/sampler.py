@@ -45,7 +45,7 @@ class DifuscoSampler:
                 self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
             elif self.mode == "difuscombination":
                 self.model = DifusCombinationMISModel.load_from_checkpoint(
-                    ckpt_path, param_args=config, map_location=self.device
+                    ckpt_path, config=config, map_location=self.device
                 )
             else:
                 error_msg = f"Unknown mode: {self.mode}"

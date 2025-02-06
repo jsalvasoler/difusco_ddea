@@ -208,6 +208,8 @@ class MISModelBase(COMetaModel):
 
         if self.args.parallel_sampling > 1:
             edge_index = self.duplicate_edge_index(edge_index, n_nodes, device)
+            if features is not None:
+                features = features.repeat(self.args.parallel_sampling, 1)
 
         steps = self.args.inference_diffusion_steps
         time_schedule = InferenceSchedule(
