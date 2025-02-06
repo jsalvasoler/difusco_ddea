@@ -17,9 +17,6 @@ from tqdm import tqdm
 
 
 class Experiment(ABC):
-    def __init__(self, config: Config) -> None:
-        self.config = config
-
     @abstractmethod
     def run_single_iteration(self, sample: tuple) -> None:
         pass
@@ -35,6 +32,7 @@ class Experiment(ABC):
     @abstractmethod
     def get_table_name(self) -> str:
         pass
+
 
 class ExperimentRunner:
     """
@@ -93,10 +91,7 @@ class ExperimentRunner:
 
         for i, sample in tqdm(enumerate(dataloader)):
             queue = ctx.Queue()
-            process = ctx.Process(
-                target=self.process_iteration,
-                args=(sample, queue)
-            )
+            process = ctx.Process(target=self.process_iteration, args=(sample, queue))
 
             process.start()
             process.join(timeout=30 * 60)  # 30 minutes timeout

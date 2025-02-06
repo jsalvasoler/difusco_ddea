@@ -1,0 +1,231 @@
+from __future__ import annotations
+
+import os
+from argparse import ArgumentParser, Namespace
+
+import torch
+from config.myconfig import Config
+from ea.evolutionary_algorithm import ea_factory
+from evotorch.operators import CrossOver
+from problems.mis.mis_instance import create_mis_instance
+from torch_geometric.loader import DataLoader
+
+from difusco.experiment_runner import Experiment, ExperimentRunner
+from difusco.sampler import DifuscoSampler
+from difuscombination.dataset import MISDatasetComb
+from difuscombination.pl_difuscombination_mis_model import DifusCombinationMISModel
+
+
+def parse_arguments() -> tuple[Namespace, list[str]]:
+    parser = get_arg_parser()
+    args, extra = parser.parse_known_args()
+    return args, extra
+
+
+def get_arg_parser() -> ArgumentParser:
+    parser = ArgumentParser(description="Run recombination experiments")
+
+    general = parser.add_argument_group("general")
+    general.add_argument("--config_name", type=str, required=True)
+    general.add_argument("--task", type=str, required=True)
+    general.add_argument("--data_path", type=str, required=True)
+    general.add_argument("--logs_path", type=str, default=None)
+    general.add_argument("--results_path", type=str, default=None)
+    general.add_argument("--models_path", type=str, default=None)
+    general.add_argument("--test_samples_file", type=str, required=True)
+    general.add_argument("--test_graphs_dir", type=str, required=True)
+    general.add_argument("--test_labels_dir", type=str, required=True)
+
+    wandb = parser.add_argument_group("wandb")
+    wandb.add_argument("--project_name", type=str, default="difusco")
+    wandb.add_argument("--wandb_entity", type=str, default=None)
+    wandb.add_argument("--wandb_logger_name", type=str, default=None)
+
+    ea_settings = parser.add_argument_group("ea_settings")
+    ea_settings.add_argument("--device", type=str, default="cpu")
+    ea_settings.add_argument("--pop_size", type=int, default=100)
+
+    recombination_settings = parser.add_argument_group("recombination_settings")
+    recombination_settings.add_argument("--models_path", type=str, default=".")
+    recombination_settings.add_argument("--ckpt_path_difusco", type=str, default=None)
+    recombination_settings.add_argument("--ckpt_path_difuscombination", type=str, default=None)
+
+    dev = parser.add_argument_group("dev")
+    dev.add_argument("--profiler", action="store_true", default=False)
+    dev.add_argument("--validate_samples", type=int, default=None)
+
+    return parser
+
+
+class RecombinationExperiment(Experiment):
+    def __init__(self, config: Config) -> None:
+        self.config = config
+        self._validate_config()
+
+        # modify config state
+        self._fake_paths_for_sampling_models()
+        self._fake_attrs_for_ga()
+
+        # we will just sample two solutions in parallel
+        self.config.parallel_sampling = 2
+        self.config.sequential_sampling = 1
+
+    def _validate_config(self) -> None:
+        """Validate the configuration."""
+        # Validate paths exist
+        assert os.path.exists(self.config.data_path), "data_path does not exist"
+        for file_type in ["samples_file", "graphs_dir", "labels_dir"]:
+            path = os.path.join(self.config.data_path, self.config[f"test_{file_type}"])
+            assert os.path.exists(path), f"{path} does not exist"
+
+        # Validate models exist
+        assert os.path.exists(self.config.models_path), "models_path does not exist"
+        for model_type in ["difusco", "difuscombination"]:
+            path = os.path.join(self.config.models_path, self.config[f"ckpt_path_{model_type}"])
+            assert os.path.exists(path), f"{path} does not exist"
+
+    def _fake_paths_for_sampling_models(self) -> None:
+        # fake paths for plain difusco
+        self.config.training_split = self.config.test_graphs_dir
+        self.config.training_split_label_dir = None
+        self.config.validation_split = self.config.test_graphs_dir
+        self.config.validation_split_label_dir = None
+        self.config.test_split = self.config.test_graphs_dir
+        self.config.test_split_label_dir = self.config.test_labels_dir
+        # fake paths for difuscombination
+        self.config.training_samples_file = self.config.test_samples_file
+        self.config.training_labels_dir = self.config.test_labels_dir
+        self.config.training_graphs_dir = self.config.test_graphs_dir
+        self.config.validation_samples_file = self.config.test_samples_file
+        self.config.validation_labels_dir = self.config.test_labels_dir
+        self.config.validation_graphs_dir = self.config.test_graphs_dir
+
+    def _fake_attrs_for_ga(self) -> None:
+        self.config.algo = "ga"
+        self.config.device = "cpu"
+        self.config.pop_size = 2
+        self.config.initialization = "random_feasible"
+
+    def run_single_iteration(self, sample: tuple) -> None:
+        """
+        Run a single iteration of the recombination experiment.
+
+        A sample is: graph, 2 parent solutions, 1 child label
+
+        We want to gather the following solutions:
+        - get the label of the child solution (*)
+        - (1) run trained difuscombination inference on the graph with 2 parent solutions
+        - (2) run trained difuscombinatino inference on the graph with random noise parents
+        - (3) run trained difuscombination inference on the graph with 2 heuristic construction parents
+        - (4) run trained difusco inference on the graph
+        - (5) run MIS GA recombination on the 2 parent solutions
+
+        We then want to compute the gaps between all and *
+        """
+        graph, edge_index, adj_matrix, parents = DifusCombinationMISModel.process_batch(sample)
+        instance = create_mis_instance(sample, device="cpu", np_eval=True)
+        n_nodes = instance.n_nodes
+
+        results = {}
+
+        def compute_gap(label_cost: float, cost: float) -> float:
+            return (label_cost - cost) / label_cost
+
+        def update_results(results: dict, idx: int, heatmaps: torch.Tensor) -> None:
+            assert heatmaps.shape == (2, n_nodes)
+            mean = heatmaps.sum(dim=1).mean().item()
+            best = heatmaps.sum(dim=1).max().item()
+            results[f"mean_cost_{idx}"] = mean
+            results[f"best_cost_{idx}"] = best
+            results[f"mean_gap_{idx}"] = compute_gap(label_cost, mean)
+            results[f"best_gap_{idx}"] = compute_gap(label_cost, best)
+
+        # 0.
+        # get the quality of the child solution (*)
+        label_cost = graph.sum().item()
+        results["label_cost"] = label_cost
+
+        # 1.
+        self.config.mode = "difuscombination"
+        self.config.ckpt_path = self.config.ckpt_path_difuscombination
+        sampler = DifuscoSampler(self.config)
+        heatmaps = sampler.sample(sample)
+        update_results(results, 1, heatmaps)
+
+        # 2.
+        # generate random noise of size (n_nodes, 2) between 0 and 1
+        random_noise_parents = torch.rand(n_nodes, 2)
+        heatmaps = sampler.sample(sample, features=random_noise_parents)
+        update_results(results, 2, heatmaps)
+
+        # 3.
+        # generate feasible parents using the construction heuristic
+        feasible_parents = torch.empty(n_nodes, 2)
+        feasible_parents[:, 0] = instance.get_feasible_from_individual(random_noise_parents[:, 0]).clone().detach()
+        feasible_parents[:, 1] = instance.get_feasible_from_individual(random_noise_parents[:, 1]).clone().detach()
+        heatmaps = sampler.sample(sample, features=feasible_parents)
+        update_results(results, 3, heatmaps)
+
+        # 4.
+        self.config.mode = "difusco"
+        self.config.ckpt_path = self.config.ckpt_path_difusco
+        sampler = DifuscoSampler(self.config)
+        heatmaps = sampler.sample(sample)
+        update_results(results, 4, heatmaps)
+
+        # 5.
+        ga = ea_factory(self.config, instance)
+        crossover = ga._operators[0]  # noqa: SLF001
+        assert isinstance(crossover, CrossOver)
+        children = crossover._do_cross_over(parents[:, 0].unsqueeze(0), parents[:, 1].unsqueeze(0))  # noqa: SLF001
+        heatmaps = children.values.float()
+        update_results(results, 5, heatmaps)
+
+        return results
+
+    def get_dataloader(self) -> DataLoader:
+        dataset = MISDatasetComb(
+            samples_file=os.path.join(self.config.data_path, self.config.test_samples_file),
+            graphs_dir=os.path.join(self.config.data_path, self.config.test_graphs_dir),
+            labels_dir=os.path.join(self.config.data_path, self.config.test_labels_dir),
+        )
+        return DataLoader(dataset, batch_size=1, shuffle=False)
+
+    def get_final_results(self, results: list[dict]) -> dict:
+        pass
+
+    def get_table_name(self) -> str:
+        pass
+
+
+def main_recombination_experiments(config: Config) -> None:
+    experiment = RecombinationExperiment(config)
+    runner = ExperimentRunner(config, experiment)
+    runner.run()
+
+
+if __name__ == "__main__":
+    # Example configuration for testing
+    config = Config(
+        task="mis",
+        data_path="/home/e12223411/repos/difusco/data",
+        logs_path="/home/e12223411/repos/difusco/logs",
+        results_path="/home/e12223411/repos/difusco/results",
+        models_path="/home/e12223411/repos/difusco/models",
+        test_graphs_dir="mis/er_50_100/test",
+        test_samples_file="difuscombination/mis/er_50_100/test",
+        test_labels_dir="difuscombination/mis/er_50_100/test_labels",
+        ckpt_path_difusco="mis/mis_er_50_100_gaussian.ckpt",
+        ckpt_path_difuscombination="difuscombination/mis_er_50_100_gaussian.ckpt",
+        parallel_sampling=2,
+        sequential_sampling=1,
+        diffusion_steps=2,
+        inference_diffusion_steps=50,
+        validate_samples=2,
+        profiler=False,
+        device="cuda",
+    )
+    from config.configs.mis_inference import config as mis_inference_config
+
+    config = mis_inference_config.update(config)
+    main_recombination_experiments(config)
