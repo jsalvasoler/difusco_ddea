@@ -5,6 +5,7 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 import torch
+import wandb
 from config.myconfig import Config
 from ea.evolutionary_algorithm import ea_factory
 from evotorch.operators import CrossOver
@@ -140,23 +141,35 @@ class RecombinationExperiment(Experiment):
             results[f"mean_gap_{idx}"] = compute_gap(label_cost, mean)
             results[f"best_gap_{idx}"] = compute_gap(label_cost, best)
 
+        def from_heatmaps_to_solution(heatmaps: torch.Tensor) -> torch.Tensor:
+            assert heatmaps.shape == (2, n_nodes)
+            # Create a copy of the heatmaps to allow modifications
+            solutions = heatmaps.clone().detach()
+            solutions[0, :] = instance.get_feasible_from_individual(heatmaps[0, :])
+            solutions[1, :] = instance.get_feasible_from_individual(heatmaps[1, :])
+            return solutions
+
         # 0.
         # get the quality of the child solution (*)
         label_cost = graph.sum().item()
         results["label_cost"] = label_cost
+        results["best_parent_cost"] = parents.float().sum(dim=0).max().item()
+        results["mean_parent_cost"] = parents.float().sum(dim=0).mean().item()
 
         # 1.
         self.config.mode = "difuscombination"
         self.config.ckpt_path = self.config.ckpt_path_difuscombination
         sampler = DifuscoSampler(self.config)
         heatmaps = sampler.sample(sample)
-        update_results(results, 1, heatmaps)
+        solutions = from_heatmaps_to_solution(heatmaps)
+        update_results(results, 1, solutions)
 
         # 2.
         # generate random noise of size (n_nodes, 2) between 0 and 1
         random_noise_parents = torch.rand(n_nodes, 2)
         heatmaps = sampler.sample(sample, features=random_noise_parents)
-        update_results(results, 2, heatmaps)
+        solutions = from_heatmaps_to_solution(heatmaps)
+        update_results(results, 2, solutions)
 
         # 3.
         # generate feasible parents using the construction heuristic
@@ -164,14 +177,16 @@ class RecombinationExperiment(Experiment):
         feasible_parents[:, 0] = instance.get_feasible_from_individual(random_noise_parents[:, 0]).clone().detach()
         feasible_parents[:, 1] = instance.get_feasible_from_individual(random_noise_parents[:, 1]).clone().detach()
         heatmaps = sampler.sample(sample, features=feasible_parents)
-        update_results(results, 3, heatmaps)
+        solutions = from_heatmaps_to_solution(heatmaps)
+        update_results(results, 3, solutions)
 
         # 4.
         self.config.mode = "difusco"
         self.config.ckpt_path = self.config.ckpt_path_difusco
         sampler = DifuscoSampler(self.config)
         heatmaps = sampler.sample(sample)
-        update_results(results, 4, heatmaps)
+        solutions = from_heatmaps_to_solution(heatmaps)
+        update_results(results, 4, solutions)
 
         # 5.
         ga = ea_factory(self.config, instance)
@@ -179,7 +194,8 @@ class RecombinationExperiment(Experiment):
         assert isinstance(crossover, CrossOver)
         children = crossover._do_cross_over(parents[:, 0].unsqueeze(0), parents[:, 1].unsqueeze(0))  # noqa: SLF001
         heatmaps = children.values.float()
-        update_results(results, 5, heatmaps)
+        solutions = from_heatmaps_to_solution(heatmaps)
+        update_results(results, 5, solutions)
 
         return results
 
@@ -194,7 +210,10 @@ class RecombinationExperiment(Experiment):
     def get_final_results(self, results: list[dict]) -> dict:
         # results is a list of dicts, each with the same keys
         # we want to compute the mean of each key
-        final = {key: np.mean([result[key] for result in results]) for key in results[0]}
+        final = {f"final_{key}": np.mean([result[key] for result in results]) for key in results[0]}
+
+        wandb.log(final)
+
         # we also add all the config parameters
         final.update(self.config.__dict__)
         return final
