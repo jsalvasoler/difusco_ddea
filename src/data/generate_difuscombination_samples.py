@@ -184,6 +184,9 @@ def run_training_data_generation(config: Config) -> None:
     results = []
 
     for i, sample in tqdm(enumerate(dataloader)):
+        if i - 1 == config.num_graph_instances - 1:
+            break
+
         queue = ctx.Queue()
         idx = sample[0].item()
 
@@ -213,9 +216,6 @@ def run_training_data_generation(config: Config) -> None:
         if process.is_alive():
             process.terminate()
             process.join()
-
-        if i == config.num_graph_instances - 1:
-            break
 
     # save the results by converting to pandas dataframe
     df = pd.DataFrame(results)
