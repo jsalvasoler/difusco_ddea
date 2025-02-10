@@ -123,7 +123,7 @@ class RecombinationExperiment(Experiment):
 
         We then want to compute the gaps between all and *
         """
-        graph, edge_index, adj_matrix, parents = DifusCombinationMISModel.process_batch(sample)
+        graph, _, _, parents = DifusCombinationMISModel.process_batch(sample)
         instance = create_mis_instance(sample, device="cpu", np_eval=True)
         n_nodes = instance.n_nodes
 
@@ -157,9 +157,11 @@ class RecombinationExperiment(Experiment):
         results["mean_parent_cost"] = parents.float().sum(dim=0).mean().item()
 
         # 1.
-        self.config.mode = "difuscombination"
-        self.config.ckpt_path = self.config.ckpt_path_difuscombination
-        sampler = DifuscoSampler(self.config)
+        config_difuscombination = self.config.update(
+            mode="difuscombination",
+            ckpt_path=self.config.ckpt_path_difuscombination,
+        )
+        sampler = DifuscoSampler(config_difuscombination)
         heatmaps = sampler.sample(sample)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 1, solutions)
@@ -181,9 +183,11 @@ class RecombinationExperiment(Experiment):
         update_results(results, 3, solutions)
 
         # 4.
-        self.config.mode = "difusco"
-        self.config.ckpt_path = self.config.ckpt_path_difusco
-        sampler = DifuscoSampler(self.config)
+        config_difusco = self.config.update(
+            mode="difusco",
+            ckpt_path=self.config.ckpt_path_difusco,
+        )
+        sampler = DifuscoSampler(config_difusco)
         heatmaps = sampler.sample(sample)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 4, solutions)
