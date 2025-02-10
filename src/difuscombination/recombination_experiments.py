@@ -71,6 +71,19 @@ class RecombinationExperiment(Experiment):
         self.config.parallel_sampling = 2
         self.config.sequential_sampling = 1
 
+        # samplers
+        config_difuscombination = self.config.update(
+            mode="difuscombination",
+            ckpt_path=self.config.ckpt_path_difuscombination,
+        )
+        self.sampler_difuscombination = DifuscoSampler(config_difuscombination)
+
+        config_difusco = self.config.update(
+            mode="difusco",
+            ckpt_path=self.config.ckpt_path_difusco,
+        )
+        self.sampler_difusco = DifuscoSampler(config_difusco)
+
     def _validate_config(self) -> None:
         """Validate the configuration."""
         # Validate paths exist
@@ -157,19 +170,14 @@ class RecombinationExperiment(Experiment):
         results["mean_parent_cost"] = parents.float().sum(dim=0).mean().item()
 
         # 1.
-        config_difuscombination = self.config.update(
-            mode="difuscombination",
-            ckpt_path=self.config.ckpt_path_difuscombination,
-        )
-        sampler = DifuscoSampler(config_difuscombination)
-        heatmaps = sampler.sample(sample)
+        heatmaps = self.sampler_difuscombination.sample(sample)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 1, solutions)
 
         # 2.
         # generate random noise of size (n_nodes, 2) between 0 and 1
         random_noise_parents = torch.rand(n_nodes, 2)
-        heatmaps = sampler.sample(sample, features=random_noise_parents)
+        heatmaps = self.sampler_difuscombination.sample(sample, features=random_noise_parents)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 2, solutions)
 
@@ -178,17 +186,12 @@ class RecombinationExperiment(Experiment):
         feasible_parents = torch.empty(n_nodes, 2)
         feasible_parents[:, 0] = instance.get_feasible_from_individual(random_noise_parents[:, 0]).clone().detach()
         feasible_parents[:, 1] = instance.get_feasible_from_individual(random_noise_parents[:, 1]).clone().detach()
-        heatmaps = sampler.sample(sample, features=feasible_parents)
+        heatmaps = self.sampler_difuscombination.sample(sample, features=feasible_parents)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 3, solutions)
 
         # 4.
-        config_difusco = self.config.update(
-            mode="difusco",
-            ckpt_path=self.config.ckpt_path_difusco,
-        )
-        sampler = DifuscoSampler(config_difusco)
-        heatmaps = sampler.sample(sample)
+        heatmaps = self.sampler_difusco.sample(sample)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 4, solutions)
 
