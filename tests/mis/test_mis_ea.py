@@ -10,6 +10,7 @@ import pytest
 import torch
 from config.configs.mis_inference import config as mis_inference_config
 from config.myconfig import Config
+from difuscombination.dataset import MISDatasetComb
 from evotorch import Problem
 from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
@@ -291,3 +292,27 @@ def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
 
         status = brkga.status
         assert status["iter"] == 2
+
+
+def test_duplicate_batch() -> None:
+    # Create a mock configuration
+    config = Config(pop_size=10)
+
+    # batch will be yielded by the dataloader
+    dataset = MISDatasetComb(
+        samples_file="data/difuscombination/mis/er_50_100/test",
+        graphs_dir="data/mis/er_50_100/test",
+        labels_dir="data/difuscombination/mis/er_50_100/test_labels",
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    batch = next(iter(dataloader))
+
+    # Call the _get_batch method
+    result_batch = MISGaProblem._duplicate_batch(config, batch)
+
+    # Check if the result is a Batch object
+    assert isinstance(result_batch, tuple)
+    assert len(result_batch) == 3
+    assert result_batch[0].shape == (config.pop_size // 2, batch[0].shape[1])
+    assert result_batch[1].x.shape == (config.pop_size // 2 * 56, 3)
+    assert result_batch[2].shape == (config.pop_size // 2, 1)

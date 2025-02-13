@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from config.myconfig import Config
     from problems.mis.mis_instance import MISInstance
 
+from torch_geometric.data import Batch
+
 
 class MISGaProblem(Problem):
     def __init__(self, instance: MISInstance, config: Config, batch: tuple | None = None) -> None:
@@ -23,10 +25,9 @@ class MISGaProblem(Problem):
         self.config = config
         self.config.task = "mis"
 
-        # batch by the Difuscombination dataloader,
-        # only required for config.recombination == "difuscombination"
-        assert batch is not None or config.recombination != "difuscombination", "Batch is required for difuscombination"
-        self.batch = batch
+        if config.recombination == "difuscombination":
+            self.sampler = self._get_difuscombination_sampler(config)
+            self.batch = self._duplicate_batch(config, batch)
 
         super().__init__(
             objective_func=instance.evaluate_solution,
@@ -35,6 +36,40 @@ class MISGaProblem(Problem):
             device=config.device,
             dtype=torch.bool,
         )
+
+    @staticmethod
+    def _get_difuscombination_sampler(config: Config) -> DifuscoSampler:
+        config = config.update(
+            parallel_sampling=2,  # for every pairing, we generate 2 children
+            sequential_sampling=1,
+            device="cuda",
+            mode="difuscombination",
+        )
+        return DifuscoSampler(config)
+
+    @staticmethod
+    def _duplicate_batch(config: Config, batch: tuple) -> tuple:
+        n = config.pop_size // 2
+
+        # Duplicate the first tensor
+        tensor0 = batch[0]  # e.g., shape: [1, ...]
+        tensor0_dup = tensor0.repeat(n, 1)  # repeat along the first dimension
+
+        # Handle the DataBatch in index 1
+        # Convert it to a list of Data objects (should contain one element)
+        data_list = batch[1].to_data_list()
+        # Duplicate the single graph n times
+        duplicated_data = [deepcopy(data_list[0]) for _ in range(n)]
+        # Rebuild the DataBatch; this will automatically handle shifting node indices
+        # and creating a new `batch` attribute
+        new_data_batch = Batch.from_data_list(duplicated_data)
+
+        # Duplicate the third tensor
+        tensor2 = batch[2]  # e.g., shape: [1, ...]
+        tensor2_dup = tensor2.repeat(n, 1)
+
+        # Return the new batch as a list
+        return (tensor0_dup, new_data_batch, tensor2_dup)
 
     def _fill(self, values: torch.Tensor) -> None:
         if self.config.initialization == "random_feasible":
@@ -138,7 +173,6 @@ class MISGACrossover(CrossOver):
         mode: Literal["classic", "difuscombination"] = "classic",
     ) -> None:
         super().__init__(problem, tournament_size=tournament_size)
-        self._problem = problem
         self._instance = instance
         self._mode = mode
 
@@ -159,7 +193,37 @@ class MISGACrossover(CrossOver):
 
     @no_grad()
     def _do_cross_over_difuscombination(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
-        pass
+        """
+        parents1 and parents2 are two solutions of shape (num_pairings, n_nodes).
+        DifuscSampling parameters:
+        - parallel_sampling: 2
+        - sequential_sampling: 1
+        - batch_size: num_pairings
+        """
+        num_pairings = parents1.shape[0]
+
+        features = torch.stack([parents1, parents2], dim=2)
+        assert features.shape == (num_pairings, self.problem.solution_length, 2), "Incorrect features shape"
+        # we need to reshape the features to (num_pairings * n_nodes, 2)
+        features = features.reshape(num_pairings * self.problem.solution_length, 2)
+        assert features.shape == (num_pairings * self.problem.solution_length, 2), "Incorrect features shape"
+        heatmaps = self._sampler.sample(self._problem.batch, features=features)
+        assert heatmaps.shape == (num_pairings, 2, self.problem.solution_length), "Incorrect heatmaps shape"
+
+        # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
+        heatmaps_child1 = heatmaps.select(1, 0)
+        heatmaps_child2 = heatmaps.select(1, 1)
+        children1 = parents1.clone()
+        children2 = parents2.clone()
+
+        # finally, we need to make the heatmaps feasible
+        for i in range(num_pairings):
+            # Get feasible solutions based on priorities
+            children1[i] = self._instance.get_feasible_from_individual(heatmaps_child1[i])
+            children2[i] = self._instance.get_feasible_from_individual(heatmaps_child2[i])
+
+        children = torch.cat([children1, children2], dim=0)
+        return self._make_children_batch(children)
 
     @no_grad()
     def _do_cross_over_classic(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
