@@ -28,6 +28,14 @@ class MISGaProblem(Problem):
         if config.recombination == "difuscombination":
             self.sampler = self._get_difuscombination_sampler(config)
             self.batch = self._duplicate_batch(config, batch)
+        else:
+            self.sampler = None
+            if batch is not None:
+                warnings.warn(
+                    "Batch is not None, but recombination is not difuscombination. This is likely a mistake.",
+                    stacklevel=2,
+                )
+            self.batch = None
 
         super().__init__(
             objective_func=instance.evaluate_solution,
@@ -38,6 +46,17 @@ class MISGaProblem(Problem):
         )
 
     @staticmethod
+    def _fake_paths_for_sampling_models(config: Config) -> None:
+        # fake paths for difuscombination
+        config.training_samples_file = config.test_samples_file
+        config.training_labels_dir = config.test_labels_dir
+        config.training_graphs_dir = config.test_graphs_dir
+        config.validation_samples_file = config.test_samples_file
+        config.validation_labels_dir = config.test_labels_dir
+        config.validation_graphs_dir = config.test_graphs_dir
+        return config
+
+    @staticmethod
     def _get_difuscombination_sampler(config: Config) -> DifuscoSampler:
         config = config.update(
             parallel_sampling=2,  # for every pairing, we generate 2 children
@@ -45,6 +64,7 @@ class MISGaProblem(Problem):
             device="cuda",
             mode="difuscombination",
         )
+        config = MISGaProblem._fake_paths_for_sampling_models(config)
         return DifuscoSampler(config)
 
     @staticmethod
@@ -176,12 +196,6 @@ class MISGACrossover(CrossOver):
         self._instance = instance
         self._mode = mode
 
-        if self._mode == "difuscombination":
-            config = self._problem.config.update(mode="difuscombination", device="cuda")
-            self._sampler = DifuscoSampler(config)
-        else:
-            self._sampler = None
-
     @no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
         if self._mode == "classic":
@@ -207,7 +221,7 @@ class MISGACrossover(CrossOver):
         # we need to reshape the features to (num_pairings * n_nodes, 2)
         features = features.reshape(num_pairings * self.problem.solution_length, 2)
         assert features.shape == (num_pairings * self.problem.solution_length, 2), "Incorrect features shape"
-        heatmaps = self._sampler.sample(self._problem.batch, features=features)
+        heatmaps = self._problem.sampler.sample(self._problem.batch, features=features)
         assert heatmaps.shape == (num_pairings, 2, self.problem.solution_length), "Incorrect heatmaps shape"
 
         # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
@@ -259,15 +273,15 @@ class MISGACrossover(CrossOver):
         return self._make_children_batch(children)
 
 
-def create_mis_ga(instance: MISInstance, config: Config) -> GeneticAlgorithm:
-    problem = MISGaProblem(instance, config)
+def create_mis_ga(instance: MISInstance, config: Config, batch: tuple | None = None) -> GeneticAlgorithm:
+    problem = MISGaProblem(instance, config, batch)
 
     return GeneticAlgorithm(
         problem=problem,
         popsize=config.pop_size,
         re_evaluate=False,
         operators=[
-            MISGACrossover(problem, instance),
+            MISGACrossover(problem, instance, mode=config.recombination),
             MISGAMutation(problem, instance, deselect_prob=0.2),
         ],
     )

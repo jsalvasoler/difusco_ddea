@@ -202,7 +202,7 @@ def test_mis_ga_fill_difusco(np_eval: bool) -> None:
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_ga_crossover(np_eval: bool, square_instance: MISInstanceBase) -> None:
+def test_mis_ga_crossover_small(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
 
     config = Config(pop_size=4, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
@@ -220,6 +220,52 @@ def test_mis_ga_crossover(np_eval: bool, square_instance: MISInstanceBase) -> No
     assert (children.values[1] == torch.tensor([0, 1, 0, 1])).all()
     assert children.values[2].sum() == 2
     assert children.values[3].sum() == 2
+
+
+@pytest.mark.parametrize("recombination", ["difuscombination", "classic"])
+def test_mis_ga_crossover_difuscombination(recombination: str) -> None:
+    from config.configs.mis_inference import config as mis_inference_config
+
+    samples_file = "difuscombination/mis/er_50_100/test"
+    labels_dir = "difuscombination/mis/er_50_100/test_labels"
+    graphs_dir = "mis/er_50_100/test"
+
+    config = mis_inference_config.update(
+        models_path="models",
+        data_path="data",
+        task="mis",
+        pop_size=4,
+        device="cpu",
+        n_parallel_evals=0,
+        np_eval=True,
+        initialization="random_feasible",
+        recombination=recombination,
+        test_samples_file=samples_file,
+        test_labels_dir=labels_dir,
+        test_graphs_dir=graphs_dir,
+        ckpt_path="difuscombination/mis_er_50_100_gaussian.ckpt",
+    )
+    dataset = MISDatasetComb(
+        samples_file=os.path.join("data", samples_file),
+        graphs_dir=os.path.join("data", graphs_dir),
+        labels_dir=os.path.join("data", labels_dir),
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    batch = next(iter(dataloader))
+
+    instance = create_mis_instance(batch, device="cpu", np_eval=True)
+
+    parents_1 = torch.rand(config.pop_size // 2, instance.n_nodes).int()
+    parents_2 = torch.rand(config.pop_size // 2, instance.n_nodes).int()
+
+    ga = create_mis_ga(instance, config=config, batch=batch)
+    crossover = ga._operators[0]
+    assert isinstance(crossover, MISGACrossover)
+    children = crossover._do_cross_over(parents_1, parents_2)
+
+    assert children.values.shape == (config.pop_size, instance.n_nodes)
+    for i in range(config.pop_size):
+        assert children.values[i].sum() == instance.evaluate_individual(children.values[i])
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
