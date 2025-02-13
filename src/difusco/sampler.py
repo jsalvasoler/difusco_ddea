@@ -75,22 +75,29 @@ class DifuscoSampler:
         features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
-        Sample heatmaps from Difusco
+        Sample heatmaps from Difusco. Two options:
+        - pass the batch directly. The batch should come from the Difuscombination dataloader, so it should be able to
+        be processed by the Difuscombination model.
+        If sample_features is not None, these will override the features of the batch
+        - pass edge_index and n_nodes directly
 
         Args:
             batch: Input batch in the format expected by the model
             edge_index: Edge index tensor (only if batch is None)
             n_nodes: Number of nodes (only if batch is None)
-            features: Features tensor (optional). Size: (n_nodes, 2)
+            features: Features tensor (optional ). Size: (n_nodes, 2)
 
         Returns:
             Tensor containing the sampled heatmaps
         """
+        batch_size = 1
         if batch is not None:
             node_labels, edge_index, _, sample_features = self.model.process_batch(batch)
             n_nodes = node_labels.shape[0]
             if features is None:
                 features = sample_features
+
+            batch_size = batch[0].shape[0]
         elif edge_index is None or n_nodes is None:
             error_msg = "Must provide either batch or (edge_index and n_nodes)"
             raise ValueError(error_msg)
@@ -101,7 +108,17 @@ class DifuscoSampler:
         for _ in range(self.model.args.sequential_sampling):
             labels_pred = self.model.diffusion_sample(n_nodes, edge_index, self.device, features=features)
             labels_pred = labels_pred.reshape((self.model.args.parallel_sampling, -1))
-            heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=0)
+            if batch_size > 1:
+                original_graphs_size = batch[2].cpu().flatten().tolist()
+                # we have labels_pred of shape (parallel_sampling, n_nodes), where n_nodes is sum(original_graphs_size)
+                # we need to split it into the original graphs to get (batch_size, parallel_sampling, original_size_i)
+                labels_pred = torch.split(labels_pred, original_graphs_size, dim=-1)
+                # we concatenate the results to get (batch_size, parallel_sampling, n_nodes)
+                labels_pred = torch.stack(labels_pred, dim=0)
+
+            # we now have either (batch_size, parallel_sampling, n_nodes) or (parallel_sampling, n_nodes)
+            # we need to concat to get (batch_size, par * seq, n_nodes) or (par * seq, n_nodes), respectively
+            heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=-2)
 
         return torch.clamp(heatmaps, 0, 1)
 

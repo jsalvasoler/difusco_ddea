@@ -156,8 +156,16 @@ def test_sampler_mis_sampling(config_mis: Config) -> None:
     run_test_on_config(config_mis)
 
 
-def test_sampler_mis_recombination(config_mis_recombination: Config) -> None:
-    config = config_mis_recombination
+@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+def test_sampler_mis_recombination(
+    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config
+) -> None:
+    config = config_mis_recombination.update(
+        task="mis",
+        parallel_sampling=parallel_sampling,
+        sequential_sampling=sequential_sampling,
+        mode="difuscombination",
+    )
     assert torch.cuda.is_available(), "CUDA is not available"
 
     dataloader = get_dataloader(config)
@@ -197,3 +205,29 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
     heatmaps = sampler.sample(batch)
 
     assert_heatmap_properties(heatmaps, config)
+
+
+@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+def test_sampler_mis_recombination_batch(
+    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config
+) -> None:
+    config = config_mis_recombination.update(
+        task="mis",
+        parallel_sampling=parallel_sampling,
+        sequential_sampling=sequential_sampling,
+        mode="difuscombination",
+    )
+    dataloader = get_dataloader(config, batch_size=2)
+
+    sampler = DifuscoSampler(config=config)
+
+    batch = next(iter(dataloader))
+    heatmaps = sampler.sample(batch)
+
+    # custom check to consider the batch size
+    assert heatmaps.shape[0] == 2, "Incorrect batch size"
+    assert heatmaps.shape[1] == parallel_sampling * sequential_sampling, "Incorrect number of samples"
+    assert heatmaps.shape[2] == 56, "Incorrect number of nodes"
+
+    assert torch.all(heatmaps >= 0), "Heatmap values below 0"
+    assert torch.all(heatmaps <= 1), "Heatmap values above 1"
