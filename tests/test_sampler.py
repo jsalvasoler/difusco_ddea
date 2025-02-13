@@ -208,8 +208,9 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
 
 
 @pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+@pytest.mark.parametrize("override_features", [True, False])
 def test_sampler_mis_recombination_batch(
-    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config
+    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config, override_features: bool
 ) -> None:
     config = config_mis_recombination.update(
         task="mis",
@@ -222,7 +223,11 @@ def test_sampler_mis_recombination_batch(
     sampler = DifuscoSampler(config=config)
 
     batch = next(iter(dataloader))
-    heatmaps = sampler.sample(batch)
+    if override_features:
+        features = torch.randn(56 * 2, 2).bool().float()
+        heatmaps = sampler.sample(batch, features=features)
+    else:
+        heatmaps = sampler.sample(batch)
 
     # custom check to consider the batch size
     assert heatmaps.shape[0] == 2, "Incorrect batch size"

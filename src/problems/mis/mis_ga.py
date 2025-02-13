@@ -18,10 +18,16 @@ if TYPE_CHECKING:
 
 
 class MISGaProblem(Problem):
-    def __init__(self, instance: MISInstance, config: Config) -> None:
+    def __init__(self, instance: MISInstance, config: Config, batch: tuple | None = None) -> None:
         self.instance = instance
         self.config = config
         self.config.task = "mis"
+
+        # batch by the Difuscombination dataloader,
+        # only required for config.recombination == "difuscombination"
+        assert batch is not None or config.recombination != "difuscombination", "Batch is required for difuscombination"
+        self.batch = batch
+
         super().__init__(
             objective_func=instance.evaluate_solution,
             objective_sense="max",
