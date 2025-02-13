@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from argparse import ArgumentParser, Namespace
 
 import numpy as np
@@ -44,7 +45,7 @@ def get_arg_parser() -> ArgumentParser:
     wandb.add_argument("--wandb_logger_name", type=str, default=None)
 
     ea_settings = parser.add_argument_group("ea_settings")
-    ea_settings.add_argument("--device", type=str, default="cpu")
+    ea_settings.add_argument("--device", type=str, default="cuda")
     ea_settings.add_argument("--pop_size", type=int, default=100)
 
     recombination_settings = parser.add_argument_group("recombination_settings")
@@ -98,6 +99,13 @@ class RecombinationExperiment(Experiment):
             path = os.path.join(self.config.models_path, self.config[f"ckpt_path_{model_type}"])
             assert os.path.exists(path), f"{path} does not exist"
 
+        # warning if device is not cuda
+        if self.config.device != "cuda":
+            warnings.warn(
+                f"WARNING: device is not cuda, using {self.config.device}. " "Performance will be degraded.",
+                stacklevel=2,
+            )
+
     def _fake_paths_for_sampling_models(self) -> None:
         # fake paths for plain difusco
         self.config.training_split = self.config.test_graphs_dir
@@ -116,7 +124,7 @@ class RecombinationExperiment(Experiment):
 
     def _fake_attrs_for_ga(self) -> None:
         self.config.algo = "ga"
-        self.config.device = "cpu"
+        self.config.device = "cuda"
         self.config.pop_size = 2
         self.config.initialization = "random_feasible"
 
@@ -137,7 +145,8 @@ class RecombinationExperiment(Experiment):
         We then want to compute the gaps between all and *
         """
         graph, _, _, parents = DifusCombinationMISModel.process_batch(sample)
-        instance = create_mis_instance(sample, device="cpu", np_eval=True)
+        parents = parents.to(self.config.device)
+        instance = create_mis_instance(sample, device=self.config.device, np_eval=True)
         n_nodes = instance.n_nodes
 
         results = {}
