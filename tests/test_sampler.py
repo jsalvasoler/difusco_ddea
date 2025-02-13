@@ -7,6 +7,7 @@ import torch
 from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
+from difuscombination.dataset import MISDatasetComb
 from problems.mis.mis_dataset import MISDataset
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from torch_geometric.loader import DataLoader
@@ -20,6 +21,7 @@ common = Config(
     models_path="models",
     np_eval=True,
     device="cuda",
+    mode="difusco",
 )
 
 
@@ -71,24 +73,45 @@ def config_mis_recombination() -> Config:
         training_split_label_dir="mis/er_50_100/train_labels",
         validation_split="mis/er_50_100/test",
         validation_split_label_dir="mis/er_50_100/test_labels",
-        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
+        training_samples_file="difuscombination/mis/er_50_100/train",
+        training_labels_dir="difuscombination/mis/er_50_100/train_labels",
+        training_graphs_dir="mis/er_50_100/train",
+        test_samples_file="difuscombination/mis/er_50_100/test",
+        test_labels_dir="difuscombination/mis/er_50_100/test_labels",
+        test_graphs_dir="mis/er_50_100/test",
+        validation_samples_file="difuscombination/mis/er_50_100/test",
+        validation_labels_dir="difuscombination/mis/er_50_100/test_labels",
+        validation_graphs_dir="mis/er_50_100/test",
+        ckpt_path="difuscombination/mis_er_50_100_gaussian.ckpt",
+        data_path="data",
+        models_path="models",
+        logs_path="logs",
+        results_path="results",
         parallel_sampling=2,
         sequential_sampling=2,
-        mode="recombination",
+        mode="difuscombination",
     )
     return mis_inference_config.update(config)
 
 
-def get_dataloader(config: Config) -> tuple[Config, DataLoader]:
+def get_dataloader(config: Config, batch_size: int = 1) -> tuple[Config, DataLoader]:
     """Fixture to create both config and dataloader for testing."""
-    data_file = Path(config.data_path) / config.test_split
+    data_file = Path(config.data_path)
+
+    if config.mode == "difuscombination":
+        dataset = MISDatasetComb(
+            samples_file=data_file / config.test_samples_file,
+            graphs_dir=data_file / config.test_graphs_dir,
+            labels_dir=data_file / config.test_labels_dir,
+        )
+        return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     if config.task == "tsp":
-        dataset = TSPGraphDataset(data_file=data_file, sparse_factor=config.sparse_factor)
+        dataset = TSPGraphDataset(data_file=data_file / config.test_split, sparse_factor=config.sparse_factor)
     elif config.task == "mis":
-        dataset = MISDataset(data_dir=data_file, data_label_dir=None)
+        dataset = MISDataset(data_dir=data_file / config.test_split, data_label_dir=None)
 
-    return DataLoader(dataset, batch_size=1, shuffle=False)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 
 def assert_heatmap_properties(heatmaps: torch.Tensor, config: Config) -> None:
@@ -97,8 +120,13 @@ def assert_heatmap_properties(heatmaps: torch.Tensor, config: Config) -> None:
     assert heatmaps.shape[0] == expected_samples, "Incorrect number of samples"
 
     if config.task == "tsp":
-        assert heatmaps.shape[1] == 50, "Incorrect number of nodes"
-        assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
+        if config.sparse_factor == -1:
+            # full adj matrix
+            assert heatmaps.shape[1] == 50, "Incorrect number of nodes"
+            assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
+        else:
+            # prob over edges
+            assert heatmaps.shape[1] == config.sparse_factor * 500, "Incorrect number of nodes"
     elif config.task == "mis":
         assert heatmaps.shape[1] == 56, "Incorrect number of nodes"
 

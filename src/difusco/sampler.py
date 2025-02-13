@@ -28,7 +28,7 @@ class DifuscoSampler:
             ckpt_path: Path to the model checkpoint
             param_args: Arguments for model initialization
             device: Device to run inference on
-            mode: Literal["difusco", "recombination"]
+            mode: Literal["difusco", "difuscombination"]
         """
         self.task = config.task
         self.device = config.device
@@ -81,7 +81,7 @@ class DifuscoSampler:
             batch: Input batch in the format expected by the model
             edge_index: Edge index tensor (only if batch is None)
             n_nodes: Number of nodes (only if batch is None)
-            features: Features tensor (optional, only used with batch). Size: (n_nodes, 2)
+            features: Features tensor (optional). Size: (n_nodes, 2)
 
         Returns:
             Tensor containing the sampled heatmaps

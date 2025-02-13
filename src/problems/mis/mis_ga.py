@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import torch
 from evotorch import Problem, SolutionBatch
@@ -124,12 +124,39 @@ class MISGAMutation(CopyingOperator):
 
 
 class MISGACrossover(CrossOver):
-    def __init__(self, problem: Problem, instance: MISInstance, tournament_size: int = 4) -> None:
+    def __init__(
+        self,
+        problem: MISGaProblem,
+        instance: MISInstance,
+        tournament_size: int = 4,
+        mode: Literal["classic", "difuscombination"] = "classic",
+    ) -> None:
         super().__init__(problem, tournament_size=tournament_size)
+        self._problem = problem
         self._instance = instance
+        self._mode = mode
+
+        if self._mode == "difuscombination":
+            config = self._problem.config.update(mode="difuscombination", device="cuda")
+            self._sampler = DifuscoSampler(config)
+        else:
+            self._sampler = None
 
     @no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+        if self._mode == "classic":
+            return self._do_cross_over_classic(parents1, parents2)
+        if self._mode == "difuscombination":
+            return self._do_cross_over_difuscombination(parents1, parents2)
+
+        raise ValueError(f"Invalid mode: {self._mode}")
+
+    @no_grad()
+    def _do_cross_over_difuscombination(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+        pass
+
+    @no_grad()
+    def _do_cross_over_classic(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
         """
         Parents are two solutions of shape (num_pairings, n_nodes).
         """
