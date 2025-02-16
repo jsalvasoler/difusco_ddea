@@ -67,6 +67,7 @@ def validate_args(args: Namespace) -> None:
 
     if args.algo == "ga":
         assert args.initialization in ["random_feasible", "difusco_sampling"]
+        assert args.recombination in ["classic", "difuscombination"]
 
     if args.algo == "ga" and args.task == "tsp":
         assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."

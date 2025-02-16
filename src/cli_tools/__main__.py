@@ -41,11 +41,11 @@ def run_tsp_heuristics() -> None:
 def run_ea() -> None:
     """Run the Evolutionary Algorithm."""
     from ea.ea_arg_parser import parse_args
-    from ea.evolutionary_algorithm import main_ea
+    from ea.evolutionary_algorithm import run_ea
 
     args, extra = parse_args()
     config = Config.load_from_args(args, extra)
-    main_ea(config)
+    run_ea(config)
 
 
 def run_difusco_initialization_experiments() -> None:
