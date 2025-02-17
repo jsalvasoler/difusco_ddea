@@ -24,11 +24,12 @@ if TYPE_CHECKING:
 
 class EvolutionaryAlgorithm(Experiment):
     def __init__(self, config: Config) -> None:
-        super().__init__(config)
+        super().__init__()
+        self.config = config
 
     def run_single_iteration(self, sample: tuple) -> dict:
         instance = instance_factory(self.config, sample)
-        ea = ea_factory(self.config, instance)
+        ea = ea_factory(self.config, instance, batch=sample)
 
         _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
 
@@ -61,7 +62,7 @@ class EvolutionaryAlgorithm(Experiment):
         return "results/ea_results.csv"
 
 
-def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
+def ea_factory(config: Config, instance: ProblemInstance, **kwargs) -> GeneticAlgorithm:
     if config.algo == "brkga":
         if config.task == "mis":
             return create_mis_brkga(instance, config)
@@ -69,9 +70,9 @@ def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
             return create_tsp_brkga(instance, config)
     elif config.algo == "ga":
         if config.task == "mis":
-            return create_mis_ga(instance, config)
+            return create_mis_ga(instance, config, **kwargs)
         if config.task == "tsp":
-            return create_tsp_ga(instance, config)
+            return create_tsp_ga(instance, config, **kwargs)
     error_msg = f"No evolutionary algorithm for task {config.task}."
     raise ValueError(error_msg)
 

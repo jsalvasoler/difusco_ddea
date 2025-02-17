@@ -15,7 +15,7 @@ from torch_geometric.loader import DataLoader
 from difusco.sampler import DifuscoSampler
 
 common = Config(
-    data_path="data",
+    data_path="/share/joan.salva/repos/difusco/data/data",
     logs_path="logs",
     results_path="results",
     models_path="models",

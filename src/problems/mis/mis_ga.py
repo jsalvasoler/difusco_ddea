@@ -26,7 +26,7 @@ class MISGaProblem(Problem):
         self.config.task = "mis"
 
         if config.recombination == "difuscombination":
-            self.sampler = self._get_difuscombination_sampler(config)
+            self.sampler = self._get_difuscombination_sampler()
             self.batch = self._duplicate_batch(config, batch)
         else:
             self.sampler = None
@@ -46,25 +46,45 @@ class MISGaProblem(Problem):
         )
 
     @staticmethod
-    def _fake_paths_for_sampling_models(config: Config) -> None:
+    def _fake_paths_for_difuscombination_models(config: Config) -> Config:
         # fake paths for difuscombination
+        config.test_graphs_dir = config.test_split
         config.training_samples_file = config.test_samples_file
         config.training_labels_dir = config.test_labels_dir
-        config.training_graphs_dir = config.test_graphs_dir
+        config.training_graphs_dir = config.test_split
         config.validation_samples_file = config.test_samples_file
         config.validation_labels_dir = config.test_labels_dir
-        config.validation_graphs_dir = config.test_graphs_dir
+        config.validation_graphs_dir = config.test_split
         return config
 
     @staticmethod
-    def _get_difuscombination_sampler(config: Config) -> DifuscoSampler:
-        config = config.update(
+    def _fake_paths_for_difusco_models(config: Config) -> Config:
+        config.training_split = config.test_split
+        config.training_split_label_dir = config.test_split_label_dir
+        config.validation_split = config.test_split
+        config.validation_split_label_dir = config.test_split_label_dir
+        return config
+
+    def _get_difuscombination_sampler(self) -> DifuscoSampler:
+        config = self.config.update(
             parallel_sampling=2,  # for every pairing, we generate 2 children
             sequential_sampling=1,
             device="cuda",
             mode="difuscombination",
         )
-        config = MISGaProblem._fake_paths_for_sampling_models(config)
+        config = self._fake_paths_for_difuscombination_models(config).update(
+            ckpt_path=config.ckpt_path_difuscombination,
+        )
+        return DifuscoSampler(config)
+
+    def _get_difusco_sampler(self) -> DifuscoSampler:
+        config = self.config.update(
+            parallel_sampling=self.config.pop_size,
+            sequential_sampling=1,
+            device="cuda",
+            mode="difusco",
+        )
+        config = MISGaProblem._fake_paths_for_difusco_models(config)
         return DifuscoSampler(config)
 
     @staticmethod
@@ -125,7 +145,7 @@ class MISGaProblem(Problem):
         Values is a tensor of shape (n_solutions, solution_length).
         Uses Difusco to sample initial solutions.
         """
-        sampler = DifuscoSampler(self.config)
+        sampler = self._get_difusco_sampler()
         popsize = self.config.pop_size
         assert popsize == values.shape[0], "Population size must match the number of solutions"
         assert (

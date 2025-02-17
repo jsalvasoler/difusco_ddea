@@ -5,9 +5,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-import numpy as np
 from problems.mis.mis_dataset import MISDataset
-from scipy.sparse import coo_matrix
 
 from difusco.mis.pl_mis_base_model import MISModelBase
 
@@ -42,20 +40,6 @@ class MISModel(MISModelBase):
             data_dir=os.path.join(self.args.data_path, self.args.validation_split),
             data_label_dir=validation_label_dir,
         )
-
-    @staticmethod
-    def process_batch(batch: tuple) -> tuple:
-        _, graph_data, _ = batch
-        node_labels = graph_data.x
-        edge_index = graph_data.edge_index
-
-        edge_index = edge_index.to(node_labels.device).reshape(2, -1)
-        edge_index_np = edge_index.cpu().numpy()
-        adj_mat = coo_matrix(
-            (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
-        ).tocsr()
-
-        return node_labels, edge_index, adj_mat, None
 
     @staticmethod
     def unpack_batch(batch: tuple) -> tuple:

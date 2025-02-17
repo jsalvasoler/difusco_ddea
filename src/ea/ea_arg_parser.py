@@ -28,11 +28,13 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--n_generations", type=int, default=100)
     ea_settings.add_argument("--max_two_opt_it", type=int, default=-1)
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
+    ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
     difusco_settings.add_argument("--ckpt_path", type=str, default=None)
+    difusco_settings.add_argument("--ckpt_path_difuscombination", type=str, default=None)
     difusco_settings.add_argument("--diffusion_type", type=str, default="categorical")
     difusco_settings.add_argument("--diffusion_schedule", type=str, default="linear")
     difusco_settings.add_argument("--inference_schedule", type=str, default="cosine")

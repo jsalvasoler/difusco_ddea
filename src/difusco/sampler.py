@@ -33,6 +33,7 @@ class DifuscoSampler:
         self.task = config.task
         self.device = config.device
         self.mode = config.mode if "mode" in config else "difusco"  # default to difusco
+        assert self.mode in ["difusco", "difuscombination"]
 
         ckpt_path = Path(config.models_path) / config.ckpt_path
 
@@ -42,6 +43,7 @@ class DifuscoSampler:
             self.model = TSPModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
         elif self.task == "mis":
             if self.mode == "difusco":
+                print(f"Loading Difusco model from {ckpt_path}")
                 self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
             elif self.mode == "difuscombination":
                 self.model = DifusCombinationMISModel.load_from_checkpoint(

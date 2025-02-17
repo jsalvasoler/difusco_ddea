@@ -39,6 +39,8 @@ def get_results_dict(config: Config, results: dict) -> None:
     ea_setting_args = filter_args_by_group(parser, "ea_settings")
     tsp_setting_args = filter_args_by_group(parser, "tsp_settings")
     mis_setting_args = filter_args_by_group(parser, "mis_settings")
+    difusco_setting_args = filter_args_by_group(parser, "difusco_settings")
+    dev_setting_args = filter_args_by_group(parser, "dev")
 
     row = {
         "task": config.task,
@@ -50,6 +52,8 @@ def get_results_dict(config: Config, results: dict) -> None:
     row.update({k: getattr(config, k) for k in ea_setting_args})
     row.update({k: getattr(config, k) for k in tsp_setting_args})
     row.update({k: getattr(config, k) for k in mis_setting_args})
+    row.update({k: getattr(config, k) for k in difusco_setting_args})
+    row.update({k: getattr(config, k) for k in dev_setting_args})
     row.update(results)
 
     return row
