@@ -124,9 +124,16 @@ def assert_valid_initialized_population(values: torch.Tensor, instance: MISInsta
 
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_fill_random_feasible(np_eval: bool) -> None:
-    instance = read_mis_instance(np_eval=np_eval)
-    config = Config(pop_size=10, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
-    problem = MISGaProblem(instance, config=config)
+    instance, sample = read_mis_instance(np_eval=np_eval)
+    config = Config(
+        pop_size=10,
+        device="cpu",
+        n_parallel_evals=0,
+        np_eval=np_eval,
+        initialization="random_feasible",
+        recombination="classic",
+    )
+    problem = MISGaProblem(instance, config=config, sample=sample)
 
     values = torch.zeros(10, instance.n_nodes, dtype=torch.bool)
     problem._fill(values)
@@ -139,14 +146,14 @@ def test_mis_ga_fill_random_feasible(np_eval: bool) -> None:
 
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_fill_difusco(np_eval: bool) -> None:
-    instance = read_mis_instance(np_eval=np_eval, device="cuda")
+    instance, sample = read_mis_instance(np_eval=np_eval, device="cuda")
 
-    pop_size = 50
+    pop_size = 20
 
     config = Config(
         pop_size=pop_size,
-        parallel_sampling=pop_size // 5,
-        sequential_sampling=pop_size // 10,
+        parallel_sampling=pop_size,
+        sequential_sampling=1,
         inference_diffusion_steps=2,
         diffusion_steps=2,
         initialization="difusco_sampling",
@@ -160,10 +167,11 @@ def test_mis_ga_fill_difusco(np_eval: bool) -> None:
         validation_split="mis/er_50_100/test",
         validation_split_label_dir="mis/er_50_100/test_labels",
         ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
+        recombination="classic",
     )
 
     config = mis_inference_config.update(config)
-    problem = MISGaProblem(instance, config=config)
+    problem = MISGaProblem(instance, config=config, sample=sample)
 
     values = torch.zeros(pop_size, instance.n_nodes, dtype=torch.bool, device=config.device)
     problem._fill(values)
@@ -175,7 +183,14 @@ def test_mis_ga_fill_difusco(np_eval: bool) -> None:
 def test_mis_ga_crossover_small(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
 
-    config = Config(pop_size=4, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
+    config = Config(
+        pop_size=4,
+        device="cpu",
+        n_parallel_evals=0,
+        np_eval=np_eval,
+        initialization="random_feasible",
+        recombination="classic",
+    )
     ga = create_mis_ga(instance, config=config, sample=())
 
     parents_1 = torch.from_numpy(np.array([[1, 0, 1, 0], [0, 1, 0, 1]]))
@@ -213,7 +228,10 @@ def test_mis_ga_crossover_difuscombination(recombination: str) -> None:
         test_samples_file=samples_file,
         test_labels_dir=labels_dir,
         test_graphs_dir=graphs_dir,
-        ckpt_path="difuscombination/mis_er_50_100_gaussian.ckpt",
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
+        ckpt_path_difuscombination="difuscombination/mis_er_50_100_gaussian.ckpt",
+        test_split=graphs_dir,
+        test_split_label_dir=None,
     )
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", samples_file),
@@ -228,7 +246,7 @@ def test_mis_ga_crossover_difuscombination(recombination: str) -> None:
     parents_1 = torch.rand(config.pop_size // 2, instance.n_nodes).int()
     parents_2 = torch.rand(config.pop_size // 2, instance.n_nodes).int()
 
-    ga = create_mis_ga(instance, config=config, batch=batch)
+    ga = create_mis_ga(instance, config=config, sample=batch)
     crossover = ga._operators[0]
     assert isinstance(crossover, MISGACrossover)
     children = crossover._do_cross_over(parents_1, parents_2)
@@ -241,8 +259,15 @@ def test_mis_ga_crossover_difuscombination(recombination: str) -> None:
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_mutation(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
-    config = Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
-    ga = create_mis_ga(instance, config=config)
+    config = Config(
+        pop_size=2,
+        device="cpu",
+        n_parallel_evals=0,
+        np_eval=np_eval,
+        initialization="random_feasible",
+        recombination="classic",
+    )
+    ga = create_mis_ga(instance, config=config, sample=())
 
     # Set first individual to [1, 0, 1, 0]
     data = ga.population.access_values()
@@ -280,8 +305,15 @@ def test_mis_ga_mutation(np_eval: bool, square_instance: MISInstanceBase) -> Non
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_ga_mutation_no_deselection(np_eval: bool, square_instance: MISInstanceBase) -> None:
     instance = square_instance
-    config = Config(pop_size=2, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
-    ga = create_mis_ga(instance, config=config)
+    config = Config(
+        pop_size=2,
+        device="cpu",
+        n_parallel_evals=0,
+        np_eval=np_eval,
+        initialization="random_feasible",
+        recombination="classic",
+    )
+    ga = create_mis_ga(instance, config=config, sample=())
 
     mutation = ga._operators[1]
     assert isinstance(mutation, MISGAMutation)
