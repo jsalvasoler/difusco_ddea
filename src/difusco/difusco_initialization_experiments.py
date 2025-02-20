@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import timeit
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
@@ -24,12 +25,10 @@ from torch_geometric.loader import DataLoader
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
 from difusco.sampler import DifuscoSampler
-import os
 
 if TYPE_CHECKING:
     from problems.mis.mis_instance import MISInstance
     from problems.tsp.tsp_instance import TSPInstance
-
 
 
 def parse_arguments() -> tuple[Namespace, list[str]]:
@@ -184,6 +183,7 @@ class DifuscoInitializationExperiment(Experiment):
         if self.config.save_solutions:
             assert self.config.save_solutions_path is not None, "save_solutions_path must be provided"
             os.makedirs(self.config.save_solutions_path, exist_ok=True)
+
 
 def main_init_experiments(config: Config) -> None:
     experiment = DifuscoInitializationExperiment(config)
