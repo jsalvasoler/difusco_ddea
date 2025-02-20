@@ -10,7 +10,8 @@ if TYPE_CHECKING:
     from config.myconfig import Config
     from problems.tsp.tsp_instance import TSPInstance
 
-def get_feasible_solutions(heatmaps: torch.Tensor, instance: TSPInstance, config: Config) -> torch.Tensor:
+
+def get_feasible_solutions(heatmaps: torch.Tensor, instance: TSPInstance) -> torch.Tensor:
     solutions = None
     for i in range(heatmaps.shape[0]):
         solution = instance.get_tour_from_adjacency_np_heatmap(heatmaps[i].cpu().numpy()).unsqueeze(0)

@@ -24,10 +24,12 @@ from torch_geometric.loader import DataLoader
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
 from difusco.sampler import DifuscoSampler
+import os
 
 if TYPE_CHECKING:
     from problems.mis.mis_instance import MISInstance
     from problems.tsp.tsp_instance import TSPInstance
+
 
 
 def parse_arguments() -> tuple[Namespace, list[str]]:
@@ -72,9 +74,9 @@ def get_arg_parser() -> ArgumentParser:
     mis_settings.add_argument("--np_eval", action="store_true")
 
     dev = parser.add_argument_group("dev")
-    dev.add_argument("--profiler", action="store_true")
+    dev.add_argument("--profiler", type=bool, default=False)
     dev.add_argument("--validate_samples", type=int, default=None)
-    dev.add_argument("--save_solutions", action="store_true", default=False)
+    dev.add_argument("--save_solutions", type=bool, default=False)
     dev.add_argument("--save_solutions_path", type=str, default=None)
 
     return parser
@@ -82,17 +84,17 @@ def get_arg_parser() -> ArgumentParser:
 
 def get_feasible_solutions(heatmaps: torch.Tensor, instance: MISInstance | TSPInstance, config: Config) -> torch.Tensor:
     if config.task == "mis":
-        return get_feasible_solutions_mis(heatmaps, instance, config)
-    elif config.task == "tsp":
-        return get_feasible_solutions_tsp(heatmaps, instance, config)
-    else:
-        raise ValueError(f"Invalid task: {config.task}")
+        return get_feasible_solutions_mis(heatmaps, instance)
+    if config.task == "tsp":
+        return get_feasible_solutions_tsp(heatmaps, instance)
+
+    raise ValueError(f"Invalid task: {config.task}")
 
 
 class DifuscoInitializationExperiment(Experiment):
     def __init__(self, config: Config) -> None:
-        super().__init__(config)
         self.sampler = DifuscoSampler(config)
+        self.config = config
         self._validate_config()
 
     def run_single_iteration(self, sample: tuple[Any, ...]) -> dict:
@@ -181,7 +183,7 @@ class DifuscoInitializationExperiment(Experiment):
 
         if self.config.save_solutions:
             assert self.config.save_solutions_path is not None, "save_solutions_path must be provided"
-
+            os.makedirs(self.config.save_solutions_path, exist_ok=True)
 
 def main_init_experiments(config: Config) -> None:
     experiment = DifuscoInitializationExperiment(config)
@@ -195,10 +197,10 @@ if __name__ == "__main__":
     pop_size = 4
     config = Config(
         task="mis",
-        data_path="/home/joan.salva/repos/difusco/data",
-        logs_path="/home/joan.salva/repos/difusco/logs",
-        results_path="/home/joan.salva/repos/difusco/results",
-        models_path="/home/joan.salva/repos/difusco/models",
+        data_path="/home/e12223411/repos/difusco/data",
+        logs_path="/home/e12223411/repos/difusco/logs",
+        results_path="/home/e12223411/repos/difusco/results",
+        models_path="/home/e12223411/repos/difusco/models",
         test_split="mis/er_50_100/test",
         test_split_label_dir="mis/er_50_100/test_labels",
         training_split="mis/er_50_100/train",
@@ -212,9 +214,10 @@ if __name__ == "__main__":
         inference_diffusion_steps=50,
         validate_samples=2,
         np_eval=True,
+        profiler=False,
         pop_size=pop_size,
         save_solutions=True,
-        save_solutions_path="/home/joan.salva/repos/difusco/cache/mis/er_50_100/test",
+        save_solutions_path="/home/e12223411/repos/difusco/cache/mis/er_50_100/test",
     )
     config = mis_inference_config.update(config)
     main_init_experiments(config)
