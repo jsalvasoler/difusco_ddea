@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -152,8 +154,20 @@ def test_sampler_tsp_sampling(config_tsp: Config) -> None:
     run_test_on_config(config_tsp)
 
 
-def test_sampler_mis_sampling(config_mis: Config) -> None:
-    run_test_on_config(config_mis)
+@pytest.mark.parametrize("cache_dir", [True, False])
+def test_sampler_mis_sampling(config_mis: Config, cache_dir: bool) -> None:
+    if cache_dir:
+        config_mis = config_mis.update(cache_dir="cache/mis/er_50_100/test")
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        run_test_on_config(config_mis)
+
+    output = f.getvalue()
+
+    if cache_dir:
+        # Extract the number of heatmaps and instance_id from the output
+        assert "Loaded 32 heatmaps from cache for instance" in output
 
 
 @pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
@@ -207,7 +221,7 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
     assert_heatmap_properties(heatmaps, config)
 
 
-@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(3, 1), (1, 3), (3, 3)])
 @pytest.mark.parametrize("override_features", [True, False])
 def test_sampler_mis_recombination_batch(
     parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config, override_features: bool

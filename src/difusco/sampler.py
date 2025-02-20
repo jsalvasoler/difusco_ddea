@@ -59,6 +59,13 @@ class DifuscoSampler:
         self.model.eval()
         self.model.to(self.device)
 
+        # Check if there is a cache directory for the difusco samples
+        self.cache_dir = None
+        if "cache_dir" in config and config.mode == "difusco":
+            self.cache_dir = Path(config.cache_dir)
+            if not self.cache_dir.exists():
+                raise ValueError(f"Cache directory {self.cache_dir} does not exist")
+
     def sample(self, batch: tuple, features: torch.Tensor | None = None) -> torch.Tensor:
         """Sample heatmaps from Difusco"""
         if self.task == "tsp":
@@ -97,8 +104,31 @@ class DifuscoSampler:
         batch_size = batch[0].shape[0]
         edge_index = edge_index.to(self.device)
 
-        heatmaps = None
-        for _ in range(self.model.args.sequential_sampling):
+        if self.cache_dir is not None:
+            instance_id = batch[0].item()
+            cache_file = Path(self.cache_dir) / f"solutions_{instance_id}.pt"
+            assert cache_file.exists(), f"Cache file {cache_file} does not exist"
+            heatmaps = torch.load(cache_file)
+            print(f"Loaded {heatmaps.shape[0]} heatmaps from cache for instance {instance_id}")
+
+            n_available_heatmaps = heatmaps.shape[0]
+            if n_available_heatmaps >= self.model.args.parallel_sampling * self.model.args.sequential_sampling:
+                print(f"Using cached heatmaps for instance {instance_id}")
+                return heatmaps[: self.model.args.parallel_sampling * self.model.args.sequential_sampling]
+
+            print(f"Not enough cached heatmaps for instance {instance_id}, sampling from scratch")
+            # compute how many heatmaps are we missing
+            n_missing_heatmaps = (
+                self.model.args.parallel_sampling * self.model.args.sequential_sampling - n_available_heatmaps
+            )
+            # divide between parallel and sequential sampling
+            seq_sampling = self.model.args.sequential_sampling - n_missing_heatmaps // self.model.args.parallel_sampling
+
+        else:
+            seq_sampling = self.model.args.sequential_sampling
+            heatmaps = None
+
+        for _ in range(seq_sampling):
             labels_pred = self.model.diffusion_sample(n_nodes, edge_index, self.device, features=features)
             labels_pred = labels_pred.reshape((self.model.args.parallel_sampling, -1))
             if batch_size > 1:
@@ -112,6 +142,10 @@ class DifuscoSampler:
             # we now have either (batch_size, parallel_sampling, n_nodes) or (parallel_sampling, n_nodes)
             # we need to concat to get (batch_size, par * seq, n_nodes) or (par * seq, n_nodes), respectively
             heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=-2)
+
+        # If we sampled too many, return only the first par * seq heatmaps
+        if heatmaps.shape[0] > self.model.args.parallel_sampling * self.model.args.sequential_sampling:
+            heatmaps = heatmaps[: self.model.args.parallel_sampling * self.model.args.sequential_sampling]
 
         return torch.clamp(heatmaps, 0, 1)
 
