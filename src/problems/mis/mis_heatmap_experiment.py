@@ -32,7 +32,7 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
     ), f"heatmaps.shape[1] {heatmaps.shape[1]} != instance.n_nodes {instance.n_nodes}"
 
     start_time = timeit.default_timer()
-    solutions = get_feasible_solutions(heatmaps, instance, config)
+    solutions = get_feasible_solutions(heatmaps, instance)
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
 

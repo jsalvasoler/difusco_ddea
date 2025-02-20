@@ -92,7 +92,8 @@ def get_feasible_solutions(heatmaps: torch.Tensor, instance: MISInstance | TSPIn
 
 class DifuscoInitializationExperiment(Experiment):
     def __init__(self, config: Config) -> None:
-        self.sampler = DifuscoSampler(config)
+        sampler_config = config.update(mode="difusco")
+        self.sampler = DifuscoSampler(config=sampler_config)
         self.config = config
         self._validate_config()
 
@@ -108,9 +109,8 @@ class DifuscoInitializationExperiment(Experiment):
         sampling_time = end_time - start_time
 
         if self.config.save_solutions:
-            solutions = get_feasible_solutions(heatmaps, instance, self.config)
             instance_id = sample[0].item()
-            torch.save(solutions, f"{self.config.save_solutions_path}/solutions_{instance_id}.pt")
+            torch.save(heatmaps, f"{self.config.save_solutions_path}/heatmaps_{instance_id}.pt")
             return {}
 
         # Convert heatmaps to solutions and evaluate
@@ -129,6 +129,8 @@ class DifuscoInitializationExperiment(Experiment):
 
     def get_final_results(self, results: list[dict]) -> dict:
         """Compute and return the final aggregated results."""
+        if self.config.save_solutions:
+            return {}
 
         def agg_results(results: list[dict], keys: list[str]) -> dict:
             return {f"avg_{key}": sum(r[key] for r in results) / len(results) for key in keys}
@@ -180,9 +182,9 @@ class DifuscoInitializationExperiment(Experiment):
         elif "gaussian" in self.config.ckpt_path:
             assert self.config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
 
-        if self.config.save_solutions:
-            assert self.config.save_solutions_path is not None, "save_solutions_path must be provided"
-            os.makedirs(self.config.save_solutions_path, exist_ok=True)
+        if self.config.save_heatmaps:
+            assert self.config.save_heatmaps_path is not None, "save_heatmaps_path must be provided"
+            os.makedirs(self.config.save_heatmaps_path, exist_ok=True)
 
 
 def main_init_experiments(config: Config) -> None:
@@ -216,8 +218,8 @@ if __name__ == "__main__":
         np_eval=True,
         profiler=False,
         pop_size=pop_size,
-        save_solutions=True,
-        save_solutions_path="/home/e12223411/repos/difusco/cache/mis/er_50_100/test",
+        save_heatmaps=True,
+        save_heatmaps_path="/home/e12223411/repos/difusco/cache/mis/er_50_100/test",
     )
     config = mis_inference_config.update(config)
     main_init_experiments(config)

@@ -75,6 +75,13 @@ class DifuscoSampler:
         error_msg = f"Unknown task: {self.task}"
         raise ValueError(error_msg)
 
+    def sample_feasible(self, batch: tuple, features: torch.Tensor | None = None) -> torch.Tensor:
+        """Sample feasible solutions from Difusco"""
+        if self.task == "mis":
+            return self.sample_mis_feasible(batch=batch, features=features)
+        error_msg = f"Unknown task: {self.task}"
+        raise ValueError(error_msg)
+
     @torch.no_grad()
     def sample_mis(
         self,
@@ -106,7 +113,7 @@ class DifuscoSampler:
 
         if self.cache_dir is not None:
             instance_id = batch[0].item()
-            cache_file = Path(self.cache_dir) / f"solutions_{instance_id}.pt"
+            cache_file = Path(self.cache_dir) / f"heatmaps_{instance_id}.pt"
             assert cache_file.exists(), f"Cache file {cache_file} does not exist"
             heatmaps = torch.load(cache_file)
             print(f"Loaded {heatmaps.shape[0]} heatmaps from cache for instance {instance_id}")
