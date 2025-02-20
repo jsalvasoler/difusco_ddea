@@ -3,16 +3,31 @@ from __future__ import annotations
 import timeit
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import torch
 from config.myconfig import Config
 from ea.ea_utils import dataset_factory, instance_factory
-from problems.mis.mis_heatmap_experiment import metrics_on_mis_heatmaps
-from problems.tsp.tsp_heatmap_experiment import metrics_on_tsp_heatmaps
+from problems.mis.mis_heatmap_experiment import (
+    get_feasible_solutions as get_feasible_solutions_mis,
+)
+from problems.mis.mis_heatmap_experiment import (
+    metrics_on_mis_heatmaps,
+)
+from problems.tsp.tsp_heatmap_experiment import (
+    get_feasible_solutions as get_feasible_solutions_tsp,
+)
+from problems.tsp.tsp_heatmap_experiment import (
+    metrics_on_tsp_heatmaps,
+)
 from torch_geometric.loader import DataLoader
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
 from difusco.sampler import DifuscoSampler
+
+if TYPE_CHECKING:
+    from problems.mis.mis_instance import MISInstance
+    from problems.tsp.tsp_instance import TSPInstance
 
 
 def parse_arguments() -> tuple[Namespace, list[str]]:
@@ -59,8 +74,19 @@ def get_arg_parser() -> ArgumentParser:
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true")
     dev.add_argument("--validate_samples", type=int, default=None)
+    dev.add_argument("--save_solutions", action="store_true", default=False)
+    dev.add_argument("--save_solutions_path", type=str, default=None)
 
     return parser
+
+
+def get_feasible_solutions(heatmaps: torch.Tensor, instance: MISInstance | TSPInstance, config: Config) -> torch.Tensor:
+    if config.task == "mis":
+        return get_feasible_solutions_mis(heatmaps, instance, config)
+    elif config.task == "tsp":
+        return get_feasible_solutions_tsp(heatmaps, instance, config)
+    else:
+        raise ValueError(f"Invalid task: {config.task}")
 
 
 class DifuscoInitializationExperiment(Experiment):
@@ -79,6 +105,12 @@ class DifuscoInitializationExperiment(Experiment):
         heatmaps = self.sampler.sample(sample)
         end_time = timeit.default_timer()
         sampling_time = end_time - start_time
+
+        if self.config.save_solutions:
+            solutions = get_feasible_solutions(heatmaps, instance, self.config)
+            instance_id = sample[0].item()
+            torch.save(solutions, f"{self.config.save_solutions_path}/solutions_{instance_id}.pt")
+            return {}
 
         # Convert heatmaps to solutions and evaluate
         if self.config.task == "tsp":
@@ -147,6 +179,9 @@ class DifuscoInitializationExperiment(Experiment):
         elif "gaussian" in self.config.ckpt_path:
             assert self.config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
 
+        if self.config.save_solutions:
+            assert self.config.save_solutions_path is not None, "save_solutions_path must be provided"
+
 
 def main_init_experiments(config: Config) -> None:
     experiment = DifuscoInitializationExperiment(config)
@@ -178,6 +213,8 @@ if __name__ == "__main__":
         validate_samples=2,
         np_eval=True,
         pop_size=pop_size,
+        save_solutions=True,
+        save_solutions_path="/home/joan.salva/repos/difusco/cache/mis/er_50_100/test",
     )
     config = mis_inference_config.update(config)
     main_init_experiments(config)

@@ -5,6 +5,14 @@ from config.myconfig import Config
 from problems.mis.mis_instance import MISInstance
 
 
+def get_feasible_solutions(heatmaps: torch.Tensor, instance: MISInstance, config: Config) -> torch.Tensor:
+    solutions = None
+    for i in range(heatmaps.shape[0]):
+        solution = instance.get_feasible_from_individual(heatmaps[i]).unsqueeze(0)
+        solutions = solution if solutions is None else torch.vstack((solutions, solution))
+    return solutions
+
+
 def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, config: Config) -> dict:
     """Calculate metrics on MIS heatmaps including selection frequencies.
 
@@ -23,11 +31,8 @@ def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, confi
         heatmaps.shape[1] == instance.n_nodes
     ), f"heatmaps.shape[1] {heatmaps.shape[1]} != instance.n_nodes {instance.n_nodes}"
 
-    solutions = None
     start_time = timeit.default_timer()
-    for i in range(heatmaps.shape[0]):
-        solution = instance.get_feasible_from_individual(heatmaps[i]).unsqueeze(0)
-        solutions = solution if solutions is None else torch.vstack((solutions, solution))
+    solutions = get_feasible_solutions(heatmaps, instance, config)
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
 

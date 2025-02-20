@@ -242,7 +242,11 @@ class MISGACrossover(CrossOver):
         features = features.reshape(num_pairings * self.problem.solution_length, 2)
         assert features.shape == (num_pairings * self.problem.solution_length, 2), "Incorrect features shape"
         heatmaps = self._problem.sampler.sample(self._problem.batch, features=features)
-        assert heatmaps.shape == (num_pairings, 2, self.problem.solution_length), "Incorrect heatmaps shape"
+        assert heatmaps.shape == (
+            num_pairings,
+            2,
+            self.problem.solution_length,
+        ), f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
 
         # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
         heatmaps_child1 = heatmaps.select(1, 0)
