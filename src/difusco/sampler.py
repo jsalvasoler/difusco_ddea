@@ -71,9 +71,7 @@ class DifuscoSampler:
     @torch.no_grad()
     def sample_mis(
         self,
-        batch: tuple | None = None,
-        edge_index: torch.Tensor | None = None,
-        n_nodes: int | None = None,
+        batch: tuple,
         features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
@@ -92,18 +90,11 @@ class DifuscoSampler:
         Returns:
             Tensor containing the sampled heatmaps
         """
-        batch_size = 1
-        if batch is not None:
-            node_labels, edge_index, _, sample_features = self.model.process_batch(batch)
-            n_nodes = node_labels.shape[0]
-            if features is None:
-                features = sample_features
-
-            batch_size = batch[0].shape[0]
-        elif edge_index is None or n_nodes is None:
-            error_msg = "Must provide either batch or (edge_index and n_nodes)"
-            raise ValueError(error_msg)
-
+        node_labels, edge_index, _, sample_features = self.model.process_batch(batch)
+        n_nodes = node_labels.shape[0]
+        if features is None:
+            features = sample_features
+        batch_size = batch[0].shape[0]
         edge_index = edge_index.to(self.device)
 
         heatmaps = None
