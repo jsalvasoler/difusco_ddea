@@ -37,7 +37,7 @@ def test_get_results_dict() -> None:
     config = Config(
         config_name="mis_inference",
         task="mis",
-        algo="brkga",
+        algo="ga",
         wandb_logger_name="test_logger",
         results_path=str(temp_dir),
         device="cpu",
@@ -67,7 +67,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
     config = Config(
         config_name="mis_inference",
         task="mis",
-        algo="brkga",
+        algo="ga",
         data_path="data",
         test_split="mis/er_700_800/test",
         test_split_label_dir=None,  # er_700_800/test already has labels!
@@ -89,7 +89,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
 
 @pytest.mark.parametrize("task", ["tsp", "mis"])
-@pytest.mark.parametrize("algo", ["ga", "brkga"])
+@pytest.mark.parametrize("algo", ["ga"])
 def test_ea_runs(task: str, algo: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"

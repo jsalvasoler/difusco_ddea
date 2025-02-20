@@ -62,7 +62,7 @@ class MISInstance(MISInstanceBase):
         return self.gt_labels.sum() if self.gt_labels is not None else 0.0
 
     def evaluate_individual(self, individual: torch.Tensor) -> float:
-        """Individual is a BRKGA random key of shape (n_nodes,), values in [0, 1]."""
+        """Individual is a random key of shape (n_nodes,), values in [0, 1]."""
         return mis_decode_torch(individual, self.adj_matrix).sum()
 
     def evaluate_solution(self, solution: torch.Tensor) -> float:
@@ -70,7 +70,7 @@ class MISInstance(MISInstanceBase):
         return solution.sum()
 
     def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
-        """Individual is a BRKGA random key of shape (n_nodes,), values in [0, 1]."""
+        """Individual is a random key of shape (n_nodes,), values in [0, 1]."""
         return mis_decode_torch(individual, self.adj_matrix)
 
     def get_degrees(self) -> torch.Tensor:

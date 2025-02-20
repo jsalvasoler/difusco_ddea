@@ -65,7 +65,7 @@ def get_arg_parser() -> ArgumentParser:
 
 def validate_args(args: Namespace) -> None:
     assert args.task in ["tsp", "mis"]
-    assert args.algo in ["ga", "brkga"]
+    assert args.algo in ["ga"]
 
     assert args.pop_size > 2, "Population size must be greater than 2."
 

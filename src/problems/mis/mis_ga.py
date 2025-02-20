@@ -20,21 +20,17 @@ from torch_geometric.data import Batch
 
 
 class MISGaProblem(Problem):
-    def __init__(self, instance: MISInstance, config: Config, batch: tuple | None = None) -> None:
+    def __init__(self, instance: MISInstance, config: Config, sample: tuple) -> None:
         self.instance = instance
         self.config = config
         self.config.task = "mis"
+        self.sample = sample
 
         if config.recombination == "difuscombination":
             self.sampler = self._get_difuscombination_sampler()
-            self.batch = self._duplicate_batch(config, batch)
+            self.batch = self._duplicate_batch(config, self.sample)
         else:
             self.sampler = None
-            if batch is not None:
-                warnings.warn(
-                    "Batch is not None, but recombination is not difuscombination. This is likely a mistake.",
-                    stacklevel=2,
-                )
             self.batch = None
 
         super().__init__(
@@ -153,11 +149,7 @@ class MISGaProblem(Problem):
         ), "Population size must match the number of solutions"
 
         # Sample node scores using Difusco
-        node_scores = sampler.sample_mis(
-            batch=None,
-            n_nodes=self.instance.n_nodes,
-            edge_index=self.instance.edge_index,
-        )
+        node_scores = sampler.sample_mis(batch=self._problem.batch)
 
         # Convert scores to feasible solutions
         for i in range(popsize):
@@ -297,8 +289,8 @@ class MISGACrossover(CrossOver):
         return self._make_children_batch(children)
 
 
-def create_mis_ga(instance: MISInstance, config: Config, batch: tuple | None = None) -> GeneticAlgorithm:
-    problem = MISGaProblem(instance, config, batch)
+def create_mis_ga(instance: MISInstance, config: Config, sample: tuple) -> GeneticAlgorithm:
+    problem = MISGaProblem(instance, config, sample)
 
     return GeneticAlgorithm(
         problem=problem,

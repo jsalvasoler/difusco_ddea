@@ -6,9 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from evotorch.logging import StdOutLogger
-from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_ga import create_mis_ga
-from problems.tsp.tsp_brkga import create_tsp_brkga
 from problems.tsp.tsp_ga import create_tsp_ga
 from torch_geometric.loader import DataLoader
 
@@ -63,12 +61,7 @@ class EvolutionaryAlgorithm(Experiment):
 
 
 def ea_factory(config: Config, instance: ProblemInstance, **kwargs) -> GeneticAlgorithm:
-    if config.algo == "brkga":
-        if config.task == "mis":
-            return create_mis_brkga(instance, config)
-        if config.task == "tsp":
-            return create_tsp_brkga(instance, config)
-    elif config.algo == "ga":
+    if config.algo == "ga":
         if config.task == "mis":
             return create_mis_ga(instance, config, **kwargs)
         if config.task == "tsp":

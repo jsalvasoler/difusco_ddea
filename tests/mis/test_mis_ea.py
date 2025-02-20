@@ -12,7 +12,6 @@ from config.configs.mis_inference import config as mis_inference_config
 from config.myconfig import Config
 from difuscombination.dataset import MISDatasetComb
 from evotorch import Problem
-from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ga import MISGACrossover, MISGAMutation, MISGaProblem, create_mis_ga
 from problems.mis.mis_instance import MISInstance, MISInstanceBase, MISInstanceNumPy, create_mis_instance
@@ -20,7 +19,7 @@ from scipy.sparse import coo_matrix, csr_matrix
 from torch_geometric.loader import DataLoader
 
 
-def read_mis_instance(np_eval: bool = False, device: str = "cpu") -> MISInstance:
+def read_mis_instance(np_eval: bool = False, device: str = "cpu") -> tuple[MISInstance, tuple]:
     resource_dir = "tests/resources"
     dataset = MISDataset(
         data_dir=os.path.join(resource_dir, "er_example_dataset"),
@@ -30,12 +29,12 @@ def read_mis_instance(np_eval: bool = False, device: str = "cpu") -> MISInstance
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
     sample = next(iter(dataloader))
 
-    return create_mis_instance(sample, np_eval=np_eval, device=device)
+    return create_mis_instance(sample, np_eval=np_eval, device=device), sample
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
 def test_create_mis_instance(np_eval: bool) -> None:
-    instance = read_mis_instance(np_eval=np_eval)
+    instance, _ = read_mis_instance(np_eval=np_eval)
     assert instance.n_nodes == 756
     assert instance.gt_labels.sum().item() == 45
     assert (
@@ -57,19 +56,8 @@ def test_create_mis_instance(np_eval: bool) -> None:
 
 
 @pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_brkga_runs(np_eval: bool) -> None:
-    instance = read_mis_instance(np_eval=np_eval)
-
-    brkga = create_mis_brkga(instance, config=Config(pop_size=5, n_parallel_evals=0, device="cpu"))
-    brkga.run(num_generations=2)
-
-    status = brkga.status
-    assert status["iter"] == 2
-
-
-@pytest.mark.parametrize("np_eval", [False, True])
 def test_mis_problem_evaluation(np_eval: bool) -> None:
-    instance = read_mis_instance(np_eval=np_eval)
+    instance, _ = read_mis_instance(np_eval=np_eval)
 
     problem = Problem(
         objective_func=instance.evaluate_individual,
@@ -89,24 +77,6 @@ def test_mis_problem_evaluation(np_eval: bool) -> None:
 
     assert obj_gt == instance.gt_labels.sum()
     assert obj_gt >= obj
-
-
-@pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_brkga_runs_with_dataloader(np_eval: bool) -> None:
-    dataset = MISDataset(
-        data_dir="tests/resources/er_example_dataset",
-        data_label_dir="tests/resources/er_example_dataset_annotations",
-    )
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    for sample in dataloader:
-        instance = create_mis_instance(sample, device="cpu", np_eval=np_eval)
-        ga = create_mis_brkga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
-        ga.run(num_generations=2)
-
-        status = ga.status
-        assert status["iter"] == 2
-        break
 
 
 @pytest.fixture
@@ -206,7 +176,7 @@ def test_mis_ga_crossover_small(np_eval: bool, square_instance: MISInstanceBase)
     instance = square_instance
 
     config = Config(pop_size=4, device="cpu", n_parallel_evals=0, np_eval=np_eval, initialization="random_feasible")
-    ga = create_mis_ga(instance, config=config)
+    ga = create_mis_ga(instance, config=config, sample=())
 
     parents_1 = torch.from_numpy(np.array([[1, 0, 1, 0], [0, 1, 0, 1]]))
     parents_2 = torch.from_numpy(np.array([[1, 0, 0, 0], [0, 1, 0, 0]]))
@@ -321,23 +291,6 @@ def test_mis_ga_mutation_no_deselection(np_eval: bool, square_instance: MISInsta
 
     assert torch.equal(children.values[0], ga.population.values[0])
     assert torch.equal(children.values[1], ga.population.values[1])
-
-
-@pytest.mark.parametrize("np_eval", [False, True])
-def test_mis_ga_runs_with_dataloader(np_eval: bool) -> None:
-    dataset = MISDataset(
-        data_dir="tests/resources/er_example_dataset",
-        data_label_dir="tests/resources/er_example_dataset_annotations",
-    )
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    for sample in dataloader:
-        instance = create_mis_instance(sample, device="cpu", np_eval=np_eval)
-        brkga = create_mis_brkga(instance, config=Config(pop_size=10, device="cpu", n_parallel_evals=0))
-        brkga.run(num_generations=2)
-
-        status = brkga.status
-        assert status["iter"] == 2
 
 
 def test_duplicate_batch() -> None:
