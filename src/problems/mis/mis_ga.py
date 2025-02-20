@@ -149,7 +149,7 @@ class MISGaProblem(Problem):
         ), "Population size must match the number of solutions"
 
         # Sample node scores using Difusco
-        node_scores = sampler.sample_mis(self.sample)
+        node_scores = sampler.sample(self.sample)
 
         # Convert scores to feasible solutions
         for i in range(popsize):
