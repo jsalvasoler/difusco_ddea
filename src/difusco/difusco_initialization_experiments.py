@@ -75,8 +75,8 @@ def get_arg_parser() -> ArgumentParser:
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", type=bool, default=False)
     dev.add_argument("--validate_samples", type=int, default=None)
-    dev.add_argument("--save_solutions", type=bool, default=False)
-    dev.add_argument("--save_solutions_path", type=str, default=None)
+    dev.add_argument("--save_heatmaps", type=bool, default=False)
+    dev.add_argument("--save_heatmaps_path", type=str, default=None)
 
     return parser
 
@@ -108,9 +108,9 @@ class DifuscoInitializationExperiment(Experiment):
         end_time = timeit.default_timer()
         sampling_time = end_time - start_time
 
-        if self.config.save_solutions:
+        if self.config.save_heatmaps:
             instance_id = sample[0].item()
-            torch.save(heatmaps, f"{self.config.save_solutions_path}/heatmaps_{instance_id}.pt")
+            torch.save(heatmaps, f"{self.config.save_heatmaps_path}/heatmaps_{instance_id}.pt")
             return {}
 
         # Convert heatmaps to solutions and evaluate
@@ -129,7 +129,7 @@ class DifuscoInitializationExperiment(Experiment):
 
     def get_final_results(self, results: list[dict]) -> dict:
         """Compute and return the final aggregated results."""
-        if self.config.save_solutions:
+        if self.config.save_heatmaps:
             return {}
 
         def agg_results(results: list[dict], keys: list[str]) -> dict:
