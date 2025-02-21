@@ -8,6 +8,7 @@ import torch
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.operators import CopyingOperator, CrossOver
+from problems.mis.solve_optimal_recombination import solve_problem
 from torch import no_grad
 
 from difusco.sampler import DifuscoSampler
@@ -214,8 +215,32 @@ class MISGACrossover(CrossOver):
             return self._do_cross_over_classic(parents1, parents2)
         if self._mode == "difuscombination":
             return self._do_cross_over_difuscombination(parents1, parents2)
+        if self._mode == "optimal":
+            return self._do_cross_over_optimal(parents1, parents2)
 
         raise ValueError(f"Invalid mode: {self._mode}")
+
+    @no_grad()
+    def _do_cross_over_optimal(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+        """
+        parents1 and parents2 are two solutions of shape (num_pairings, n_nodes).
+        """
+        num_pairings = parents1.shape[0]
+        device = parents1.device
+
+        children_1 = parents1.clone()
+        children_2 = parents2.clone()
+
+        for i in range(num_pairings):
+            solution_1 = parents1[i].cpu().numpy()
+            solution_2 = parents2[i].cpu().numpy()
+            result = solve_problem(self._instance, solution_1, solution_2)
+
+            children_1[i] = torch.tensor(result["children_np_labels"], device=device)
+            children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
+
+        children = torch.cat([children_1, children_2], dim=0)
+        return self._make_children_batch(children)
 
     @no_grad()
     def _do_cross_over_difuscombination(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:

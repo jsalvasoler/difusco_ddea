@@ -207,8 +207,8 @@ def test_mis_ga_crossover_small(np_eval: bool, square_instance: MISInstanceBase)
     assert children.values[3].sum() == 2
 
 
-@pytest.mark.parametrize("recombination", ["difuscombination", "classic"])
-def test_mis_ga_crossover_difuscombination(recombination: str) -> None:
+@pytest.mark.parametrize("recombination", ["difuscombination", "classic", "optimal"])
+def test_mis_ga_crossovers(recombination: str) -> None:
     from config.configs.mis_inference import config as mis_inference_config
 
     samples_file = "difuscombination/mis/er_50_100/test"
@@ -242,9 +242,13 @@ def test_mis_ga_crossover_difuscombination(recombination: str) -> None:
     batch = next(iter(dataloader))
 
     instance = create_mis_instance(batch, device="cpu", np_eval=True)
-
-    parents_1 = torch.rand(config.pop_size // 2, instance.n_nodes).int()
-    parents_2 = torch.rand(config.pop_size // 2, instance.n_nodes).int()
+    parents_1 = torch.rand((config.pop_size // 2, instance.n_nodes))
+    parents_2 = torch.rand((config.pop_size // 2, instance.n_nodes))
+    for i in range(parents_1.shape[0]):
+        parents_1[i] = instance.get_feasible_from_individual(parents_1[i])
+        parents_2[i] = instance.get_feasible_from_individual(parents_2[i])
+    parents_1 = parents_1.int()
+    parents_2 = parents_2.int()
 
     ga = create_mis_ga(instance, config=config, sample=batch)
     crossover = ga._operators[0]
