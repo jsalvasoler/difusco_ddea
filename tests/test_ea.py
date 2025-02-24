@@ -85,7 +85,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
 
 @pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
-def test_ea_runs(task: str) -> None:
+def test_ea_runs(task: str, temp_dir: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":
@@ -94,7 +94,9 @@ def test_ea_runs(task: str) -> None:
         error_msg = f"Invalid task: {task}"
         raise ValueError(error_msg)
     config = Config(
+        logs_path=str(temp_dir),
         config_name=f"{task}_inference",
+        wandb_logger_name=f"{task}_inference",
         initialization="random_feasible",
         recombination="classic",
         test_split=data_path,

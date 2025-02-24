@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import numpy as np
@@ -16,6 +17,9 @@ from problems.mis.mis_ga import MISGACrossover, MISGAMutation, MISGaProblem, cre
 from problems.mis.mis_instance import MISInstance, MISInstanceBase, create_mis_instance
 from scipy.sparse import csr_matrix
 from torch_geometric.loader import DataLoader
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def read_mis_instance(device: str = "cpu") -> tuple[MISInstance, tuple]:
@@ -316,3 +320,29 @@ def test_duplicate_batch() -> None:
     assert result_batch[0].shape == (config.pop_size // 2, batch[0].shape[1])
     assert result_batch[1].x.shape == (config.pop_size // 2 * 56, 3)
     assert result_batch[2].shape == (config.pop_size // 2, 1)
+
+
+def test_temp_saver(tmp_path: Path) -> None:
+    instance, sample = read_mis_instance()
+    config = Config(
+        pop_size=10,
+        logs_path=str(tmp_path),
+        device="cpu",
+        n_parallel_evals=0,
+        initialization="random_feasible",
+        recombination="classic",
+    )
+    ga = create_mis_ga(instance, config=config, sample=sample)
+    saver = ga._operators[2]
+    population = ga.population
+
+    # check the solution string representation
+    sol_str = saver._get_population_string(population)
+    assert len(sol_str.split(" | ")) == config.pop_size
+
+    # check the saving of the solution
+    saver._do(population)
+    assert os.path.exists(os.path.join(config.logs_path, "population.txt"))
+    with open(os.path.join(config.logs_path, "population.txt")) as f:
+        last_line = f.readlines()[-1]
+        assert last_line.strip() == sol_str

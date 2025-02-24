@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 import warnings
 from copy import deepcopy
+from pathlib import Path
+from tempfile import mkdtemp
 from typing import TYPE_CHECKING, Literal
 
 import torch
@@ -297,7 +300,36 @@ class MISGACrossover(CrossOver):
         return self._make_children_batch(children)
 
 
-def create_mis_ga(instance: MISInstance, config: Config, sample: tuple) -> GeneticAlgorithm:
+class TempSaver(CopyingOperator):
+    """A fake operator that saves the population to a file."""
+
+    def __init__(self, problem: Problem, tmp_file: str) -> None:
+        super().__init__(problem)
+        self._tmp_file = tmp_file
+        os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
+
+    def _get_population_string(self, batch: SolutionBatch) -> str:
+        data = batch.access_values()
+        # for each solution in the batch, take the non-zero indices
+        solutions_str = []
+        for i in range(data.shape[0]):
+            indices = data[i].nonzero().flatten().tolist()
+            solutions_str.append(",".join(map(str, indices)))
+        return " | ".join(solutions_str)
+
+    @torch.no_grad()
+    def _do(self, batch: SolutionBatch) -> SolutionBatch:
+        with open(self._tmp_file, "a") as f:
+            f.write(self._get_population_string(batch) + "\n")  # Added newline for better readability
+        return batch
+
+
+def create_mis_ga(
+    instance: MISInstance, config: Config, sample: tuple, tmp_dir: str | Path | None = None
+) -> GeneticAlgorithm:
+    if tmp_dir is None:
+        tmp_dir = Path(mkdtemp())
+
     problem = MISGaProblem(instance, config, sample)
 
     return GeneticAlgorithm(
@@ -307,5 +339,6 @@ def create_mis_ga(instance: MISInstance, config: Config, sample: tuple) -> Genet
         operators=[
             MISGACrossover(problem, instance, mode=config.recombination),
             MISGAMutation(problem, instance, deselect_prob=0.2),
+            TempSaver(problem, tmp_dir / "population.txt"),
         ],
     )
