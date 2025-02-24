@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from config.myconfig import Config
+from config.mytable import TableSaver
+from evotorch.logging import Logger
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ga import MISGaProblem
 from problems.mis.mis_instance import create_mis_instance
@@ -95,3 +97,20 @@ def problem_factory(task: str) -> Problem:
         return TSPGAProblem()
     error_msg = f"No problem for task {task}."
     raise ValueError(error_msg)
+
+
+class CustomLogger(Logger):
+    def __init__(self, table_name: str, instance_id: int, gt_cost: float, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        super().__init__(*args, **kwargs)
+        self.keys_to_log = ["iter", "mean_eval", "median_eval", "pop_best_eval", "best_eval", "worst_eval"]
+        self.table_saver = TableSaver(table_name=table_name)
+        self.instance_id = instance_id
+        self.gt_cost = gt_cost
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    def _log(self, status: dict) -> None:
+        data = {k: status[k] for k in self.keys_to_log}
+        data["instance_id"] = self.instance_id
+        data["gt_cost"] = self.gt_cost
+        data["timestamp"] = self.timestamp
+        self.table_saver.put(data)

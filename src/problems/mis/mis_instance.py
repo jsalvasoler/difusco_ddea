@@ -87,7 +87,7 @@ class MISInstance(MISInstanceBase):
     def get_gt_cost(self) -> float:
         if self.gt_labels is None:
             raise ValueError("Ground truth labels are not available")
-        return self.gt_labels.sum()
+        return self.gt_labels.sum().item()
 
     def evaluate_individual(self, individual: torch.Tensor) -> float:
         """Individual is a random key of shape (n_nodes,), values in [0, 1]."""
