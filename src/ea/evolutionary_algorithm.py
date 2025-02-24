@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 import timeit
 from typing import TYPE_CHECKING
-
+import pandas as pd
 import numpy as np
 import torch
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_ga import create_mis_ga
 from problems.tsp.tsp_ga import create_tsp_ga
 from torch_geometric.loader import DataLoader
+import matplotlib.pyplot as plt
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
 from ea.ea_utils import CustomLogger, dataset_factory, get_results_dict, instance_factory
@@ -33,7 +34,7 @@ class EvolutionaryAlgorithm(Experiment):
         if self.config.validate_samples:
             # only log ga for a particular instance if validate_samples is not None
             table_name = self._get_logger_table_name(instance_id=sample[0].item())
-            _ = CustomLogger(
+            custom_logger = CustomLogger(
                 table_name=table_name,
                 instance_id=sample[0].item(),
                 gt_cost=instance.get_gt_cost(),
@@ -44,6 +45,9 @@ class EvolutionaryAlgorithm(Experiment):
         start_time = timeit.default_timer()
         ea.run(self.config.n_generations)
 
+        if self.config.validate_samples:
+            self._save_evolution_figure(custom_logger)
+
         cost = ea.status["pop_best_eval"]
         gt_cost = instance.get_gt_cost()
 
@@ -52,6 +56,17 @@ class EvolutionaryAlgorithm(Experiment):
 
         results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
+
+    def _save_evolution_figure(self, custom_logger: CustomLogger) -> None:
+        table_name = self._get_logger_table_name(instance_id=custom_logger.instance_id)
+        df = pd.read_csv(table_name)
+        df = df[df["timestamp"] == custom_logger.timestamp]
+        # plot lines for each key in custom_logger.keys_to_log, except for "step"
+        keys_to_plot = [k for k in custom_logger.keys_to_log if k != "iter"]
+        for key in keys_to_plot:
+            plt.plot(df["iter"], df[key], label=key)
+        plt.legend()
+        plt.savefig(f"{table_name.replace('.csv', '')}_{custom_logger.timestamp}.png")
 
     def _get_logger_table_name(self, instance_id: int) -> str:
         # get the table name from the wandb_logger_name
