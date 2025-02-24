@@ -6,7 +6,12 @@ from typing import Literal
 import numpy as np
 import torch
 from ea.problem_instance import ProblemInstance
-from problems.mis.mis_evaluation import mis_decode_np, mis_decode_torch
+from problems.mis.mis_evaluation import (
+    mis_decode_np,
+    mis_decode_torch,
+    mis_decode_torch_batched,
+    precompute_neighbors_padded,
+)
 from scipy.sparse import coo_matrix, csr_matrix
 
 from difusco.mis.pl_mis_model import MISModel
@@ -25,6 +30,14 @@ class MISInstanceBase(ProblemInstance):
     def create_from_batch_sample(sample: tuple, device: str) -> MISInstanceBase:
         """Create a MISInstance from a batch sample. The batch must have size 1."""
 
+    @abstractmethod
+    def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
+        """Returns a tensor of shape (n_nodes,) with the nodes in the MIS."""
+
+    @abstractmethod
+    def get_feasible_from_individual_batch(self, individual: torch.Tensor) -> torch.Tensor:
+        """Returns a tensor of shape (batch_size, n_nodes) with the nodes in the MIS."""
+
 
 class MISInstance(MISInstanceBase):
     def __init__(
@@ -41,6 +54,9 @@ class MISInstance(MISInstanceBase):
         self.edge_index = edge_index
         self.gt_labels = gt_labels
         self.device = device
+        neighbors_padded, degrees = precompute_neighbors_padded(adj_matrix.to_sparse_csr())
+        self.neighbors_padded = neighbors_padded.to(device)
+        self.degrees = degrees.to(device)
 
     @staticmethod
     def create_from_batch_sample(sample: tuple, device: str) -> MISInstance:
@@ -72,6 +88,10 @@ class MISInstance(MISInstanceBase):
     def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
         """Individual is a random key of shape (n_nodes,), values in [0, 1]."""
         return mis_decode_torch(individual, self.adj_matrix)
+
+    def get_feasible_from_individual_batch(self, individual: torch.Tensor) -> torch.Tensor:
+        """Individual is a random key of shape (batch_size, n_nodes), values in [0, 1]."""
+        return mis_decode_torch_batched(individual, self.neighbors_padded, self.degrees)
 
     def get_degrees(self) -> torch.Tensor:
         return self.adj_matrix.sum(dim=1).to_dense().squeeze().to(self.device)
@@ -120,6 +140,12 @@ class MISInstanceNumPy(MISInstanceBase):
     def get_feasible_from_individual(self, individual: torch.Tensor) -> torch.Tensor:
         individual = individual.cpu().numpy()
         decoded = mis_decode_np(individual, self.adj_matrix)
+        return torch.tensor(decoded, dtype=torch.bool, device=self.device)
+
+    def get_feasible_from_individual_batch(self, individual: torch.Tensor) -> torch.Tensor:
+        individual = individual.cpu().numpy()
+        decoded = [mis_decode_np(individual[i], self.adj_matrix) for i in range(individual.shape[0])]
+        decoded = np.array(decoded)
         return torch.tensor(decoded, dtype=torch.bool, device=self.device)
 
     def get_degrees(self) -> torch.Tensor:
