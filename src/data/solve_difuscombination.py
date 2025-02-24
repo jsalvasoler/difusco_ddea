@@ -70,7 +70,7 @@ def solve_difuscombination(config: Config) -> None:
         first_index = remainder * (batch_size + 1) + (config.batch_idx - remainder) * batch_size
         first_index_next = first_index + batch_size
 
-    config = config.update(Config(task="mis", np_eval=True, device="cpu"))
+    config = config.update(Config(task="mis", device="cpu"))
 
     mis_dataset = MISDataset(data_dir=config.data_dir, data_label_dir=config.data_label_dir)
 

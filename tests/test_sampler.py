@@ -21,7 +21,6 @@ common = Config(
     logs_path="logs",
     results_path="results",
     models_path="models",
-    np_eval=True,
     device="cuda",
     mode="difusco",
 )

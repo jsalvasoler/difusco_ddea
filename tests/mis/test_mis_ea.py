@@ -55,8 +55,6 @@ def test_create_mis_instance() -> None:
 def test_mis_problem_evaluation() -> None:
     instance, _ = read_mis_instance()
     config = Config(
-        np_eval=False,
-        device="cpu",
         recombination="classic",
         initialization="random_feasible",
         pop_size=10,
@@ -105,7 +103,6 @@ def test_mis_ga_fill_random_feasible() -> None:
         pop_size=10,
         device="cpu",
         n_parallel_evals=0,
-        np_eval=False,
         initialization="random_feasible",
         recombination="classic",
     )
@@ -162,7 +159,6 @@ def test_mis_ga_crossover_small(square_instance: MISInstanceBase) -> None:
         pop_size=4,
         device="cpu",
         n_parallel_evals=0,
-        np_eval=False,
         initialization="random_feasible",
         recombination="classic",
     )
@@ -197,7 +193,6 @@ def test_mis_ga_crossovers(recombination: str) -> None:
         pop_size=4,
         device="cpu",
         n_parallel_evals=0,
-        np_eval=False,
         initialization="random_feasible",
         recombination=recombination,
         test_samples_file=samples_file,
@@ -240,7 +235,6 @@ def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
         pop_size=2,
         device="cpu",
         n_parallel_evals=0,
-        np_eval=False,
         initialization="random_feasible",
         recombination="classic",
     )
@@ -285,7 +279,6 @@ def test_mis_ga_mutation_no_deselection(square_instance: MISInstanceBase) -> Non
         pop_size=2,
         device="cpu",
         n_parallel_evals=0,
-        np_eval=False,
         initialization="random_feasible",
         recombination="classic",
     )

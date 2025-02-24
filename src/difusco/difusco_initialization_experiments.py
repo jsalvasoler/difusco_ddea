@@ -69,9 +69,6 @@ def get_arg_parser() -> ArgumentParser:
     tsp_settings = parser.add_argument_group("tsp_settings")
     tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
 
-    mis_settings = parser.add_argument_group("mis_settings")
-    mis_settings.add_argument("--np_eval", action="store_true")
-
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", type=bool, default=False)
     dev.add_argument("--validate_samples", type=int, default=None)

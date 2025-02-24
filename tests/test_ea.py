@@ -46,7 +46,6 @@ def test_get_results_dict() -> None:
         n_generations=100,
         max_two_opt_it=200,
         sparse_factor=-1,
-        np_eval=False,
         initialization="difusco_sampling",
     )
     results = {"a": 0.95, "b": 0.05}
@@ -72,7 +71,6 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
         test_split="mis/er_700_800/test",
         test_split_label_dir=None,  # er_700_800/test already has labels!
         device="cpu",
-        np_eval=True,
     )
 
     dataset = dataset_factory(config)
@@ -129,7 +127,6 @@ def test_ea_for_sparse_tsp() -> None:
         pop_size=2,
         n_parallel_evals=0,
         max_two_opt_it=1,
-        np_eval=True,
         test_split="data/tsp/tsp500_test_concorde.txt",
         test_split_label_dir=None,
         data_path=".",
