@@ -37,7 +37,6 @@ def test_get_results_dict() -> None:
     config = Config(
         config_name="mis_inference",
         task="mis",
-        algo="ga",
         wandb_logger_name="test_logger",
         results_path=str(temp_dir),
         device="cpu",
@@ -66,7 +65,6 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
     config = Config(
         config_name="mis_inference",
         task="mis",
-        algo="ga",
         data_path="data",
         test_split="mis/er_700_800/test",
         test_split_label_dir=None,  # er_700_800/test already has labels!
@@ -87,8 +85,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
 
 @pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
-@pytest.mark.parametrize("algo", ["ga"])
-def test_ea_runs(task: str, algo: str) -> None:
+def test_ea_runs(task: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":
@@ -108,7 +105,6 @@ def test_ea_runs(task: str, algo: str) -> None:
         n_parallel_evals=0,
         max_two_opt_it=1,
         task=task,
-        algo=algo,
         sparse_factor=-1,
         n_generations=5,
         validate_samples=2,
@@ -121,7 +117,6 @@ def test_ea_for_sparse_tsp() -> None:
     config = Config(
         config_name="tsp_inference",
         task="tsp",
-        algo="ga",
         sparse_factor=50,
         n_generations=2,
         pop_size=2,

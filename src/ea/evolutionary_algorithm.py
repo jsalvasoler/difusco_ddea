@@ -61,11 +61,10 @@ class EvolutionaryAlgorithm(Experiment):
 
 
 def ea_factory(config: Config, instance: ProblemInstance, **kwargs) -> GeneticAlgorithm:
-    if config.algo == "ga":
-        if config.task == "mis":
-            return create_mis_ga(instance, config, **kwargs)
-        if config.task == "tsp":
-            return create_tsp_ga(instance, config, **kwargs)
+    if config.task == "mis":
+        return create_mis_ga(instance, config, **kwargs)
+    if config.task == "tsp":
+        return create_tsp_ga(instance, config, **kwargs)
     error_msg = f"No evolutionary algorithm for task {config.task}."
     raise ValueError(error_msg)
 

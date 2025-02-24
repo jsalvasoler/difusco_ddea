@@ -123,7 +123,6 @@ class RecombinationExperiment(Experiment):
         self.config.validation_graphs_dir = self.config.test_graphs_dir
 
     def _fake_attrs_for_ga(self) -> None:
-        self.config.algo = "ga"
         self.config.device = "cuda"
         self.config.pop_size = 2
         self.config.initialization = "random_feasible"

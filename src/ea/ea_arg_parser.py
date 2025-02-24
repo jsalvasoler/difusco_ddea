@@ -8,7 +8,6 @@ def get_arg_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Run an evolutionary algorithm")
 
     general = parser.add_argument_group("general")
-    general.add_argument("--algo", type=str, required=True)
     general.add_argument("--task", type=str, required=True)
     general.add_argument("--data_path", type=str, required=True)
     general.add_argument("--logs_path", type=str, default=None)
@@ -62,15 +61,12 @@ def get_arg_parser() -> ArgumentParser:
 
 def validate_args(args: Namespace) -> None:
     assert args.task in ["tsp", "mis"]
-    assert args.algo in ["ga"]
 
     assert args.pop_size > 2, "Population size must be greater than 2."
+    assert args.initialization in ["random_feasible", "difusco_sampling"]
+    assert args.recombination in ["classic", "difuscombination", "optimal"]
 
-    if args.algo == "ga":
-        assert args.initialization in ["random_feasible", "difusco_sampling"]
-        assert args.recombination in ["classic", "difuscombination", "optimal"]
-
-    if args.algo == "ga" and args.task == "tsp":
+    if args.task == "tsp":
         assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."
 
     for dir_path in [args.data_path, args.logs_path]:
