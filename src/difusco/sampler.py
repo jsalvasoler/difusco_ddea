@@ -115,7 +115,7 @@ class DifuscoSampler:
             instance_id = batch[0].item()
             cache_file = Path(self.cache_dir) / f"heatmaps_{instance_id}.pt"
             assert cache_file.exists(), f"Cache file {cache_file} does not exist"
-            heatmaps = torch.load(cache_file)
+            heatmaps = torch.load(cache_file, map_location=self.device)
             print(f"Loaded {heatmaps.shape[0]} heatmaps from cache for instance {instance_id}")
 
             n_available_heatmaps = heatmaps.shape[0]
