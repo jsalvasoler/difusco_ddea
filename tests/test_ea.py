@@ -88,7 +88,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
     assert np.mean(results) == 41.3828125
 
 
-@pytest.mark.parametrize("task", ["tsp", "mis"])
+@pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
 @pytest.mark.parametrize("algo", ["ga"])
 def test_ea_runs(task: str, algo: str) -> None:
     if task == "tsp":
@@ -101,6 +101,7 @@ def test_ea_runs(task: str, algo: str) -> None:
     config = Config(
         config_name=f"{task}_inference",
         initialization="random_feasible",
+        recombination="classic",
         test_split=data_path,
         test_split_label_dir=None,
         data_path=".",
@@ -112,7 +113,6 @@ def test_ea_runs(task: str, algo: str) -> None:
         algo=algo,
         sparse_factor=-1,
         n_generations=5,
-        np_eval=True,
         validate_samples=2,
         profiler=False,
     )

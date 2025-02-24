@@ -27,7 +27,7 @@ class EvolutionaryAlgorithm(Experiment):
 
     def run_single_iteration(self, sample: tuple) -> dict:
         instance = instance_factory(self.config, sample)
-        ea = ea_factory(self.config, instance, batch=sample)
+        ea = ea_factory(self.config, instance, sample=sample)
 
         _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
 

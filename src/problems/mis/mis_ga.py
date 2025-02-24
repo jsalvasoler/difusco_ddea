@@ -292,8 +292,8 @@ class MISGACrossover(CrossOver):
         )
         priority2[common_nodes] = 0
 
-        children = torch.cat([parents1, parents2], dim=0)
-        children = self._instance.get_feasible_from_individual_batch(children)
+        priorities = torch.cat([priority1, priority2], dim=0)
+        children = self._instance.get_feasible_from_individual_batch(priorities)
         return self._make_children_batch(children)
 
 
