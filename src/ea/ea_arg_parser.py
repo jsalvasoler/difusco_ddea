@@ -52,6 +52,10 @@ def get_arg_parser() -> ArgumentParser:
     tsp_settings = parser.add_argument_group("tsp_settings")
     tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
 
+    mis_settings = parser.add_argument_group("mis_settings")
+    mis_settings.add_argument("--tournament_size", type=int, default=4)
+    mis_settings.add_argument("--deselect_prob", type=float, default=0.2)
+
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true")
     dev.add_argument("--validate_samples", type=int, default=None)
@@ -65,6 +69,19 @@ def validate_args(args: Namespace) -> None:
     assert args.pop_size > 2, "Population size must be greater than 2."
     assert args.initialization in ["random_feasible", "difusco_sampling"]
     assert args.recombination in ["classic", "difuscombination", "optimal"]
+
+    if args.task == "mis":
+        assert args.recombination in [
+            "classic",
+            "optimal",
+            "difuscombination",
+        ], "Choose a valid recombination method for mis."
+        assert args.initialization in [
+            "random_feasible",
+            "difusco_sampling",
+        ], "Choose a valid initialization method for mis."
+        assert args.tournament_size > 0, "Tournament size must be greater than 0 for mis."
+        assert args.deselect_prob > 0, "Deselect probability must be greater than 0 for mis."
 
     if args.task == "tsp":
         assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."
