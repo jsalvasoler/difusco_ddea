@@ -87,7 +87,6 @@ class MISGaProblem(Problem):
         config = self.config.update(
             parallel_sampling=self.config.pop_size,
             sequential_sampling=1,
-            device="cuda",
             mode="difusco",
         )
         config = MISGaProblem._fake_paths_for_difusco_models(config)
@@ -234,9 +233,10 @@ class MISGACrossover(CrossOver):
         children_2 = parents2.clone()
 
         for i in range(num_pairings):
-            solution_1 = parents1[i].cpu().numpy()
-            solution_2 = parents2[i].cpu().numpy()
-            result = solve_problem(self._instance, solution_1, solution_2)
+            solution_1 = parents1[i].cpu().numpy().nonzero()[0]
+            solution_2 = parents2[i].cpu().numpy().nonzero()[0]
+
+            result = solve_problem(self._instance, solution_1, solution_2, time_limit=5)
 
             children_1[i] = torch.tensor(result["children_np_labels"], device=device)
             children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
@@ -337,8 +337,8 @@ def create_mis_ga(
         popsize=config.pop_size,
         re_evaluate=False,
         operators=[
-            MISGACrossover(problem, instance, mode=config.recombination),
-            MISGAMutation(problem, instance, deselect_prob=0.2),
+            MISGACrossover(problem, instance, mode=config.recombination, tournament_size=config.tournament_size),
+            MISGAMutation(problem, instance, deselect_prob=config.deselect_prob),
             TempSaver(problem, tmp_dir / "population.txt"),
         ],
     )

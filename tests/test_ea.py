@@ -85,7 +85,9 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
 
 @pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
-def test_ea_runs(task: str, temp_dir: str) -> None:
+@pytest.mark.parametrize("recombination", ["classic", "optimal"])
+@pytest.mark.parametrize("initialization", ["random_feasible", "difusco_sampling"])
+def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":
@@ -93,24 +95,33 @@ def test_ea_runs(task: str, temp_dir: str) -> None:
     else:
         error_msg = f"Invalid task: {task}"
         raise ValueError(error_msg)
-    config = Config(
+    from config.configs.mis_inference import config as mis_config
+
+    config = mis_config.update(
         logs_path=str(temp_dir),
         config_name=f"{task}_inference",
         wandb_logger_name=f"{task}_inference",
-        initialization="random_feasible",
-        recombination="classic",
+        initialization=initialization,
+        recombination=recombination,
         test_split=data_path,
         test_split_label_dir=None,
         data_path=".",
-        pop_size=5,
+        pop_size=2,
         device="cpu",
         n_parallel_evals=0,
         max_two_opt_it=1,
         task=task,
         sparse_factor=-1,
-        n_generations=5,
+        n_generations=2,
         validate_samples=2,
+        tournament_size=2,
+        parallel_sampling=2,
+        sequential_sampling=1,
+        models_path="models",
+        deselect_prob=0.5,
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         profiler=False,
+        cache_dir="cache/mis/er_700_800/test",
     )
     run_ea(config)
 
