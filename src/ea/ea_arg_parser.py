@@ -8,7 +8,6 @@ def get_arg_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Run an evolutionary algorithm")
 
     general = parser.add_argument_group("general")
-    general.add_argument("--algo", type=str, required=True)
     general.add_argument("--task", type=str, required=True)
     general.add_argument("--data_path", type=str, required=True)
     general.add_argument("--logs_path", type=str, default=None)
@@ -28,11 +27,13 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--n_generations", type=int, default=100)
     ea_settings.add_argument("--max_two_opt_it", type=int, default=-1)
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
+    ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
     difusco_settings.add_argument("--ckpt_path", type=str, default=None)
+    difusco_settings.add_argument("--ckpt_path_difuscombination", type=str, default=None)
     difusco_settings.add_argument("--diffusion_type", type=str, default="categorical")
     difusco_settings.add_argument("--diffusion_schedule", type=str, default="linear")
     difusco_settings.add_argument("--inference_schedule", type=str, default="cosine")
@@ -52,7 +53,8 @@ def get_arg_parser() -> ArgumentParser:
     tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
 
     mis_settings = parser.add_argument_group("mis_settings")
-    mis_settings.add_argument("--np_eval", action="store_true")
+    mis_settings.add_argument("--tournament_size", type=int, default=4)
+    mis_settings.add_argument("--deselect_prob", type=float, default=0.2)
 
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true")
@@ -63,12 +65,25 @@ def get_arg_parser() -> ArgumentParser:
 
 def validate_args(args: Namespace) -> None:
     assert args.task in ["tsp", "mis"]
-    assert args.algo in ["ga", "brkga"]
 
-    if args.algo == "ga":
-        assert args.initialization in ["random_feasible", "difusco_sampling"]
+    assert args.pop_size > 2, "Population size must be greater than 2."
+    assert args.initialization in ["random_feasible", "difusco_sampling"]
+    assert args.recombination in ["classic", "difuscombination", "optimal"]
 
-    if args.algo == "ga" and args.task == "tsp":
+    if args.task == "mis":
+        assert args.recombination in [
+            "classic",
+            "optimal",
+            "difuscombination",
+        ], "Choose a valid recombination method for mis."
+        assert args.initialization in [
+            "random_feasible",
+            "difusco_sampling",
+        ], "Choose a valid initialization method for mis."
+        assert args.tournament_size > 0, "Tournament size must be greater than 0 for mis."
+        assert args.deselect_prob > 0, "Deselect probability must be greater than 0 for mis."
+
+    if args.task == "tsp":
         assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."
 
     for dir_path in [args.data_path, args.logs_path]:

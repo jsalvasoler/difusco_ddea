@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.utils.data
 from problems.mis.mis_evaluation import mis_decode_np
+from scipy.sparse import coo_matrix
 from torch import nn
 from torch.nn.functional import mse_loss, one_hot
 
@@ -28,6 +29,38 @@ class MISModelBase(COMetaModel):
         self.train_dataset = None
         self.test_dataset = None
         self.validation_dataset = None
+
+    @staticmethod
+    def process_batch(batch: tuple) -> tuple:
+        """
+        Process the input batch and return node labels, edge index, adjacency matrix, and optional features.
+
+        Args:
+            batch: Input batch containing graph data
+
+        Returns:
+            tuple containing:
+                - node_labels: Tensor of node labels
+                - edge_index: Edge index tensor
+                - adj_mat: Sparse adjacency matrix in CSR format
+                - features: Features tensor (optional)
+        """
+        _, graph_data, _ = batch
+        if len(graph_data.x.shape) != 2 or graph_data.x.shape[1] == 1:
+            node_labels = graph_data.x
+            features = None
+        else:
+            node_labels = graph_data.x[:, 0]
+            features = graph_data.x[:, 1:]
+        edge_index = graph_data.edge_index
+
+        edge_index = edge_index.to(node_labels.device).reshape(2, -1)
+        edge_index_np = edge_index.cpu().numpy()
+        adj_mat = coo_matrix(
+            (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
+        ).tocsr()
+
+        return node_labels, edge_index, adj_mat, features
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor, **kwargs) -> torch.Tensor:
         """We pass kwargs since difuscombination needs extra arguments."""
@@ -84,22 +117,6 @@ class MISModelBase(COMetaModel):
                 - node_labels: Tensor of node labels
                 - edge_index: Edge index tensor
                 - point_indicator: Point indicator tensor
-                - features: Features tensor (optional)
-        """
-
-    @abstractmethod
-    def process_batch(self, batch: tuple) -> tuple:
-        """
-        Process the input batch and return node labels, edge index, adjacency matrix, and optional features.
-
-        Args:
-            batch: Input batch containing graph data
-
-        Returns:
-            tuple containing:
-                - node_labels: Tensor of node labels
-                - edge_index: Edge index tensor
-                - adj_mat: Sparse adjacency matrix in CSR format
                 - features: Features tensor (optional)
         """
 

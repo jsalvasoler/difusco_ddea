@@ -11,6 +11,14 @@ if TYPE_CHECKING:
     from problems.tsp.tsp_instance import TSPInstance
 
 
+def get_feasible_solutions(heatmaps: torch.Tensor, instance: TSPInstance) -> torch.Tensor:
+    solutions = None
+    for i in range(heatmaps.shape[0]):
+        solution = instance.get_tour_from_adjacency_np_heatmap(heatmaps[i].cpu().numpy()).unsqueeze(0)
+        solutions = solution if solutions is None else torch.vstack((solutions, solution))
+    return solutions
+
+
 def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, config: Config) -> dict:
     """Calculate metrics on TSP heatmaps including edge selection frequencies.
 
@@ -30,12 +38,8 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
         n_edges = instance.n * config.sparse_factor
         assert heatmaps.shape[1] == n_edges, f"Heatmaps shape: {heatmaps.shape}x{n_edges}"
 
-    solutions = None
     start_time = timeit.default_timer()
-    for i in range(heatmaps.shape[0]):
-        # Convert heatmap to tour using instance method
-        solution = instance.get_tour_from_adjacency_np_heatmap(heatmaps[i].cpu().numpy()).unsqueeze(0)
-        solutions = solution if solutions is None else torch.vstack((solutions, solution))
+    solutions = get_feasible_solutions(heatmaps, instance, config)
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
 

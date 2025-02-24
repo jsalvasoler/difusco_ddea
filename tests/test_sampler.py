@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -7,6 +9,7 @@ import torch
 from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
+from difuscombination.dataset import MISDatasetComb
 from problems.mis.mis_dataset import MISDataset
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from torch_geometric.loader import DataLoader
@@ -18,8 +21,8 @@ common = Config(
     logs_path="logs",
     results_path="results",
     models_path="models",
-    np_eval=True,
     device="cuda",
+    mode="difusco",
 )
 
 
@@ -71,24 +74,45 @@ def config_mis_recombination() -> Config:
         training_split_label_dir="mis/er_50_100/train_labels",
         validation_split="mis/er_50_100/test",
         validation_split_label_dir="mis/er_50_100/test_labels",
-        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
+        training_samples_file="difuscombination/mis/er_50_100/train",
+        training_labels_dir="difuscombination/mis/er_50_100/train_labels",
+        training_graphs_dir="mis/er_50_100/train",
+        test_samples_file="difuscombination/mis/er_50_100/test",
+        test_labels_dir="difuscombination/mis/er_50_100/test_labels",
+        test_graphs_dir="mis/er_50_100/test",
+        validation_samples_file="difuscombination/mis/er_50_100/test",
+        validation_labels_dir="difuscombination/mis/er_50_100/test_labels",
+        validation_graphs_dir="mis/er_50_100/test",
+        ckpt_path="difuscombination/mis_er_50_100_gaussian.ckpt",
+        data_path="data",
+        models_path="models",
+        logs_path="logs",
+        results_path="results",
         parallel_sampling=2,
         sequential_sampling=2,
-        mode="recombination",
+        mode="difuscombination",
     )
     return mis_inference_config.update(config)
 
 
-def get_dataloader(config: Config) -> tuple[Config, DataLoader]:
+def get_dataloader(config: Config, batch_size: int = 1) -> tuple[Config, DataLoader]:
     """Fixture to create both config and dataloader for testing."""
-    data_file = Path(config.data_path) / config.test_split
+    data_file = Path(config.data_path)
+
+    if config.mode == "difuscombination":
+        dataset = MISDatasetComb(
+            samples_file=data_file / config.test_samples_file,
+            graphs_dir=data_file / config.test_graphs_dir,
+            labels_dir=data_file / config.test_labels_dir,
+        )
+        return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     if config.task == "tsp":
-        dataset = TSPGraphDataset(data_file=data_file, sparse_factor=config.sparse_factor)
+        dataset = TSPGraphDataset(data_file=data_file / config.test_split, sparse_factor=config.sparse_factor)
     elif config.task == "mis":
-        dataset = MISDataset(data_dir=data_file, data_label_dir=None)
+        dataset = MISDataset(data_dir=data_file / config.test_split, data_label_dir=None)
 
-    return DataLoader(dataset, batch_size=1, shuffle=False)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 
 def assert_heatmap_properties(heatmaps: torch.Tensor, config: Config) -> None:
@@ -97,8 +121,13 @@ def assert_heatmap_properties(heatmaps: torch.Tensor, config: Config) -> None:
     assert heatmaps.shape[0] == expected_samples, "Incorrect number of samples"
 
     if config.task == "tsp":
-        assert heatmaps.shape[1] == 50, "Incorrect number of nodes"
-        assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
+        if config.sparse_factor == -1:
+            # full adj matrix
+            assert heatmaps.shape[1] == 50, "Incorrect number of nodes"
+            assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
+        else:
+            # prob over edges
+            assert heatmaps.shape[1] == config.sparse_factor * 500, "Incorrect number of nodes"
     elif config.task == "mis":
         assert heatmaps.shape[1] == 56, "Incorrect number of nodes"
 
@@ -124,12 +153,32 @@ def test_sampler_tsp_sampling(config_tsp: Config) -> None:
     run_test_on_config(config_tsp)
 
 
-def test_sampler_mis_sampling(config_mis: Config) -> None:
-    run_test_on_config(config_mis)
+@pytest.mark.parametrize("cache_dir", [True, False])
+def test_sampler_mis_sampling(config_mis: Config, cache_dir: bool) -> None:
+    if cache_dir:
+        config_mis = config_mis.update(cache_dir="cache/mis/er_50_100/test")
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        run_test_on_config(config_mis)
+
+    output = f.getvalue()
+
+    if cache_dir:
+        # Extract the number of heatmaps and instance_id from the output
+        assert "Loaded 32 heatmaps from cache for instance" in output
 
 
-def test_sampler_mis_recombination(config_mis_recombination: Config) -> None:
-    config = config_mis_recombination
+@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+def test_sampler_mis_recombination(
+    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config
+) -> None:
+    config = config_mis_recombination.update(
+        task="mis",
+        parallel_sampling=parallel_sampling,
+        sequential_sampling=sequential_sampling,
+        mode="difuscombination",
+    )
     assert torch.cuda.is_available(), "CUDA is not available"
 
     dataloader = get_dataloader(config)
@@ -169,3 +218,34 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
     heatmaps = sampler.sample(batch)
 
     assert_heatmap_properties(heatmaps, config)
+
+
+@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(3, 1), (1, 3), (3, 3)])
+@pytest.mark.parametrize("override_features", [True, False])
+def test_sampler_mis_recombination_batch(
+    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config, override_features: bool
+) -> None:
+    config = config_mis_recombination.update(
+        task="mis",
+        parallel_sampling=parallel_sampling,
+        sequential_sampling=sequential_sampling,
+        mode="difuscombination",
+    )
+    dataloader = get_dataloader(config, batch_size=2)
+
+    sampler = DifuscoSampler(config=config)
+
+    batch = next(iter(dataloader))
+    if override_features:
+        features = torch.randn(56 * 2, 2).bool().float()
+        heatmaps = sampler.sample(batch, features=features)
+    else:
+        heatmaps = sampler.sample(batch)
+
+    # custom check to consider the batch size
+    assert heatmaps.shape[0] == 2, "Incorrect batch size"
+    assert heatmaps.shape[1] == parallel_sampling * sequential_sampling, "Incorrect number of samples"
+    assert heatmaps.shape[2] == 56, "Incorrect number of nodes"
+
+    assert torch.all(heatmaps >= 0), "Heatmap values below 0"
+    assert torch.all(heatmaps <= 1), "Heatmap values above 1"

@@ -62,7 +62,7 @@ class MISDatasetComb(Dataset):
 
         self._length = len(self.label_files)
 
-        print(f'Loaded "{graphs_dir}" with {self._length} examples in {time.time() - start_time:.2f}s')
+        print(f'Loaded "{self.labels_dir}" with {self._length} examples in {time.time() - start_time:.2f}s')
 
     def __len__(self) -> int:
         return self._length

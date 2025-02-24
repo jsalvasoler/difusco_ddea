@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+import os
 import timeit
+from pathlib import Path
+from tempfile import mkdtemp
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from evotorch.logging import StdOutLogger
-from problems.mis.mis_brkga import create_mis_brkga
 from problems.mis.mis_ga import create_mis_ga
-from problems.tsp.tsp_brkga import create_tsp_brkga
 from problems.tsp.tsp_ga import create_tsp_ga
 from torch_geometric.loader import DataLoader
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
-from ea.ea_utils import dataset_factory, get_results_dict, instance_factory
+from ea.ea_utils import CustomLogger, dataset_factory, get_results_dict, instance_factory
 
 if TYPE_CHECKING:
     from config.myconfig import Config
@@ -24,16 +25,31 @@ if TYPE_CHECKING:
 
 class EvolutionaryAlgorithm(Experiment):
     def __init__(self, config: Config) -> None:
-        super().__init__(config)
+        super().__init__()
+        self.config = config
 
     def run_single_iteration(self, sample: tuple) -> dict:
         instance = instance_factory(self.config, sample)
-        ea = ea_factory(self.config, instance)
+        tmp_dir = Path(mkdtemp())
+        ea = ea_factory(self.config, instance, sample=sample, tmp_dir=tmp_dir)
 
+        if self.config.validate_samples:
+            # only log ga for a particular instance if validate_samples is not None
+            table_name = self._get_logger_table_name(instance_id=sample[0].item())
+            custom_logger = CustomLogger(
+                table_name=table_name,
+                instance_id=sample[0].item(),
+                gt_cost=instance.get_gt_cost(),
+                tmp_population_file=tmp_dir / "population.txt",
+                searcher=ea,
+            )
         _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
 
         start_time = timeit.default_timer()
         ea.run(self.config.n_generations)
+
+        if self.config.validate_samples:
+            custom_logger.save_evolution_figure()
 
         cost = ea.status["pop_best_eval"]
         gt_cost = instance.get_gt_cost()
@@ -43,6 +59,16 @@ class EvolutionaryAlgorithm(Experiment):
 
         results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
+
+    def _get_logger_table_name(self, instance_id: int) -> str:
+        # get the table name from the wandb_logger_name
+        table_name = os.path.join(
+            self.config.logs_path, "ea_logs", f"{self.config.wandb_logger_name}_inst_{instance_id}.csv"
+        )
+        # if parent directory does not exist, create it
+        if not os.path.exists(os.path.dirname(table_name)):
+            os.makedirs(os.path.dirname(table_name))
+        return table_name
 
     def get_dataloader(self) -> DataLoader:
         return DataLoader(dataset_factory(self.config), batch_size=1, shuffle=False)
@@ -61,17 +87,11 @@ class EvolutionaryAlgorithm(Experiment):
         return "results/ea_results.csv"
 
 
-def ea_factory(config: Config, instance: ProblemInstance) -> GeneticAlgorithm:
-    if config.algo == "brkga":
-        if config.task == "mis":
-            return create_mis_brkga(instance, config)
-        if config.task == "tsp":
-            return create_tsp_brkga(instance, config)
-    elif config.algo == "ga":
-        if config.task == "mis":
-            return create_mis_ga(instance, config)
-        if config.task == "tsp":
-            return create_tsp_ga(instance, config)
+def ea_factory(config: Config, instance: ProblemInstance, **kwargs) -> GeneticAlgorithm:
+    if config.task == "mis":
+        return create_mis_ga(instance, config, **kwargs)
+    if config.task == "tsp":
+        return create_tsp_ga(instance, config, **kwargs)
     error_msg = f"No evolutionary algorithm for task {config.task}."
     raise ValueError(error_msg)
 

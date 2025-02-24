@@ -5,6 +5,7 @@ import traceback
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
+import torch
 import wandb
 
 if TYPE_CHECKING:
@@ -55,6 +56,11 @@ class ExperimentRunner:
                 queue.put(result)
             except Exception:  # noqa: BLE001
                 queue.put({"error": traceback.format_exc()})
+            finally:
+                # Clean up CUDA tensors
+                torch.cuda.empty_cache()
+                if torch.cuda.is_available():
+                    torch.cuda.ipc_collect()
 
         if self.config.profiler:
             with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as p:

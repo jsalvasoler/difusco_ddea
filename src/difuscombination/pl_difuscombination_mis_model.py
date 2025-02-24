@@ -5,9 +5,6 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-import numpy as np
-from scipy.sparse import coo_matrix
-
 from difusco.mis.pl_mis_base_model import MISModelBase
 from difuscombination.dataset import MISDatasetComb
 from difuscombination.gnn_encoder_difuscombination import GNNEncoderDifuscombination
@@ -43,21 +40,6 @@ class DifusCombinationMISModel(MISModelBase):
         # Override self.model
         config.node_feature_only = True
         self.model = GNNEncoderDifuscombination(config)
-
-    @staticmethod
-    def process_batch(batch: tuple) -> tuple:
-        _, graph_data, _ = batch
-        node_labels = graph_data.x[:, 0]
-        features = graph_data.x[:, 1:]
-        edge_index = graph_data.edge_index
-
-        edge_index = edge_index.to(node_labels.device).reshape(2, -1)
-        edge_index_np = edge_index.cpu().numpy()
-        adj_mat = coo_matrix(
-            (np.ones_like(edge_index_np[0]), (edge_index_np[0], edge_index_np[1])),
-        ).tocsr()
-
-        return node_labels, edge_index, adj_mat, features
 
     @staticmethod
     def unpack_batch(batch: tuple) -> tuple:

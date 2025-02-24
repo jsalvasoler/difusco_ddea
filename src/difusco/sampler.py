@@ -28,11 +28,12 @@ class DifuscoSampler:
             ckpt_path: Path to the model checkpoint
             param_args: Arguments for model initialization
             device: Device to run inference on
-            mode: Literal["difusco", "recombination"]
+            mode: Literal["difusco", "difuscombination"]
         """
         self.task = config.task
         self.device = config.device
         self.mode = config.mode if "mode" in config else "difusco"  # default to difusco
+        assert self.mode in ["difusco", "difuscombination"]
 
         ckpt_path = Path(config.models_path) / config.ckpt_path
 
@@ -42,6 +43,7 @@ class DifuscoSampler:
             self.model = TSPModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
         elif self.task == "mis":
             if self.mode == "difusco":
+                print(f"Loading Difusco model from {ckpt_path}")
                 self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
             elif self.mode == "difuscombination":
                 self.model = DifusCombinationMISModel.load_from_checkpoint(
@@ -57,6 +59,13 @@ class DifuscoSampler:
         self.model.eval()
         self.model.to(self.device)
 
+        # Check if there is a cache directory for the difusco samples
+        self.cache_dir = None
+        if "cache_dir" in config and config.mode == "difusco":
+            self.cache_dir = Path(config.cache_dir)
+            if not self.cache_dir.exists():
+                raise ValueError(f"Cache directory {self.cache_dir} does not exist")
+
     def sample(self, batch: tuple, features: torch.Tensor | None = None) -> torch.Tensor:
         """Sample heatmaps from Difusco"""
         if self.task == "tsp":
@@ -66,42 +75,84 @@ class DifuscoSampler:
         error_msg = f"Unknown task: {self.task}"
         raise ValueError(error_msg)
 
+    def sample_feasible(self, batch: tuple, features: torch.Tensor | None = None) -> torch.Tensor:
+        """Sample feasible solutions from Difusco"""
+        if self.task == "mis":
+            return self.sample_mis_feasible(batch=batch, features=features)
+        error_msg = f"Unknown task: {self.task}"
+        raise ValueError(error_msg)
+
     @torch.no_grad()
     def sample_mis(
         self,
-        batch: tuple | None = None,
-        edge_index: torch.Tensor | None = None,
-        n_nodes: int | None = None,
+        batch: tuple,
         features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
-        Sample heatmaps from Difusco
+        Sample heatmaps from Difusco. Two options:
+        - pass the batch directly. The batch should come from the Difuscombination dataloader, so it should be able to
+        be processed by the Difuscombination model.
+        If sample_features is not None, these will override the features of the batch
+        - pass edge_index and n_nodes directly
 
         Args:
             batch: Input batch in the format expected by the model
             edge_index: Edge index tensor (only if batch is None)
             n_nodes: Number of nodes (only if batch is None)
-            features: Features tensor (optional, only used with batch). Size: (n_nodes, 2)
+            features: Features tensor (optional ). Size: (n_nodes, 2)
 
         Returns:
             Tensor containing the sampled heatmaps
         """
-        if batch is not None:
-            node_labels, edge_index, _, sample_features = self.model.process_batch(batch)
-            n_nodes = node_labels.shape[0]
-            if features is None:
-                features = sample_features
-        elif edge_index is None or n_nodes is None:
-            error_msg = "Must provide either batch or (edge_index and n_nodes)"
-            raise ValueError(error_msg)
-
+        node_labels, edge_index, _, sample_features = self.model.process_batch(batch)
+        n_nodes = node_labels.shape[0]
+        if features is None:
+            features = sample_features
+        batch_size = batch[0].shape[0]
         edge_index = edge_index.to(self.device)
 
-        heatmaps = None
-        for _ in range(self.model.args.sequential_sampling):
+        if self.cache_dir is not None:
+            instance_id = batch[0].item()
+            cache_file = Path(self.cache_dir) / f"heatmaps_{instance_id}.pt"
+            assert cache_file.exists(), f"Cache file {cache_file} does not exist"
+            heatmaps = torch.load(cache_file, map_location=self.device)
+            print(f"Loaded {heatmaps.shape[0]} heatmaps from cache for instance {instance_id}")
+
+            n_available_heatmaps = heatmaps.shape[0]
+            if n_available_heatmaps >= self.model.args.parallel_sampling * self.model.args.sequential_sampling:
+                print(f"Using cached heatmaps for instance {instance_id}")
+                return heatmaps[: self.model.args.parallel_sampling * self.model.args.sequential_sampling]
+
+            print(f"Not enough cached heatmaps for instance {instance_id}, sampling from scratch")
+            # compute how many heatmaps are we missing
+            n_missing_heatmaps = (
+                self.model.args.parallel_sampling * self.model.args.sequential_sampling - n_available_heatmaps
+            )
+            # divide between parallel and sequential sampling
+            seq_sampling = self.model.args.sequential_sampling - n_missing_heatmaps // self.model.args.parallel_sampling
+
+        else:
+            seq_sampling = self.model.args.sequential_sampling
+            heatmaps = None
+
+        for _ in range(seq_sampling):
             labels_pred = self.model.diffusion_sample(n_nodes, edge_index, self.device, features=features)
             labels_pred = labels_pred.reshape((self.model.args.parallel_sampling, -1))
-            heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=0)
+            if batch_size > 1:
+                original_graphs_size = batch[2].cpu().flatten().tolist()
+                # we have labels_pred of shape (parallel_sampling, n_nodes), where n_nodes is sum(original_graphs_size)
+                # we need to split it into the original graphs to get (batch_size, parallel_sampling, original_size_i)
+                labels_pred = torch.split(labels_pred, original_graphs_size, dim=-1)
+                # we concatenate the results to get (batch_size, parallel_sampling, n_nodes)
+                labels_pred = torch.stack(labels_pred, dim=0)
+
+            # we now have either (batch_size, parallel_sampling, n_nodes) or (parallel_sampling, n_nodes)
+            # we need to concat to get (batch_size, par * seq, n_nodes) or (par * seq, n_nodes), respectively
+            heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=-2)
+
+        # If we sampled too many, return only the first par * seq heatmaps
+        if heatmaps.shape[0] > self.model.args.parallel_sampling * self.model.args.sequential_sampling:
+            heatmaps = heatmaps[: self.model.args.parallel_sampling * self.model.args.sequential_sampling]
 
         return torch.clamp(heatmaps, 0, 1)
 

@@ -4,6 +4,7 @@
 /logs/
 /results/
 /notebooks/
+/cache/
 
 # cython
 build/

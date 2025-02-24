@@ -2,20 +2,13 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
-from unittest.mock import patch
 
 import numpy as np
 import pytest
 import torch
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
-from ea.ea_utils import dataset_factory
 from evotorch import Problem
-from problems.tsp.tsp_brkga import (
-    MatrixQuadrantCrossover,
-    create_tsp_brkga,
-    create_tsp_problem,
-)
 from problems.tsp.tsp_evaluation import TSPEvaluator, TSPTorchEvaluator, evaluate_tsp_route_np, evaluate_tsp_route_torch
 from problems.tsp.tsp_ga import TSPGACrossover, TSPGAProblem, TSPTwoOptMutation, create_tsp_ga
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
@@ -83,82 +76,6 @@ def test_tsp_instance_eval_methods(batch_sample_size_one: tuple) -> None:
     assert abs(evaluate_tsp_route_torch(tsp_torch_evaluator.dist_mat, tour) - instance.get_gt_cost()) < 1e-4
 
 
-@patch("numpy.random.randint", return_value=np.array([2]))
-def test_matrix_quadrant_crossover_one_pair(mock_randint) -> None:  # noqa: ANN001
-    prob = Problem(
-        objective_func=lambda x: x.sum(),
-        objective_sense="min",
-        solution_length=4**2,
-        device="cpu",
-    )
-
-    crossover = MatrixQuadrantCrossover(prob, tournament_size=4)
-
-    parents1 = torch.zeros(4**2).view(1, -1)
-    parents2 = torch.ones(4**2).view(1, -1)
-
-    children = crossover._do_cross_over(parents1, parents2)  # noqa: SLF001
-    # Check if the random value was patched correctly
-    assert mock_randint.called
-    assert mock_randint.call_args[0] == (0, 4)
-
-    assert children.values_shape == (2, 4**2)
-    children_1 = children.values[0].view(4, 4).numpy()
-    children_2 = children.values[1].view(4, 4).numpy()
-
-    expected_children_1 = np.array(
-        [[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
-    )
-    expected_children_2 = np.array(
-        [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]
-    )
-
-    assert (children_1 == expected_children_1).all()
-    assert (children_2 == expected_children_2).all()
-
-
-@patch("numpy.random.randint", return_value=np.array([2, 2]))
-def test_matrix_quadrant_crossover_two_pairs(mock_randint) -> None:  # noqa: ANN001
-    prob = Problem(
-        objective_func=lambda x: x.sum(),
-        objective_sense="min",
-        solution_length=4**2,
-        device="cpu",
-    )
-
-    crossover = MatrixQuadrantCrossover(prob, tournament_size=4)
-
-    parents1 = torch.zeros(4**2)
-    parents2 = torch.ones(4**2)
-
-    # stack two pairs of parents
-    parents1 = torch.stack([parents1, parents1])
-    parents2 = torch.stack([parents2, parents2])
-
-    children = crossover._do_cross_over(parents1, parents2)  # noqa: SLF001
-    # Check if the random value was patched correctly
-    assert mock_randint.called
-    assert mock_randint.call_args[0] == (0, 4)
-
-    assert children.values_shape == (4, 4**2)
-    children_10 = children.values[0].view(4, 4).numpy()
-    children_11 = children.values[1].view(4, 4).numpy()
-    children_20 = children.values[2].view(4, 4).numpy()
-    children_21 = children.values[3].view(4, 4).numpy()
-
-    expected_children_1 = np.array(
-        [[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
-    )
-    expected_children_2 = np.array(
-        [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]
-    )
-
-    assert (children_10 == expected_children_1).all()
-    assert (children_11 == expected_children_1).all()
-    assert (children_20 == expected_children_2).all()
-    assert (children_21 == expected_children_2).all()
-
-
 def test_tsp_problem_evaluation() -> None:
     instance = TSPInstance(
         points=torch.from_numpy(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])),
@@ -183,56 +100,6 @@ def test_tsp_problem_evaluation() -> None:
     ind = torch.from_numpy(ind).view(-1)
     obj = instance.evaluate_individual(ind)
     assert obj == problem._objective_func(ind) == 2 * 2**0.5 + 2  # noqa: SLF001
-
-
-def test_problem_evaluation_on_tsp_instance(batch_sample_size_one: tuple) -> None:
-    sample = batch_sample_size_one
-    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
-    problem = create_tsp_problem(instance, config=Config(device="cpu"))
-
-    # create random array of size n**2, clip it to [0, 1]
-    ind = torch.rand(instance.n**2)
-
-    # evaluate the individual
-    obj = instance.evaluate_individual(ind)
-    assert obj == problem._objective_func(ind)  # noqa: SLF001
-
-    # evaluate the ground truth tour
-    obj_gt = instance.evaluate_tsp_route(instance.gt_tour)
-    assert obj_gt <= obj
-
-
-def test_tsp_brkga_runs(batch_sample_size_one: tuple) -> None:
-    sample = batch_sample_size_one
-    instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
-
-    ga = create_tsp_brkga(instance, config=Config(pop_size=10, device="cpu"))
-    ga.run(num_generations=2)
-
-    status = ga.status
-    assert status["iter"] == 2
-
-
-def test_tsp_brkga_runs_with_dataloader() -> None:
-    dataset = dataset_factory(
-        config=Config(
-            data_path="tests/resources",
-            test_split="tsp50_example_dataset_two_samples.txt",
-            test_split_label_dir=None,
-            task="tsp",
-            sparse_factor=-1,
-        )
-    )
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-    for sample in dataloader:
-        instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
-        ga = create_tsp_brkga(instance, config=Config(pop_size=10, device="cpu"))
-        ga.run(num_generations=2)
-
-        status = ga.status
-        assert status["iter"] == 2
-        break
 
 
 def test_valid_tour(batch_sample_size_one: tuple) -> None:

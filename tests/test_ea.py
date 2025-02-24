@@ -37,7 +37,6 @@ def test_get_results_dict() -> None:
     config = Config(
         config_name="mis_inference",
         task="mis",
-        algo="brkga",
         wandb_logger_name="test_logger",
         results_path=str(temp_dir),
         device="cpu",
@@ -46,7 +45,6 @@ def test_get_results_dict() -> None:
         n_generations=100,
         max_two_opt_it=200,
         sparse_factor=-1,
-        np_eval=False,
         initialization="difusco_sampling",
     )
     results = {"a": 0.95, "b": 0.05}
@@ -67,12 +65,10 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
     config = Config(
         config_name="mis_inference",
         task="mis",
-        algo="brkga",
         data_path="data",
         test_split="mis/er_700_800/test",
         test_split_label_dir=None,  # er_700_800/test already has labels!
         device="cpu",
-        np_eval=True,
     )
 
     dataset = dataset_factory(config)
@@ -88,9 +84,10 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
     assert np.mean(results) == 41.3828125
 
 
-@pytest.mark.parametrize("task", ["tsp", "mis"])
-@pytest.mark.parametrize("algo", ["ga", "brkga"])
-def test_ea_runs(task: str, algo: str) -> None:
+@pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
+@pytest.mark.parametrize("recombination", ["classic", "optimal"])
+@pytest.mark.parametrize("initialization", ["random_feasible", "difusco_sampling"])
+def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":
@@ -98,23 +95,33 @@ def test_ea_runs(task: str, algo: str) -> None:
     else:
         error_msg = f"Invalid task: {task}"
         raise ValueError(error_msg)
-    config = Config(
+    from config.configs.mis_inference import config as mis_config
+
+    config = mis_config.update(
+        logs_path=str(temp_dir),
         config_name=f"{task}_inference",
-        initialization="random_feasible",
+        wandb_logger_name=f"{task}_inference",
+        initialization=initialization,
+        recombination=recombination,
         test_split=data_path,
         test_split_label_dir=None,
         data_path=".",
-        pop_size=5,
+        pop_size=2,
         device="cpu",
         n_parallel_evals=0,
         max_two_opt_it=1,
         task=task,
-        algo=algo,
         sparse_factor=-1,
-        n_generations=5,
-        np_eval=True,
+        n_generations=2,
         validate_samples=2,
+        tournament_size=2,
+        parallel_sampling=2,
+        sequential_sampling=1,
+        models_path="models",
+        deselect_prob=0.5,
+        ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         profiler=False,
+        cache_dir="cache/mis/er_700_800/test",
     )
     run_ea(config)
 
@@ -123,13 +130,11 @@ def test_ea_for_sparse_tsp() -> None:
     config = Config(
         config_name="tsp_inference",
         task="tsp",
-        algo="ga",
         sparse_factor=50,
         n_generations=2,
         pop_size=2,
         n_parallel_evals=0,
         max_two_opt_it=1,
-        np_eval=True,
         test_split="data/tsp/tsp500_test_concorde.txt",
         test_split_label_dir=None,
         data_path=".",
