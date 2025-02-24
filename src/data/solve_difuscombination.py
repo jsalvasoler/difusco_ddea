@@ -124,7 +124,7 @@ def solve_difuscombination(config: Config) -> None:
 
     config = config.update(Config(task="mis", np_eval=True, device="cpu"))
 
-    mis_dataset = MISDataset(data_dir=config.data_dir, data_label_dir=config.data_label_dir)
+    mis_dataset = MISDataset(data_dir=config.data_dir, data_label_dir=None)
 
     table_saver = TableSaver(str(Path(config.output_dir) / f"results_{config.batch_idx}.csv"))
 
