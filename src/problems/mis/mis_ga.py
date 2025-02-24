@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Literal
 import torch
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
+from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
 from problems.mis.solve_optimal_recombination import solve_problem
 from torch import no_grad
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from problems.mis.mis_instance import MISInstance
 
 from torch_geometric.data import Batch
+
+
+@vectorized
+def evaluate_population(population: torch.Tensor) -> torch.Tensor:
+    return population.sum(dim=-1)
 
 
 class MISGaProblem(Problem):
@@ -35,7 +41,7 @@ class MISGaProblem(Problem):
             self.batch = None
 
         super().__init__(
-            objective_func=instance.evaluate_solution,
+            objective_func=evaluate_population,
             objective_sense="max",
             solution_length=instance.n_nodes,
             device=config.device,
@@ -124,22 +130,24 @@ class MISGaProblem(Problem):
 
     def _fill_random_feasible_initialization(self, values: torch.Tensor) -> None:
         """
-        Values is a tensor of shape (n_solutions, solution_length).
+        Values is a tensor of shape (B, solution_length).
         Initialization heuristic: (randomized) construction heuristic based on node degree.
         """
         degrees = self.instance.get_degrees()
         inversed_normalized_degrees = 1 - degrees / degrees.max()
 
-        for i in range(values.shape[0]):
-            std = 0.2 * i / values.shape[0]  # scales from 0 to 0.2
-            noise = torch.randn(self.solution_length, device=self.device) * std
-            values[i] = self.instance.get_feasible_from_individual(
-                inversed_normalized_degrees + noise,
-            )
+        # Create scaling factors for noise (0 to 0.2)
+        scales = torch.linspace(0, 0.2, values.shape[0], device=self.device)
+        # Generate noise for all solutions at once (pop_size, solution_length)
+        noise = torch.randn(values.shape, device=self.device) * scales.unsqueeze(1)
+        # Broadcast inversed_normalized_degrees to match the shape
+        priorities = inversed_normalized_degrees.unsqueeze(0) + noise
+
+        values[:] = self.instance.get_feasible_from_individual_batch(priorities)
 
     def _fill_difusco_sampling(self, values: torch.Tensor) -> None:
         """
-        Values is a tensor of shape (n_solutions, solution_length).
+        Values is a tensor of shape (B, solution_length).
         Uses Difusco to sample initial solutions.
         """
         sampler = self._get_difusco_sampler()
@@ -153,20 +161,10 @@ class MISGaProblem(Problem):
         node_scores = sampler.sample(self.sample)
 
         # Convert scores to feasible solutions
-        for i in range(popsize):
-            values[i] = self.instance.get_feasible_from_individual(node_scores[i])
+        values[:] = self.instance.get_feasible_from_individual_batch(node_scores)
 
 
 class MISGAMutation(CopyingOperator):
-    """
-    Gaussian mutation operator.
-
-    Follows the algorithm description in:
-
-        Sean Luke, 2013, Essentials of Metaheuristics, Lulu, second edition
-        available for free at http://cs.gmu.edu/~sean/book/metaheuristics/
-    """
-
     def __init__(self, problem: Problem, instance: MISInstance, deselect_prob: float = 0.05) -> None:
         """
         Mutation operator for the Maximum Independent Set problem. With probability deselect_prob, a selected node is
@@ -190,9 +188,10 @@ class MISGAMutation(CopyingOperator):
         priorities = torch.rand(data.shape, device=data.device, dtype=torch.float32)
         priorities[deselect_mask.bool() & data.bool()] = 0
 
-        for i in range(data.shape[0]):
-            if deselect_mask[i].sum() > 0:
-                data[i] = self._instance.get_feasible_from_individual(priorities[i])
+        # Only update solutions that have any deselected nodes
+        mask_to_update = deselect_mask.sum(dim=-1) > 0
+        if mask_to_update.any():
+            data[mask_to_update] = self._instance.get_feasible_from_individual_batch(priorities[mask_to_update])
 
         return result
 
@@ -258,7 +257,7 @@ class MISGACrossover(CrossOver):
         # we need to reshape the features to (num_pairings * n_nodes, 2)
         features = features.reshape(num_pairings * self.problem.solution_length, 2)
         assert features.shape == (num_pairings * self.problem.solution_length, 2), "Incorrect features shape"
-        heatmaps = self._problem.sampler.sample(self._problem.batch, features=features)
+        heatmaps = self._problem.sampler.sample(self._problem.batch, features=features).to(self.problem.device)
         assert heatmaps.shape == (
             num_pairings,
             2,
@@ -268,16 +267,9 @@ class MISGACrossover(CrossOver):
         # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
         heatmaps_child1 = heatmaps.select(1, 0)
         heatmaps_child2 = heatmaps.select(1, 1)
-        children1 = parents1.clone()
-        children2 = parents2.clone()
 
-        # finally, we need to make the heatmaps feasible
-        for i in range(num_pairings):
-            # Get feasible solutions based on priorities
-            children1[i] = self._instance.get_feasible_from_individual(heatmaps_child1[i])
-            children2[i] = self._instance.get_feasible_from_individual(heatmaps_child2[i])
-
-        children = torch.cat([children1, children2], dim=0)
+        heatmaps_child = torch.cat([heatmaps_child1, heatmaps_child2], dim=0)
+        children = self._instance.get_feasible_from_individual_batch(heatmaps_child)
         return self._make_children_batch(children)
 
     @no_grad()
@@ -300,17 +292,8 @@ class MISGACrossover(CrossOver):
         )
         priority2[common_nodes] = 0
 
-        children1 = parents1.clone()
-        children2 = parents2.clone()
-
-        for i in range(num_pairings):
-            # Get feasible solutions based on priorities
-            children1[i] = self._instance.get_feasible_from_individual(priority1[i])
-            children2[i] = self._instance.get_feasible_from_individual(priority2[i])
-
-        # Combine children into final result
-        children = torch.cat([children1, children2], dim=0)
-
+        children = torch.cat([parents1, parents2], dim=0)
+        children = self._instance.get_feasible_from_individual_batch(children)
         return self._make_children_batch(children)
 
 

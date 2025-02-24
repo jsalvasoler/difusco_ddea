@@ -76,7 +76,7 @@ def precompute_neighbors_padded(adj_csr: torch.Tensor) -> torch.Tensor:
     return neighbors_padded, degrees
 
 
-@torch.jit.script
+# @torch.jit.script
 def mis_decode_torch_batched(
     predictions: torch.Tensor,
     neighbors_padded: torch.Tensor,
@@ -94,6 +94,13 @@ def mis_decode_torch_batched(
     Returns:
         torch.Tensor: A binary tensor of shape (B, n) indicating the nodes included in the MIS.
     """
+
+    # handle single batch case
+    if predictions.ndim == 1:
+        return_single_batch = True
+        predictions = predictions.unsqueeze(0)
+    else:
+        return_single_batch = False
 
     B, n = predictions.shape
 
@@ -113,9 +120,6 @@ def mis_decode_torch_batched(
 
         if not valid.any():
             continue
-
-        # If valid nodes, add them to the solution
-        solution[valid, current_nodes[valid]] = 1
 
         # Vectorized neighbor invalidation ----------------------------
         # 1. Get valid batch indices and their corresponding nodes
@@ -138,5 +142,11 @@ def mis_decode_torch_batched(
         if batch_indices.numel() > 0:
             solution[batch_indices, neighbor_indices] = -1
 
+        # Finally, if valid nodes, add them to the solution
+        solution[valid, current_nodes[valid]] = 1
+
     # Return a binary tensor indicating the nodes in the MIS
-    return (solution == 1).to(torch.bool)
+    bool_solution = (solution == 1).to(torch.bool)
+    if return_single_batch:
+        return bool_solution.squeeze(0)
+    return bool_solution

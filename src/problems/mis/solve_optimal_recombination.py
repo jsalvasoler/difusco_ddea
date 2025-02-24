@@ -23,7 +23,7 @@ def solve_problem(
     weights[both] = 1.5
 
     # Convert to lil_matrix for efficient modification
-    adj_matrix_lil = lil_matrix(instance.adj_matrix)
+    adj_matrix_lil = lil_matrix(instance.adj_matrix_np)
 
     # Make instance.adj_matrix an upper triangular matrix
     adj_matrix_lil[np.tril_indices(instance.n_nodes)] = 0

@@ -146,7 +146,7 @@ class RecombinationExperiment(Experiment):
         """
         graph, _, _, parents = DifusCombinationMISModel.process_batch(sample)
         parents = parents.to(self.config.device)
-        instance = create_mis_instance(sample, device=self.config.device, np_eval=True)
+        instance = create_mis_instance(sample, device=self.config.device)
         n_nodes = instance.n_nodes
 
         results = {}

@@ -13,11 +13,11 @@ mis_dataset = MISDataset(
 )
 
 
-def setup_instance(device: Literal["cpu", "cuda"] = "cpu", np_eval: bool = True) -> tuple:
+def setup_instance(device: Literal["cpu", "cuda"] = "cpu") -> tuple:
     """Helper function to setup a MIS instance for benchmarking."""
     dataloader = DataLoader(mis_dataset, batch_size=1, shuffle=True)
     batch = next(iter(dataloader))
-    instance = create_mis_instance(batch, device=device, np_eval=np_eval)
+    instance = create_mis_instance(batch, device=device)
     ind = torch.rand(instance.n_nodes).to(device)
     return instance, ind
 
@@ -46,11 +46,11 @@ instance, ind = setup_instance(device='{device}', np_eval={np_eval})
         print(f"{name} implementation average time: {time/n_iterations*1000:.3f} ms")
 
 
-def setup_instance_batched(device: Literal["cpu", "cuda"] = "cpu", np_eval: bool = True, batch_size: int = 32) -> tuple:
+def setup_instance_batched(device: Literal["cpu", "cuda"] = "cpu", batch_size: int = 32) -> tuple:
     """Helper function to setup a MIS instance for benchmarking."""
     dataloader = DataLoader(mis_dataset, batch_size=1, shuffle=True)
     batch = next(iter(dataloader))
-    instance = create_mis_instance(batch, device=device, np_eval=np_eval)
+    instance = create_mis_instance(batch, device=device)
     ind = torch.rand(batch_size, instance.n_nodes).to(device)
     return instance, ind
 

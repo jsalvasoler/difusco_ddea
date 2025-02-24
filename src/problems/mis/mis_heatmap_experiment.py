@@ -6,11 +6,7 @@ from problems.mis.mis_instance import MISInstance
 
 
 def get_feasible_solutions(heatmaps: torch.Tensor, instance: MISInstance) -> torch.Tensor:
-    solutions = None
-    for i in range(heatmaps.shape[0]):
-        solution = instance.get_feasible_from_individual(heatmaps[i]).unsqueeze(0)
-        solutions = solution if solutions is None else torch.vstack((solutions, solution))
-    return solutions
+    return instance.get_feasible_from_individual_batch(heatmaps)
 
 
 def metrics_on_mis_heatmaps(heatmaps: torch.Tensor, instance: MISInstance, config: Config) -> dict:

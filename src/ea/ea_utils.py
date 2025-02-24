@@ -82,7 +82,7 @@ def dataset_factory(config: Config, split: str = "test") -> Dataset:
 
 def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
     if config.task == "mis":
-        return create_mis_instance(sample, device=config.device, np_eval=config.np_eval)
+        return create_mis_instance(sample, device=config.device)
     if config.task == "tsp":
         return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
     error_msg = f"No instance for task {config.task}."

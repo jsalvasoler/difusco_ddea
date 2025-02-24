@@ -56,3 +56,12 @@ def test_mis_decoding_torch_batched(adj_matrix_torch: torch.FloatTensor) -> None
 
     expected_result = torch.tensor([[1, 0, 1, 0], [0, 1, 0, 1]], dtype=torch.bool).cpu()
     assert torch.equal(result, expected_result), f"Expected {expected_result}, but got {result}"
+
+
+def test_mis_decoding_torch_batched_on_single_tensor(adj_matrix_torch: torch.FloatTensor) -> None:
+    predictions = torch.tensor([0.9, 0.1, 0.8, 0.3], dtype=torch.float32)
+    adj_csr = adj_matrix_torch.to_sparse_csr()
+    neighbors_padded, degrees = precompute_neighbors_padded(adj_csr)
+    result = mis_decode_torch_batched(predictions, neighbors_padded, degrees)
+    assert result.shape == (4,)
+    assert (result == torch.tensor([1, 0, 1, 0])).all()
