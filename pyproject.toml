@@ -40,7 +40,7 @@ dependencies = [
   "pytest",
   "pandas",
   "logzero",
-  "wandb",
+  "wandb==0.18.5",
   "pyinstrument",
   "evotorch",
   "click",
