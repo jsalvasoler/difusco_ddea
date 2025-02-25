@@ -172,7 +172,7 @@ class CustomLogger(Logger):
         unique_min = df["unique_solutions"].min()
         unique_max = df["unique_solutions"].max()
         ax2.set_ylim(unique_min * 0.95, unique_max * 1.05)
-        
+
         # Force integer ticks on the right axis
         ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 

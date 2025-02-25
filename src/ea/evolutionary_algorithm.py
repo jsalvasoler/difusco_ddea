@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import os
 import timeit
+from datetime import datetime
 from pathlib import Path
 from tempfile import mkdtemp
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from datetime import datetime
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_ga import create_mis_ga
 from problems.tsp.tsp_ga import create_tsp_ga
@@ -52,7 +52,7 @@ class EvolutionaryAlgorithm(Experiment):
         if self.config.validate_samples:
             try:
                 custom_logger.save_evolution_figure()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Error saving evolution figure: {e}")
 
         cost = ea.status["pop_best_eval"]
