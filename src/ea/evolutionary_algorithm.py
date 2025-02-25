@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from datetime import datetime
 from evotorch.logging import StdOutLogger
 from problems.mis.mis_ga import create_mis_ga
 from problems.tsp.tsp_ga import create_tsp_ga
@@ -61,10 +62,11 @@ class EvolutionaryAlgorithm(Experiment):
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
     def _get_logger_table_name(self, instance_id: int) -> str:
-        """Path will be logs_path/ea_logs/wandb_logger_name/inst_instance_id.csv"""
+        """Path will be logs_path/ea_logs/wandb_logger_name/id_timestamp.csv"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         ea_logs_dir = os.path.join(self.config.logs_path, "ea_logs")
         os.makedirs(ea_logs_dir, exist_ok=True)
-        table_name = os.path.join(ea_logs_dir, self.config.wandb_logger_name, f"inst_{instance_id}.csv")
+        table_name = os.path.join(ea_logs_dir, f"{self.config.wandb_logger_name}, {instance_id}_{timestamp}.csv")
         os.makedirs(os.path.dirname(table_name), exist_ok=True)
         return table_name
 

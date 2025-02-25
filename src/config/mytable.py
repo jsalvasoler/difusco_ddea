@@ -15,9 +15,14 @@ class TableSaver:
         if not os.path.exists(self.table_name):
             new_df.to_csv(self.table_name, index=False)
         else:
-            df = pd.read_csv(self.table_name)
-            df = pd.concat([df, new_df], ignore_index=True)
-            df.to_csv(self.table_name, index=False)
+            try:
+                df = pd.read_csv(self.table_name)
+            except pd.errors.EmptyDataError:
+                # File exists but is empty, treat it like a new file
+                new_df.to_csv(self.table_name, index=False)
+            else:
+                df = pd.concat([df, new_df], ignore_index=True)
+                df.to_csv(self.table_name, index=False)
 
     def get(self) -> pd.DataFrame:
         return pd.read_csv(self.table_name)
