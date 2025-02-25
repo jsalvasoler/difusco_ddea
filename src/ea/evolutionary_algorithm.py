@@ -50,7 +50,10 @@ class EvolutionaryAlgorithm(Experiment):
         ea.run(self.config.n_generations)
 
         if self.config.validate_samples:
-            custom_logger.save_evolution_figure()
+            try:
+                custom_logger.save_evolution_figure()
+            except Exception as e:
+                print(f"Error saving evolution figure: {e}")
 
         cost = ea.status["pop_best_eval"]
         gt_cost = instance.get_gt_cost()
