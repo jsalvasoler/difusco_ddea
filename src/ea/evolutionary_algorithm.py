@@ -61,13 +61,11 @@ class EvolutionaryAlgorithm(Experiment):
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
     def _get_logger_table_name(self, instance_id: int) -> str:
-        # get the table name from the wandb_logger_name
-        table_name = os.path.join(
-            self.config.logs_path, "ea_logs", f"{self.config.wandb_logger_name}_inst_{instance_id}.csv"
-        )
-        # if parent directory does not exist, create it
-        if not os.path.exists(os.path.dirname(table_name)):
-            os.makedirs(os.path.dirname(table_name))
+        """Path will be logs_path/ea_logs/wandb_logger_name/inst_instance_id.csv"""
+        ea_logs_dir = os.path.join(self.config.logs_path, "ea_logs")
+        os.makedirs(ea_logs_dir, exist_ok=True)
+        table_name = os.path.join(ea_logs_dir, self.config.wandb_logger_name, f"inst_{instance_id}.csv")
+        os.makedirs(os.path.dirname(table_name), exist_ok=True)
         return table_name
 
     def get_dataloader(self) -> DataLoader:
