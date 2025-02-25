@@ -69,7 +69,7 @@ class EvolutionaryAlgorithm(Experiment):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         ea_logs_dir = os.path.join(self.config.logs_path, "ea_logs")
         os.makedirs(ea_logs_dir, exist_ok=True)
-        table_name = os.path.join(ea_logs_dir, f"{self.config.wandb_logger_name}, {instance_id}_{timestamp}.csv")
+        table_name = os.path.join(ea_logs_dir, self.config.wandb_logger_name, f"{instance_id}_{timestamp}.csv")
         os.makedirs(os.path.dirname(table_name), exist_ok=True)
         return table_name
 
