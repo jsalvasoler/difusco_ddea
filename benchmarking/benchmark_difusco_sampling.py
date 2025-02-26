@@ -99,8 +99,12 @@ class BenchmarkExperiment(Experiment):
             for _ in range(self.n_iterations):
                 self.sampler.sample(sample)
                 torch.cuda.empty_cache()  # Clear CUDA cache
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
+            import traceback
+
             print(f"Error in run_single_iteration: {e!s}")
+            print("Traceback:")
+            print(traceback.format_exc())
         total_time = timeit.default_timer() - start_time
 
         # Run profiling if enabled
