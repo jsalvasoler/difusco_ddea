@@ -75,13 +75,6 @@ class DifuscoSampler:
         error_msg = f"Unknown task: {self.task}"
         raise ValueError(error_msg)
 
-    def sample_feasible(self, batch: tuple, features: torch.Tensor | None = None) -> torch.Tensor:
-        """Sample feasible solutions from Difusco"""
-        if self.task == "mis":
-            return self.sample_mis_feasible(batch=batch, features=features)
-        error_msg = f"Unknown task: {self.task}"
-        raise ValueError(error_msg)
-
     @torch.no_grad()
     def sample_mis(
         self,
