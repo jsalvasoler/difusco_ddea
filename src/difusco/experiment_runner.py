@@ -79,7 +79,7 @@ class ExperimentRunner:
             self.run()
 
     def run(self) -> None:
-        print(f"Running EA with config: {self.config}")
+        print(f"Running experiment with config: {self.config}")
         dataloader = self.experiment.get_dataloader()
 
         is_validation_run = self.config.validate_samples is not None

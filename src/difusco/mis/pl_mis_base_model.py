@@ -218,7 +218,8 @@ class MISModelBase(COMetaModel):
             xt = torch.randn(n_nodes, device=device, dtype=torch.float)
 
         if self.diffusion_type == "gaussian":
-            xt.requires_grad = True
+            pass
+            # xt.requires_grad = True
         else:
             xt = (xt > 0).long()
         xt = xt.reshape(-1)

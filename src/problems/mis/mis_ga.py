@@ -38,7 +38,7 @@ class MISGaProblem(Problem):
 
         if config.recombination == "difuscombination":
             self.sampler = self._get_difuscombination_sampler()
-            self.batch = self._duplicate_batch(config, self.sample)
+            self.batch = self._duplicate_batch(config.pop_size // 2, self.sample)
         else:
             self.sampler = None
             self.batch = None
@@ -93,25 +93,23 @@ class MISGaProblem(Problem):
         return DifuscoSampler(config)
 
     @staticmethod
-    def _duplicate_batch(config: Config, batch: tuple) -> tuple:
-        n = config.pop_size // 2
-
+    def _duplicate_batch(n_times: int, batch: tuple) -> tuple:
         # Duplicate the first tensor
         tensor0 = batch[0]  # e.g., shape: [1, ...]
-        tensor0_dup = tensor0.repeat(n, 1)  # repeat along the first dimension
+        tensor0_dup = tensor0.repeat(n_times, 1)  # repeat along the first dimension
 
         # Handle the DataBatch in index 1
         # Convert it to a list of Data objects (should contain one element)
         data_list = batch[1].to_data_list()
         # Duplicate the single graph n times
-        duplicated_data = [deepcopy(data_list[0]) for _ in range(n)]
+        duplicated_data = [deepcopy(data_list[0]) for _ in range(n_times)]
         # Rebuild the DataBatch; this will automatically handle shifting node indices
         # and creating a new `batch` attribute
         new_data_batch = Batch.from_data_list(duplicated_data)
 
         # Duplicate the third tensor
         tensor2 = batch[2]  # e.g., shape: [1, ...]
-        tensor2_dup = tensor2.repeat(n, 1)
+        tensor2_dup = tensor2.repeat(n_times, 1)
 
         # Return the new batch as a list
         return (tensor0_dup, new_data_batch, tensor2_dup)

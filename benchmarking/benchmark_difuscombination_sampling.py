@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import timeit
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -10,11 +9,14 @@ import torch.profiler
 from config.configs.mis_inference import config as mis_inference_config
 from config.mytable import TableSaver
 from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_ga import MISGaProblem
 from torch.profiler import ProfilerActivity, profile, record_function
 from torch_geometric.loader import DataLoader
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
 from difusco.sampler import DifuscoSampler
+
+# from denoising_diffusion_pytorch import Unet, GaussianDiffusion
 
 if TYPE_CHECKING:
     from config.myconfig import Config
@@ -36,15 +38,25 @@ common_config = mis_inference_config.update(
 
 
 def prepare_config(dataset: str) -> Config:
-    config = copy.deepcopy(common_config)
-    config.test_split = f"mis/{dataset}/test"
-    config.test_split_label_dir = f"mis/{dataset}/test_labels"
-    config.training_split = f"mis/{dataset}/train"
-    config.training_split_label_dir = f"mis/{dataset}/train_labels"
-    config.validation_split = f"mis/{dataset}/test"
-    config.validation_split_label_dir = f"mis/{dataset}/test_labels"
-    config.ckpt_path = f"mis/mis_{dataset}_gaussian.ckpt"
-    return config
+    return common_config.update(
+        test_split=f"mis/{dataset}/test",
+        test_split_label_dir=f"mis/{dataset}/test_labels",
+        training_split=f"mis/{dataset}/train",
+        training_split_label_dir=f"mis/{dataset}/train_labels",
+        validation_split=f"mis/{dataset}/test",
+        validation_split_label_dir=f"mis/{dataset}/test_labels",
+        ckpt_path=f"difuscombination/mis_{dataset}_gaussian.ckpt",
+        training_samples_file=f"difuscombination/mis/{dataset}/test",
+        training_labels_dir=f"difuscombination/mis/{dataset}/test_labels",
+        training_graphs_dir=f"mis/{dataset}/test",
+        test_samples_file=f"difuscombination/mis/{dataset}/test",
+        test_labels_dir=f"difuscombination/mis/{dataset}/test_labels",
+        test_graphs_dir=f"mis/{dataset}/test",
+        validation_samples_file=f"difuscombination/mis/{dataset}/test",
+        validation_labels_dir=f"difuscombination/mis/{dataset}/test_labels",
+        validation_graphs_dir=f"mis/{dataset}/test",
+        mode="difuscombination",
+    )
 
 
 class BenchmarkExperiment(Experiment):
@@ -89,41 +101,49 @@ class BenchmarkExperiment(Experiment):
             f.write(str(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=100)))
 
     def run_single_iteration(self, sample: tuple[Any, ...]) -> dict:
-        self.config.parallel_sampling = self.batch_size
-        self.config.sequential_sampling = 1
+        self.config = self.config.update(
+            parallel_sampling=1,
+            sequential_sampling=1,
+            batch_size=self.batch_size,
+        )
         self.sampler = DifuscoSampler(config=self.config)
-
+        # self.sampler = DDPMSampler(config=self.config)
+        n_nodes = sample[2].item()
+        batched_sample = MISGaProblem._duplicate_batch(n_times=self.batch_size, batch=sample)  # noqa: SLF001
+        features = torch.randn(n_nodes * self.batch_size, 2).bool().float()
         # Run timing benchmark
-        start_time = timeit.default_timer()
         try:
+            start_time = timeit.default_timer()
             for _ in range(self.n_iterations):
-                self.sampler.sample(sample)
-                torch.cuda.empty_cache()  # Clear CUDA cache
+                self.sampler.sample(batched_sample, features=features)
+            total_time = timeit.default_timer() - start_time
+            torch.cuda.empty_cache()  # Clear CUDA cache
+
+            avg_time = (total_time / self.n_iterations) * 1000  # Convert to milliseconds
+            results = {
+                "avg_time_ms": avg_time,
+                "batch_size": self.batch_size,
+                "dataset": self.config.test_split.split("/")[1],
+                "device": self.config.device,
+                "mode": self.config.mode,
+                "experiment_name": self.experiment_name,
+            }
+            table_name = "results/benchmark_difusco_sampling_results.csv"
+            table_saver = TableSaver(table_name)
+            table_saver.put(results)
+            print(results)
         except Exception as e:  # noqa: BLE001
             import traceback
 
             print(f"Error in run_single_iteration: {e!s}")
             print("Traceback:")
             print(traceback.format_exc())
-        total_time = timeit.default_timer() - start_time
 
         # Run profiling if enabled
         if self.config.enable_profiling:
             self._run_profiling(sample)
 
-        avg_time = (total_time / self.n_iterations) * 1000  # Convert to milliseconds
-        results = {
-            "avg_time_ms": avg_time,
-            "batch_size": self.batch_size,
-            "dataset": self.config.test_split.split("/")[1],
-            "device": self.config.device,
-            "mode": self.config.mode,
-            "experiment_name": self.experiment_name,
-        }
-        table_name = "results/benchmark_difusco_sampling_results.csv"
-        table_saver = TableSaver(table_name)
-        table_saver.put(results)
-        return results
+        return {}
 
     def get_final_results(self, results: list[dict]) -> dict:
         pass
@@ -143,8 +163,8 @@ def run_benchmarks(n_iterations: int = 50, experiment_name: str = "default", ena
     batch_sizes = [4, 8, 16, 32, 64]
     configs = {
         "er_50_100": prepare_config("er_50_100"),
-        "er_300_400": prepare_config("er_300_400"),
-        "er_700_800": prepare_config("er_700_800"),
+        # "er_300_400": prepare_config("er_300_400"),
+        # "er_700_800": prepare_config("er_700_800"),
     }
 
     print(f"\nBenchmarking DifuscoSampler on MIS datasets ({n_iterations} iterations):")
@@ -153,15 +173,17 @@ def run_benchmarks(n_iterations: int = 50, experiment_name: str = "default", ena
         print(f"\nTesting {dataset_name}:")
         config.enable_profiling = enable_profiling  # Set profiling flag
         for batch_size in batch_sizes:
-            if dataset_name == "er_700_800" and batch_size > 16:
-                continue
             try:
                 experiment = BenchmarkExperiment(config, batch_size, n_iterations, experiment_name)
                 runner = ExperimentRunner(config, experiment)
                 runner.main()
             except Exception as e:  # noqa: BLE001
+                import traceback
+
                 print(f"  Error with batch size {batch_size}: {e!s}")
+                print("Traceback:")
+                print(traceback.format_exc())
 
 
 if __name__ == "__main__":
-    run_benchmarks(3, "not_require_grad_3", enable_profiling=False)
+    run_benchmarks(3, "weird experiment", enable_profiling=False)
