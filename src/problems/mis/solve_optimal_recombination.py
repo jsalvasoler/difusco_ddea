@@ -27,13 +27,14 @@ def solve_problem(
     assert np.all(solution_1 < instance.n_nodes), "solution_1 contains invalid indices"
     assert np.all(solution_2 < instance.n_nodes), "solution_2 contains invalid indices"
 
-    weights = np.full(instance.n_nodes, 0.5)
+    lambda_penalty = 0.05
+    weights = np.full(instance.n_nodes, 1 - lambda_penalty)
     only_1 = np.setdiff1d(solution_1, solution_2)
     weights[only_1] = 1
     only_2 = np.setdiff1d(solution_2, solution_1)
     weights[only_2] = 1
     both = np.intersect1d(solution_1, solution_2)
-    weights[both] = 1.5
+    weights[both] = 1 + lambda_penalty
 
     # Convert to lil_matrix for efficient modification
     adj_matrix_lil = lil_matrix(instance.adj_matrix_np)
@@ -56,8 +57,7 @@ def solve_problem(
         starting_solution=starting_solution,
         time_limit=time_limit,
         solver_params={
-            "ThreadLimit": 8,
-            "DisplayInterval": 20,
+            "DisplayInterval": 50,
         },
     )
     print(mwis.x.tolist())

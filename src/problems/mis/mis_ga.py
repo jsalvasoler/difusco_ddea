@@ -204,11 +204,13 @@ class MISGACrossover(CrossOver):
         problem: MISGaProblem,
         instance: MISInstance,
         tournament_size: int = 4,
+        opt_recomb_time_limit: int = 15,
         mode: Literal["classic", "difuscombination"] = "classic",
     ) -> None:
         super().__init__(problem, tournament_size=tournament_size)
         self._instance = instance
         self._mode = mode
+        self._opt_recomb_time_limit = opt_recomb_time_limit
 
     @no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
@@ -236,7 +238,7 @@ class MISGACrossover(CrossOver):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
             solution_2 = parents2[i].cpu().numpy().nonzero()[0]
 
-            result = solve_problem(self._instance, solution_1, solution_2, time_limit=5)
+            result = solve_problem(self._instance, solution_1, solution_2, time_limit=self._opt_recomb_time_limit)
 
             children_1[i] = torch.tensor(result["children_np_labels"], device=device)
             children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
@@ -337,7 +339,13 @@ def create_mis_ga(
         popsize=config.pop_size,
         re_evaluate=False,
         operators=[
-            MISGACrossover(problem, instance, mode=config.recombination, tournament_size=config.tournament_size),
+            MISGACrossover(
+                problem,
+                instance,
+                mode=config.recombination,
+                tournament_size=config.tournament_size,
+                opt_recomb_time_limit=config.opt_recomb_time_limit,
+            ),
             MISGAMutation(problem, instance, deselect_prob=config.deselect_prob),
             TempSaver(problem, tmp_dir / "population.txt"),
         ],

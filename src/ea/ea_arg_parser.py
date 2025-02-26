@@ -55,6 +55,7 @@ def get_arg_parser() -> ArgumentParser:
     mis_settings = parser.add_argument_group("mis_settings")
     mis_settings.add_argument("--tournament_size", type=int, default=4)
     mis_settings.add_argument("--deselect_prob", type=float, default=0.2)
+    mis_settings.add_argument("--opt_recomb_time_limit", type=int, default=15)
 
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true")
