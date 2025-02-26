@@ -205,17 +205,17 @@ class MISModelBase(COMetaModel):
         edge_index: torch.Tensor,
         device: torch.device,
         features: torch.Tensor | None = None,
-    ) -> np.ndarray:
+    ) -> torch.Tensor:
         """
         Denoise to get a diffusion sample.
 
         If parallel_sampling is greater than 1, the output has shape (parallel_sampling, num_nodes),
         where num_nodes is the number of nodes in the graph. Otherwise, the output has shape (num_nodes,).
         """
-        xt = torch.rand(n_nodes, device=device, dtype=torch.float)
         if self.args.parallel_sampling > 1:
-            xt = xt.repeat(self.args.parallel_sampling, 1)
-            xt = torch.randn_like(xt)
+            xt = torch.randn((self.args.parallel_sampling, n_nodes), device=device, dtype=torch.float)
+        else:
+            xt = torch.randn(n_nodes, device=device, dtype=torch.float)
 
         if self.diffusion_type == "gaussian":
             xt.requires_grad = True
