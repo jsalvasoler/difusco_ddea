@@ -312,7 +312,7 @@ def test_duplicate_batch() -> None:
     batch = next(iter(dataloader))
 
     # Call the _get_batch method
-    result_batch = MISGaProblem._duplicate_batch(config, batch)
+    result_batch = MISGaProblem._duplicate_batch(config.pop_size // 2, batch)
 
     # Check if the result is a Batch object
     assert isinstance(result_batch, tuple)
