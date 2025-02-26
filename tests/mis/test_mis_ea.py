@@ -62,6 +62,10 @@ def test_mis_problem_evaluation() -> None:
         recombination="classic",
         initialization="random_feasible",
         pop_size=10,
+        device="cpu",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=())
     problem = ga.problem
@@ -109,6 +113,9 @@ def test_mis_ga_fill_random_feasible() -> None:
         n_parallel_evals=0,
         initialization="random_feasible",
         recombination="classic",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=sample)
     problem = ga.problem
@@ -165,6 +172,9 @@ def test_mis_ga_crossover_small(square_instance: MISInstanceBase) -> None:
         n_parallel_evals=0,
         initialization="random_feasible",
         recombination="classic",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=())
 
@@ -206,6 +216,9 @@ def test_mis_ga_crossovers(recombination: str) -> None:
         ckpt_path_difuscombination="difuscombination/mis_er_50_100_gaussian.ckpt",
         test_split=graphs_dir,
         test_split_label_dir=None,
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", samples_file),
@@ -241,6 +254,9 @@ def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
         n_parallel_evals=0,
         initialization="random_feasible",
         recombination="classic",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=())
 
@@ -285,6 +301,9 @@ def test_mis_ga_mutation_no_deselection(square_instance: MISInstanceBase) -> Non
         n_parallel_evals=0,
         initialization="random_feasible",
         recombination="classic",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=())
 
@@ -331,8 +350,11 @@ def test_temp_saver(tmp_path: Path) -> None:
         n_parallel_evals=0,
         initialization="random_feasible",
         recombination="classic",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
     )
-    ga = create_mis_ga(instance, config=config, sample=sample)
+    ga = create_mis_ga(instance, config=config, sample=sample, tmp_dir=tmp_path)
     saver = ga._operators[2]
     population = ga.population
 
@@ -342,7 +364,7 @@ def test_temp_saver(tmp_path: Path) -> None:
 
     # check the saving of the solution
     saver._do(population)
-    assert os.path.exists(os.path.join(config.logs_path, "population.txt"))
-    with open(os.path.join(config.logs_path, "population.txt")) as f:
+    assert os.path.exists(os.path.join(tmp_path, "population.txt"))
+    with open(os.path.join(tmp_path, "population.txt")) as f:
         last_line = f.readlines()[-1]
         assert last_line.strip() == sol_str
