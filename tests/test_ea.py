@@ -117,6 +117,7 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         models_path="models",
         deselect_prob=0.5,
         opt_recomb_time_limit=3,
+        preserve_optimal_recombination=False,
         ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         profiler=False,
         cache_dir="cache/mis/er_700_800/test",

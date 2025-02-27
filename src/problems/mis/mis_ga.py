@@ -171,20 +171,20 @@ class MISGAMutation(CopyingOperator):
         instance: MISInstance,
         deselect_prob: float = 0.05,
         mutation_prob: float = 0.25,
-        optimal_recombination: bool = False,
+        preserve_optimal_recombination: bool = False,
     ) -> None:
         """
         Mutation operator for the Maximum Independent Set problem. With probability deselect_prob, a selected node is
         unselected and gets a probability of zero. Solution is then made feasible.
-        Only applies mutation with probability mutation_prob. When optimal_recombination is True, mutation is not
-        applied to the first half of the population.
+        Only applies mutation with probability mutation_prob. When preserve_preserve_optimal_recombination is True,
+        mutation is not applied to the first half of the population.
 
         Args:
             problem: The problem object to work with.
             instance: The instance object to work with.
             deselect_prob: The probability of deselecting a selected node.
             mutation_prob: The probability of mutating a solution.
-            optimal_recombination: Whether optimal recombination is used.
+            preserve_optimal_recombination: Whether optimal recombination is used.
                 In this case, the mutation is not applied for the first half of the population.
         """
 
@@ -192,7 +192,7 @@ class MISGAMutation(CopyingOperator):
         self._instance = instance
         self._deselect_prob = deselect_prob
         self._mutation_prob = mutation_prob
-        self._optimal_recombination = optimal_recombination
+        self._preserve_optimal_recombination = preserve_optimal_recombination
 
     @torch.no_grad()
     def _do(self, batch: SolutionBatch) -> SolutionBatch:
@@ -204,7 +204,7 @@ class MISGAMutation(CopyingOperator):
 
         # Decide which individuals to mutate
         mutation_mask = torch.rand(pop_size, device=data.device, dtype=torch.float16) <= self._mutation_prob
-        if self._optimal_recombination:
+        if self._preserve_optimal_recombination:
             # Skip mutation for the first half of the population
             mutation_mask[: pop_size // 2] = False
 
@@ -246,7 +246,6 @@ class MISGACrossverOptimal(CrossOver):
         super().__init__(
             problem,
             tournament_size=tournament_size,
-            cross_over_rate=0.5,
         )
         self._instance = instance
         self._opt_recomb_time_limit = opt_recomb_time_limit
@@ -263,16 +262,19 @@ class MISGACrossverOptimal(CrossOver):
         num_pairings = parents1.shape[0]
         device = parents1.device
 
-        children = parents1.clone()
+        children_1 = parents1.clone()
+        children_2 = parents2.clone()
 
         for i in range(num_pairings):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
             solution_2 = parents2[i].cpu().numpy().nonzero()[0]
 
-            result = solve_problem(self._instance, solution_1, solution_2, time_limit=self._opt_recomb_time_limit)
+            result = solve_problem(self._instance, solution_1, solution_2, time_limit=5)
 
-            children[i] = torch.tensor(result["children_np_labels"], device=device)
+            children_1[i] = torch.tensor(result["children_np_labels"], device=device)
+            children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
 
+        children = torch.cat([children_1, children_2], dim=0)
         return self._make_children_batch(children)
 
 
@@ -410,7 +412,7 @@ def create_mis_ga(
                 problem,
                 instance,
                 deselect_prob=config.deselect_prob,
-                optimal_recombination=config.recombination == "optimal",
+                preserve_optimal_recombination=config.preserve_optimal_recombination,
                 mutation_prob=config.mutation_prob,
             ),
             TempSaver(problem, tmp_dir / "population.txt"),

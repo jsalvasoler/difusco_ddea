@@ -44,6 +44,7 @@ common_config = Config(
     mutation_prob=0.25,
     recombination="classic",
     initialization="random_feasible",
+    preserve_optimal_recombination=False,
 )
 
 
@@ -355,10 +356,15 @@ def test_mis_ga_mutation_no_mutation_prob(square_instance: MISInstanceBase) -> N
     assert torch.equal(children.values[1], ga.population.values[1])
 
 
-def test_mis_ga_mutation_optimal_recombination() -> None:
+def test_mis_ga_mutation_preserve_optimal_recombination() -> None:
     """we need to check that the first half of the population is not mutated"""
     instance, sample = read_mis_instance()
-    config = common_config.update(pop_size=4, recombination="optimal")
+    config = common_config.update(
+        pop_size=4,
+        recombination="optimal",
+        preserve_optimal_recombination=True,
+        mutation_prob=1,
+    )
     ga = create_mis_ga(instance, config=config, sample=sample)
 
     mutation = ga._operators[1]
@@ -372,6 +378,7 @@ def test_mis_ga_mutation_optimal_recombination() -> None:
     assert (ga.population.values[:n_pairs].sum(dim=-1) == 0).all()
     assert (ga.population.values[n_pairs:].sum(dim=-1) > 0).all()
     mutation._do(ga.population)
+    # we do not mutate the first half of the population, so they should still be all false
     assert (ga.population.values[:n_pairs].sum(dim=-1) == 0).all()
     assert (ga.population.values[n_pairs:].sum(dim=-1) > 0).all()
 
