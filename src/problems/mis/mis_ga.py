@@ -165,34 +165,73 @@ class MISGaProblem(Problem):
 
 
 class MISGAMutation(CopyingOperator):
-    def __init__(self, problem: Problem, instance: MISInstance, deselect_prob: float = 0.05) -> None:
+    def __init__(
+        self,
+        problem: Problem,
+        instance: MISInstance,
+        deselect_prob: float = 0.05,
+        mutation_prob: float = 0.25,
+        optimal_recombination: bool = False,
+    ) -> None:
         """
         Mutation operator for the Maximum Independent Set problem. With probability deselect_prob, a selected node is
-        unselected and gets a probabilty of zero. Solution is then made feasible.
+        unselected and gets a probability of zero. Solution is then made feasible.
+        Only applies mutation with probability mutation_prob. When optimal_recombination is True, mutation is not
+        applied to the first half of the population.
 
         Args:
             problem: The problem object to work with.
             instance: The instance object to work with.
             deselect_prob: The probability of deselecting a selected node.
+            mutation_prob: The probability of mutating a solution.
+            optimal_recombination: Whether optimal recombination is used.
+                In this case, the mutation is not applied for the first half of the population.
         """
 
         super().__init__(problem)
         self._instance = instance
         self._deselect_prob = deselect_prob
+        self._mutation_prob = mutation_prob
+        self._optimal_recombination = optimal_recombination
 
     @torch.no_grad()
     def _do(self, batch: SolutionBatch) -> SolutionBatch:
         result = deepcopy(batch)
         data = result.access_values()
-        deselect_mask = torch.rand(data.shape, device=data.device, dtype=torch.float32) <= self._deselect_prob
-        priorities = torch.rand(data.shape, device=data.device, dtype=torch.float32)
-        priorities[deselect_mask.bool() & data.bool()] = 0
+        print(f"pre-mutation: {data.sum(dim=-1)}")
 
-        # Only update solutions that have any deselected nodes
-        mask_to_update = deselect_mask.sum(dim=-1) > 0
-        if mask_to_update.any():
-            data[mask_to_update] = self._instance.get_feasible_from_individual_batch(priorities[mask_to_update])
+        pop_size, n_nodes = data.shape
 
+        # Decide which individuals to mutate
+        mutation_mask = torch.rand(pop_size, device=data.device, dtype=torch.float16) <= self._mutation_prob
+        if self._optimal_recombination:
+            # Skip mutation for the first half of the population
+            mutation_mask[: pop_size // 2] = False
+
+        # If no individuals are selected for mutation, exit early.
+        if not mutation_mask.any():
+            print(f"post-mutation: {data.sum(dim=-1)}")
+            return result
+
+        # Get indices of individuals to mutate.
+        mutate_indices = mutation_mask.nonzero(as_tuple=True)[0]
+
+        # Generate deselect mask and priorities only for the solutions that are going to be mutated.
+        sub_data = data[mutate_indices]
+        deselect_mask = torch.rand(sub_data.shape, device=data.device, dtype=torch.float32) <= self._deselect_prob
+        priorities = torch.rand(sub_data.shape, device=data.device, dtype=torch.float32)
+
+        # For nodes that are both deselected and originally selected, set priority to zero.
+        priorities[deselect_mask & sub_data.bool()] = 0
+
+        # Only update those solutions that have at least one deselected node.
+        update_mask = deselect_mask.sum(dim=-1) > 0
+        if update_mask.any():
+            indices_to_update = mutate_indices[update_mask]
+            feasible = self._instance.get_feasible_from_individual_batch(priorities[update_mask])
+            data[indices_to_update] = feasible
+
+        print(f"post-mutation: {data.sum(dim=-1)}")
         return result
 
 
@@ -344,7 +383,12 @@ def create_mis_ga(
                 tournament_size=config.tournament_size,
                 opt_recomb_time_limit=config.opt_recomb_time_limit,
             ),
-            MISGAMutation(problem, instance, deselect_prob=config.deselect_prob),
+            MISGAMutation(
+                problem,
+                instance,
+                deselect_prob=config.deselect_prob,
+                optimal_recombination=config.recombination == "optimal",
+            ),
             TempSaver(problem, tmp_dir / "population.txt"),
         ],
     )

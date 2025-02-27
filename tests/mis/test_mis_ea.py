@@ -313,18 +313,9 @@ def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
     with patch(
         "torch.rand",
         side_effect=[
-            torch.tensor(
-                [
-                    [0.0, 0.9, 0.9, 0.9],  # First ind: deselect first node
-                    [0.9, 0.9, 0.9, 0.9],  # Second ind: no mutations
-                ]
-            ),
-            torch.tensor(
-                [
-                    [0.0, 1.0, 0.0, 1.0],  # First ind: let's have the other solution
-                    [0.0, 0.0, 0.0, 0.0],  # Second ind: will be unused
-                ]
-            ),
+            torch.tensor([0.0, 1.0]),  # first call is the probability of mutation
+            torch.tensor([[0.0, 1.0, 0.0, 1.0]]),  # First ind: deselect mask
+            torch.tensor([[0.0, 1.0, 0.0, 1.0]]),  # First ind: priorities for selection
         ],
     ):
         children = mutation._do(ga.population)
@@ -356,6 +347,36 @@ def test_mis_ga_mutation_no_deselection(square_instance: MISInstanceBase) -> Non
 
     assert torch.equal(children.values[0], ga.population.values[0])
     assert torch.equal(children.values[1], ga.population.values[1])
+
+
+def test_mis_ga_mutation_optimal_recombination() -> None:
+    """we need to check that the first half of the population is not mutated"""
+    instance, sample = read_mis_instance()
+    config = Config(
+        pop_size=4,
+        device="cpu",
+        n_parallel_evals=0,
+        initialization="random_feasible",
+        recombination="optimal",
+        tournament_size=4,
+        deselect_prob=0.05,
+        opt_recomb_time_limit=15,
+    )
+    ga = create_mis_ga(instance, config=config, sample=sample)
+
+    mutation = ga._operators[1]
+    assert isinstance(mutation, MISGAMutation)
+
+    # set the first half of the population to all false solutions
+    n_pairs = config.pop_size // 2
+    data = ga.population.access_values()
+    data[:n_pairs] = torch.zeros(n_pairs, instance.n_nodes, dtype=torch.bool, device=config.device)
+
+    assert (ga.population.values[:n_pairs].sum(dim=-1) == 0).all()
+    assert (ga.population.values[n_pairs:].sum(dim=-1) > 0).all()
+    mutation._do(ga.population)
+    assert (ga.population.values[:n_pairs].sum(dim=-1) == 0).all()
+    assert (ga.population.values[n_pairs:].sum(dim=-1) > 0).all()
 
 
 def test_duplicate_batch() -> None:
