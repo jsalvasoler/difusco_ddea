@@ -23,7 +23,6 @@ def test_filter_args_by_group() -> None:
     ea_settings_args = filter_args_by_group(parser, "ea_settings")
     expected_args = [
         "device",
-        "n_parallel_evals",
         "pop_size",
         "n_generations",
         "max_two_opt_it",
@@ -40,7 +39,6 @@ def test_get_results_dict() -> None:
         wandb_logger_name="test_logger",
         results_path=str(temp_dir),
         device="cpu",
-        n_parallel_evals=0,
         pop_size=100,
         n_generations=100,
         max_two_opt_it=200,
@@ -54,7 +52,6 @@ def test_get_results_dict() -> None:
     assert results_dict["task"] == "mis"
     assert results_dict["wandb_logger_name"] == "test_logger"
     assert results_dict["device"] == "cpu"
-    assert results_dict["n_parallel_evals"] == 0
     assert results_dict["pop_size"] == 100
     assert results_dict["a"] == 0.95
     assert results_dict["b"] == 0.05
@@ -108,7 +105,6 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         data_path=".",
         pop_size=2,
         device="cpu",
-        n_parallel_evals=0,
         max_two_opt_it=1,
         task=task,
         sparse_factor=-1,
@@ -117,8 +113,10 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         tournament_size=2,
         parallel_sampling=2,
         sequential_sampling=1,
+        mutation_prob=0.25,
         models_path="models",
         deselect_prob=0.5,
+        opt_recomb_time_limit=3,
         ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         profiler=False,
         cache_dir="cache/mis/er_700_800/test",
@@ -133,7 +131,6 @@ def test_ea_for_sparse_tsp() -> None:
         sparse_factor=50,
         n_generations=2,
         pop_size=2,
-        n_parallel_evals=0,
         max_two_opt_it=1,
         test_split="data/tsp/tsp500_test_concorde.txt",
         test_split_label_dir=None,

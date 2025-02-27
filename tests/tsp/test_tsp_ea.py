@@ -125,9 +125,7 @@ def test_valid_tour(batch_sample_size_one: tuple) -> None:
 def test_tsp_ga_fill_random_feasible(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cpu", sparse_factor=-1)
-    problem = TSPGAProblem(
-        instance, Config(pop_size=10, device="cpu", n_parallel_evals=0, initialization="random_feasible")
-    )
+    problem = TSPGAProblem(instance, Config(pop_size=10, device="cpu", initialization="random_feasible"))
 
     values = torch.zeros(10, instance.n + 1, dtype=torch.int64)
     problem._fill(values)  # noqa: SLF001 for testing
@@ -193,9 +191,7 @@ def test_tsp_ga_mutation(batch_sample_size_one: tuple) -> None:
 
     ga = create_tsp_ga(
         instance,
-        config=Config(
-            pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2, initialization="random_feasible"
-        ),
+        config=Config(pop_size=10, device="cpu", max_two_opt_it=2, initialization="random_feasible"),
     )
 
     mutation = ga._operators[1]  # noqa: SLF001
@@ -218,9 +214,7 @@ def test_tsp_ga_crossover_works(batch_sample_size_one: tuple) -> None:
 
     ga = create_tsp_ga(
         instance,
-        config=Config(
-            pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=2, initialization="random_feasible"
-        ),
+        config=Config(pop_size=10, device="cpu", max_two_opt_it=2, initialization="random_feasible"),
     )
 
     crossover = ga._operators[0]  # noqa: SLF001
@@ -251,9 +245,7 @@ def test_tsp_ga_runs(batch_sample_size_one: tuple) -> None:
 
     ga = create_tsp_ga(
         instance,
-        config=Config(
-            pop_size=10, device="cpu", n_parallel_evals=0, max_two_opt_it=5, initialization="random_feasible"
-        ),
+        config=Config(pop_size=10, device="cpu", max_two_opt_it=5, initialization="random_feasible"),
     )
 
     ga.run(num_generations=0)

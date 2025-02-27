@@ -12,6 +12,7 @@ import torch
 from config.configs.mis_inference import config as mis_inference_config
 from config.myconfig import Config
 from difuscombination.dataset import MISDatasetComb
+from evotorch.operators import CrossOver
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_ga import MISGACrossover, MISGAMutation, MISGaProblem, create_mis_ga
 from problems.mis.mis_instance import MISInstance, MISInstanceBase, create_mis_instance
@@ -33,6 +34,17 @@ def read_mis_instance(device: str = "cpu") -> tuple[MISInstance, tuple]:
     sample = next(iter(dataloader))
 
     return create_mis_instance(sample, device=device), sample
+
+
+common_config = Config(
+    device="cpu",
+    tournament_size=4,
+    deselect_prob=0.05,
+    opt_recomb_time_limit=15,
+    mutation_prob=0.25,
+    recombination="classic",
+    initialization="random_feasible",
+)
 
 
 def test_create_mis_instance() -> None:
@@ -58,14 +70,10 @@ def test_create_mis_instance() -> None:
 
 def test_mis_problem_evaluation() -> None:
     instance, _ = read_mis_instance()
-    config = Config(
+    config = common_config.update(
         recombination="classic",
         initialization="random_feasible",
         pop_size=10,
-        device="cpu",
-        tournament_size=4,
-        deselect_prob=0.05,
-        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=())
     problem = ga.problem
@@ -107,15 +115,8 @@ def assert_valid_initialized_population(values: torch.Tensor, instance: MISInsta
 
 def test_mis_ga_fill_random_feasible() -> None:
     instance, sample = read_mis_instance()
-    config = Config(
+    config = common_config.update(
         pop_size=10,
-        device="cpu",
-        n_parallel_evals=0,
-        initialization="random_feasible",
-        recombination="classic",
-        tournament_size=4,
-        deselect_prob=0.05,
-        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=sample)
     problem = ga.problem
@@ -166,15 +167,8 @@ def test_mis_ga_fill_difusco() -> None:
 def test_mis_ga_crossover_small(square_instance: MISInstanceBase) -> None:
     instance = square_instance
 
-    config = Config(
+    config = common_config.update(
         pop_size=4,
-        device="cpu",
-        n_parallel_evals=0,
-        initialization="random_feasible",
-        recombination="classic",
-        tournament_size=4,
-        deselect_prob=0.05,
-        opt_recomb_time_limit=15,
     )
     ga = create_mis_ga(instance, config=config, sample=())
 
@@ -208,7 +202,6 @@ def recombination_config(request: pytest.FixtureRequest) -> Config:
         task="mis",
         pop_size=4,
         device="cpu",
-        n_parallel_evals=0,
         initialization="random_feasible",
         recombination=recombination,
         test_samples_file=samples_file,
@@ -225,7 +218,7 @@ def recombination_config(request: pytest.FixtureRequest) -> Config:
 
 
 def test_mis_ga_crossovers(recombination_config: Config) -> None:
-    config = recombination_config
+    config = common_config.update(recombination_config)
 
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", config.test_samples_file),
@@ -245,21 +238,21 @@ def test_mis_ga_crossovers(recombination_config: Config) -> None:
 
     ga = create_mis_ga(instance, config=config, sample=batch)
     crossover = ga._operators[0]
-    assert isinstance(crossover, MISGACrossover)
+    assert isinstance(crossover, CrossOver)
     children = crossover._do_cross_over(parents_1, parents_2)
 
-    assert children.values.shape == (config.pop_size, instance.n_nodes)
-    for i in range(config.pop_size):
+    expected_children = config.pop_size // 2 if config.recombination == "optimal" else config.pop_size
+
+    assert children.values.shape == (expected_children, instance.n_nodes)
+    for i in range(expected_children):
         assert children.values[i].sum() == instance.evaluate_individual(children.values[i].clone().int())
 
 
-def test_mis_ga_crossovers_update_the_best_cost(recombination_config: Config) -> None:
+def test_mis_ga_one_generation(recombination_config: Config) -> None:
     """
     This checks that the result of the recombination is the best cost of the population
     """
-    config = recombination_config.update(
-        deselect_prob=0,
-    )
+    config = recombination_config.update(deselect_prob=0, mutation_prob=0.25)
 
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", config.test_samples_file),
@@ -292,12 +285,12 @@ def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
     config = Config(
         pop_size=2,
         device="cpu",
-        n_parallel_evals=0,
         initialization="random_feasible",
         recombination="classic",
         tournament_size=4,
         deselect_prob=0.05,
         opt_recomb_time_limit=15,
+        mutation_prob=0.25,
     )
     ga = create_mis_ga(instance, config=config, sample=())
 
@@ -327,22 +320,35 @@ def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
 
 def test_mis_ga_mutation_no_deselection(square_instance: MISInstanceBase) -> None:
     instance = square_instance
-    config = Config(
-        pop_size=2,
-        device="cpu",
-        n_parallel_evals=0,
-        initialization="random_feasible",
-        recombination="classic",
-        tournament_size=4,
-        deselect_prob=0.05,
-        opt_recomb_time_limit=15,
-    )
+    config = common_config.update(pop_size=2, deselect_prob=0)
     ga = create_mis_ga(instance, config=config, sample=())
 
     mutation = ga._operators[1]
     assert isinstance(mutation, MISGAMutation)
 
-    with patch("torch.rand", return_value=torch.ones(2, 4)):
+    with patch(
+        "torch.rand",
+        side_effect=[
+            torch.zeros(2),  # mutation probability
+            torch.ones(2, 4),  # deselect mask
+            torch.ones(2, 4),  # priorities
+        ],
+    ):
+        children = mutation._do(ga.population)
+
+    assert torch.equal(children.values[0], ga.population.values[0])
+    assert torch.equal(children.values[1], ga.population.values[1])
+
+
+def test_mis_ga_mutation_no_mutation_prob(square_instance: MISInstanceBase) -> None:
+    instance = square_instance
+    config = common_config.update(pop_size=2, mutation_prob=0)
+    ga = create_mis_ga(instance, config=config, sample=())
+
+    mutation = ga._operators[1]
+    assert isinstance(mutation, MISGAMutation)
+
+    with patch("torch.rand", return_value=torch.ones(2)):
         children = mutation._do(ga.population)
 
     assert torch.equal(children.values[0], ga.population.values[0])
@@ -352,16 +358,7 @@ def test_mis_ga_mutation_no_deselection(square_instance: MISInstanceBase) -> Non
 def test_mis_ga_mutation_optimal_recombination() -> None:
     """we need to check that the first half of the population is not mutated"""
     instance, sample = read_mis_instance()
-    config = Config(
-        pop_size=4,
-        device="cpu",
-        n_parallel_evals=0,
-        initialization="random_feasible",
-        recombination="optimal",
-        tournament_size=4,
-        deselect_prob=0.05,
-        opt_recomb_time_limit=15,
-    )
+    config = common_config.update(pop_size=4, recombination="optimal")
     ga = create_mis_ga(instance, config=config, sample=sample)
 
     mutation = ga._operators[1]
@@ -405,17 +402,7 @@ def test_duplicate_batch() -> None:
 
 def test_temp_saver(tmp_path: Path) -> None:
     instance, sample = read_mis_instance()
-    config = Config(
-        pop_size=10,
-        logs_path=str(tmp_path),
-        device="cpu",
-        n_parallel_evals=0,
-        initialization="random_feasible",
-        recombination="classic",
-        tournament_size=4,
-        deselect_prob=0.05,
-        opt_recomb_time_limit=15,
-    )
+    config = common_config.update(pop_size=10)
     ga = create_mis_ga(instance, config=config, sample=sample, tmp_dir=tmp_path)
     saver = ga._operators[2]
     population = ga.population

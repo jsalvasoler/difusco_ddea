@@ -22,7 +22,6 @@ def get_arg_parser() -> ArgumentParser:
 
     ea_settings = parser.add_argument_group("ea_settings")
     ea_settings.add_argument("--device", type=str, default="cpu")
-    ea_settings.add_argument("--n_parallel_evals", type=int, default=0)
     ea_settings.add_argument("--pop_size", type=int, default=100)
     ea_settings.add_argument("--n_generations", type=int, default=100)
     ea_settings.add_argument("--max_two_opt_it", type=int, default=-1)
@@ -54,7 +53,8 @@ def get_arg_parser() -> ArgumentParser:
 
     mis_settings = parser.add_argument_group("mis_settings")
     mis_settings.add_argument("--tournament_size", type=int, default=4)
-    mis_settings.add_argument("--deselect_prob", type=float, default=0.2)
+    mis_settings.add_argument("--deselect_prob", type=float, default=0.05)
+    mis_settings.add_argument("--mutation_prob", type=float, default=0.25)
     mis_settings.add_argument("--opt_recomb_time_limit", type=int, default=15)
 
     dev = parser.add_argument_group("dev")

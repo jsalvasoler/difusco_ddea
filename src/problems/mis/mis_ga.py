@@ -235,30 +235,25 @@ class MISGAMutation(CopyingOperator):
         return result
 
 
-class MISGACrossover(CrossOver):
+class MISGACrossverOptimal(CrossOver):
     def __init__(
         self,
         problem: MISGaProblem,
         instance: MISInstance,
         tournament_size: int = 4,
         opt_recomb_time_limit: int = 15,
-        mode: Literal["classic", "difuscombination"] = "classic",
     ) -> None:
-        super().__init__(problem, tournament_size=tournament_size)
+        super().__init__(
+            problem,
+            tournament_size=tournament_size,
+            cross_over_rate=0.5,
+        )
         self._instance = instance
-        self._mode = mode
         self._opt_recomb_time_limit = opt_recomb_time_limit
 
-    @no_grad()
+    @torch.no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
-        if self._mode == "classic":
-            return self._do_cross_over_classic(parents1, parents2)
-        if self._mode == "difuscombination":
-            return self._do_cross_over_difuscombination(parents1, parents2)
-        if self._mode == "optimal":
-            return self._do_cross_over_optimal(parents1, parents2)
-
-        raise ValueError(f"Invalid mode: {self._mode}")
+        return self._do_cross_over_optimal(parents1, parents2)
 
     @no_grad()
     def _do_cross_over_optimal(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
@@ -268,8 +263,7 @@ class MISGACrossover(CrossOver):
         num_pairings = parents1.shape[0]
         device = parents1.device
 
-        children_1 = parents1.clone()
-        children_2 = parents2.clone()
+        children = parents1.clone()
 
         for i in range(num_pairings):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
@@ -277,11 +271,31 @@ class MISGACrossover(CrossOver):
 
             result = solve_problem(self._instance, solution_1, solution_2, time_limit=self._opt_recomb_time_limit)
 
-            children_1[i] = torch.tensor(result["children_np_labels"], device=device)
-            children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
+            children[i] = torch.tensor(result["children_np_labels"], device=device)
 
-        children = torch.cat([children_1, children_2], dim=0)
         return self._make_children_batch(children)
+
+
+class MISGACrossover(CrossOver):
+    def __init__(
+        self,
+        problem: MISGaProblem,
+        instance: MISInstance,
+        tournament_size: int = 4,
+        mode: Literal["classic", "difuscombination"] = "classic",
+    ) -> None:
+        super().__init__(problem, tournament_size=tournament_size)
+        self._instance = instance
+        self._mode = mode
+
+    @no_grad()
+    def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+        if self._mode == "classic":
+            return self._do_cross_over_classic(parents1, parents2)
+        if self._mode == "difuscombination":
+            return self._do_cross_over_difuscombination(parents1, parents2)
+
+        raise ValueError(f"Invalid mode: {self._mode}")
 
     @no_grad()
     def _do_cross_over_difuscombination(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
@@ -371,23 +385,33 @@ def create_mis_ga(
 
     problem = MISGaProblem(instance, config, sample)
 
+    if config.recombination == "optimal":
+        crossover = MISGACrossverOptimal(
+            problem,
+            instance,
+            tournament_size=config.tournament_size,
+            opt_recomb_time_limit=config.opt_recomb_time_limit,
+        )
+    else:
+        crossover = MISGACrossover(
+            problem,
+            instance,
+            mode=config.recombination,
+            tournament_size=config.tournament_size,
+        )
+
     return GeneticAlgorithm(
         problem=problem,
         popsize=config.pop_size,
         re_evaluate=False,
         operators=[
-            MISGACrossover(
-                problem,
-                instance,
-                mode=config.recombination,
-                tournament_size=config.tournament_size,
-                opt_recomb_time_limit=config.opt_recomb_time_limit,
-            ),
+            crossover,
             MISGAMutation(
                 problem,
                 instance,
                 deselect_prob=config.deselect_prob,
                 optimal_recombination=config.recombination == "optimal",
+                mutation_prob=config.mutation_prob,
             ),
             TempSaver(problem, tmp_dir / "population.txt"),
         ],
