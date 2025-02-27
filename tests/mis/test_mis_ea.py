@@ -192,15 +192,17 @@ def test_mis_ga_crossover_small(square_instance: MISInstanceBase) -> None:
     assert children.values[3].sum() == 2
 
 
-@pytest.mark.parametrize("recombination", ["difuscombination", "classic", "optimal"])
-def test_mis_ga_crossovers(recombination: str) -> None:
+@pytest.fixture(params=["difuscombination", "classic", "optimal"])
+def recombination_config(request: pytest.FixtureRequest) -> Config:
     from config.configs.mis_inference import config as mis_inference_config
+
+    recombination = request.param
 
     samples_file = "difuscombination/mis/er_50_100/test"
     labels_dir = "difuscombination/mis/er_50_100/test_labels"
     graphs_dir = "mis/er_50_100/test"
 
-    config = mis_inference_config.update(
+    return mis_inference_config.update(
         models_path="models",
         data_path="data",
         task="mis",
@@ -220,10 +222,15 @@ def test_mis_ga_crossovers(recombination: str) -> None:
         deselect_prob=0.05,
         opt_recomb_time_limit=15,
     )
+
+
+def test_mis_ga_crossovers(recombination_config: Config) -> None:
+    config = recombination_config
+
     dataset = MISDatasetComb(
-        samples_file=os.path.join("data", samples_file),
-        graphs_dir=os.path.join("data", graphs_dir),
-        labels_dir=os.path.join("data", labels_dir),
+        samples_file=os.path.join("data", config.test_samples_file),
+        graphs_dir=os.path.join("data", config.test_graphs_dir),
+        labels_dir=os.path.join("data", config.test_labels_dir),
     )
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
     batch = next(iter(dataloader))
@@ -244,6 +251,40 @@ def test_mis_ga_crossovers(recombination: str) -> None:
     assert children.values.shape == (config.pop_size, instance.n_nodes)
     for i in range(config.pop_size):
         assert children.values[i].sum() == instance.evaluate_individual(children.values[i].clone().int())
+
+
+def test_mis_ga_crossovers_update_the_best_cost(recombination_config: Config) -> None:
+    """
+    This checks that the result of the recombination is the best cost of the population
+    """
+    config = recombination_config.update(
+        deselect_prob=0,
+    )
+
+    dataset = MISDatasetComb(
+        samples_file=os.path.join("data", config.test_samples_file),
+        graphs_dir=os.path.join("data", config.test_graphs_dir),
+        labels_dir=os.path.join("data", config.test_labels_dir),
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    batch = next(iter(dataloader))
+
+    instance = create_mis_instance(batch, device="cpu")
+
+    ga = create_mis_ga(instance, config=config, sample=batch)
+
+    ga._population.set_values(torch.zeros(config.pop_size, instance.n_nodes, dtype=torch.bool, device=config.device))
+    ga._population.forget_evals()
+
+    # crossover = ga._operators[0]
+    # assert isinstance(crossover, MISGACrossover)
+
+    ga.run(num_generations=1)
+
+    # evaluate the population manually
+    pop = ga.population.values
+    evals = pop.sum(dim=-1)
+    assert evals.max().item() == ga.status["pop_best_eval"]
 
 
 def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:

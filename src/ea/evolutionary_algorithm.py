@@ -48,6 +48,7 @@ class EvolutionaryAlgorithm(Experiment):
 
         start_time = timeit.default_timer()
         ea.run(self.config.n_generations)
+        end_time = timeit.default_timer()
 
         if self.config.validate_samples:
             try:
@@ -61,7 +62,7 @@ class EvolutionaryAlgorithm(Experiment):
         diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
         gap = diff / gt_cost
 
-        results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": timeit.default_timer() - start_time}
+        results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": end_time - start_time}
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
     def _get_logger_table_name(self, instance_id: int) -> str:
