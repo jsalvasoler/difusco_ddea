@@ -1,17 +1,24 @@
+from __future__ import annotations
+
+import argparse
 import json
+from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
-import torch
 from config.configs.mis_inference import config as mis_instance_config
-from config.myconfig import Config
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import MISInstance
-from problems.mis.solve_optimal_recombination import solve_constrained_mis, solve_wmis
+from problems.mis.solve_optimal_recombination import solve_constrained_mis, solve_local_branching_mis, solve_wmis
 from torch_geometric.loader import DataLoader
 
 from difusco.sampler import DifuscoSampler
+
+if TYPE_CHECKING:
+    import torch
+    from config.myconfig import Config
+
 
 common_config = mis_instance_config.update(
     device="cpu",
@@ -49,10 +56,11 @@ def from_torch_to_numpy_indices(solution: torch.Tensor) -> np.array:
 
 
 def run_experiment(
-    recombination: Literal["solve_wmis", "solve_constrained_mis"],
+    recombination: Literal["solve_wmis", "solve_constrained_mis", "solve_local_branching_mis"],
     n_samples: int,
     dataset: str,
     pop_size: int = 16,
+    **kwargs,
 ) -> None:
     """
     Recombination types:
@@ -90,10 +98,16 @@ def run_experiment(
             solution_1_np = from_torch_to_numpy_indices(solution_1)
             solution_2_np = from_torch_to_numpy_indices(solution_2)
 
+            time_limit = kwargs.pop("time_limit", 15)
+
             if recombination == "solve_wmis":
-                solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit=15)
+                solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit, **kwargs)
             elif recombination == "solve_constrained_mis":
-                solve_result = solve_constrained_mis(instance, solution_1_np, solution_2_np, time_limit=15)
+                solve_result = solve_constrained_mis(instance, solution_1_np, solution_2_np, time_limit, **kwargs)
+            elif recombination == "solve_local_branching_mis":
+                solve_result = solve_local_branching_mis(instance, solution_1_np, solution_2_np, time_limit, **kwargs)
+            else:
+                raise ValueError(f"Invalid recombination type: {recombination}")
 
             # Calculate parent costs and improvements
             parent_costs = [solve_result["parent_1_obj"], solve_result["parent_2_obj"]]
@@ -172,14 +186,39 @@ def run_experiment(
     return final_result
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--recombination", type=str, default=None)
+    parser.add_argument("--n_samples", type=int, default=10)
+    parser.add_argument("--pop_size", type=int, default=16)
+    parser.add_argument("--dataset", type=str, default=None)
+    parser.add_argument("--lambda_penalty", type=float, default=0.5)  # for solve_mwis
+    parser.add_argument("--fix_selection", type=bool, default=True)  # for solve_constrained_mis
+    parser.add_argument("--fix_unselection", type=bool, default=True)  # for solve_constrained_mis
+    parser.add_argument("--k_factor", type=float, default=1.5)  # for solve_local_branching_mis
+    parser.add_argument("--time_limit", type=int, default=15)
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    datasets = ["er_50_100", "er_300_400", "er_700_800"]
-    datasets = ["er_50_100"]
-    for dataset in datasets:
-        results = run_experiment(
-            recombination="solve_constrained_mis",  # or solve_wmis
-            n_samples=10,
-            dataset=dataset,
-            pop_size=16,
-        )
-        # TODO: save results to fil
+    args = parse_args()
+    results = run_experiment(**vars(args))
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    results["metadata"] = {
+        "timestamp": timestamp,
+        "args": vars(args),
+    }
+    filename = f"results/results_gurobi_optimal_recombination_{timestamp}.json"
+    with open(filename, "w") as f:
+        json.dump(results, f, indent=4)
+
+    # Example command:
+    # python -m difuscombination.gurobi_optimal_recombination \
+    #     --recombination solve_local_branching_mis \
+    #     --n_samples 10 \
+    #     --pop_size 16 \
+    #     --dataset er_50_100 \
+    #     --fix_selection True \
+    #     --fix_unselection True \
+    #     --k_factor 1.5 \
+    #     --time_limit 15

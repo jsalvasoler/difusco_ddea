@@ -53,11 +53,17 @@ def solve_wmis(
     solution_1: np.array,
     solution_2: np.array,
     time_limit: int = 60,
+    **kwargs,
 ) -> dict:
+    """
+    Solve the following problem:
+    max weighted MIS rewarding nodes in solution_1 and solution_2 according to lambda_penalty
+    st. is an IS
+    """
     assert np.all(solution_1 < instance.n_nodes), "solution_1 contains invalid indices"
     assert np.all(solution_2 < instance.n_nodes), "solution_2 contains invalid indices"
 
-    lambda_penalty = 0.05
+    lambda_penalty = 0.05 if kwargs.get("lambda_penalty") is None else kwargs.get("lambda_penalty")
     weights = np.full(instance.n_nodes, 1 - lambda_penalty)
     only_1 = np.setdiff1d(solution_1, solution_2)
     weights[only_1] = 1
@@ -76,7 +82,8 @@ def solve_wmis(
         starting_solution=starting_solution,
         time_limit=time_limit,
         solver_params={
-            "OutputFlag": 0,
+            "OutputFlag": kwargs.get("output_flag", 0),
+            "DisplayInterval": kwargs.get("display_interval", 50),
         },
     )
 
@@ -88,7 +95,15 @@ def solve_constrained_mis(
     solution_1: np.array,
     solution_2: np.array,
     time_limit: int = 60,
+    **kwargs,
 ) -> dict:
+    """
+    Solve the following problem:
+    max MIS
+    st. is an IS
+    st. if fix_selection is provided, then fix_selection nodes are selected (hard constraint)
+    st. if fix_unselection is provided, then fix_unselection nodes are not selected (hard constraint)
+    """
     assert np.all(solution_1 < instance.n_nodes), "solution_1 contains invalid indices"
     assert np.all(solution_2 < instance.n_nodes), "solution_2 contains invalid indices"
 
@@ -96,8 +111,13 @@ def solve_constrained_mis(
     starting_solution = get_starting_solution(instance, solution_1, solution_2)
     weights = np.ones(instance.n_nodes)
 
-    fix_selection = np.intersect1d(solution_1, solution_2)
-    fix_unselection = np.setdiff1d(np.arange(instance.n_nodes), np.union1d(solution_1, solution_2))
+    fix_selection = np.intersect1d(solution_1, solution_2) if kwargs.get("fix_selection") else None
+    fix_unselection = (
+        np.setdiff1d(np.arange(instance.n_nodes), np.union1d(solution_1, solution_2))
+        if kwargs.get("fix_unselection")
+        else None
+    )
+
     print(f"fix_selection: {len(fix_selection)}\nfix_unselection: {len(fix_unselection)}")
 
     start_time = time.time()
@@ -109,7 +129,55 @@ def solve_constrained_mis(
         fix_unselection=fix_unselection,
         time_limit=time_limit,
         solver_params={
-            # "OutputFlag": 0,
+            "OutputFlag": kwargs.get("output_flag", 0),
+            "DisplayInterval": kwargs.get("display_interval", 50),
+        },
+    )
+
+    return process_mwis_result(mwis, instance, solution_1, solution_2, start_time)
+
+
+def solve_local_branching_mis(
+    instance: MISInstance,
+    solution_1: np.array,
+    solution_2: np.array,
+    time_limit: int = 60,
+    **kwargs,
+) -> dict:
+    """
+    Solve the following problem:
+    max MIS
+    st. is an IS
+    st. if h is hamming dist, h(solution_1, x) + h(solution_2, x) <= k
+
+    We want solution_1 and solution_2 to be feasible, therefore, we need h(solution_1, solution_2) <= k,
+    and k probably h(solution_1, solution_2) * 1.5.
+    """
+    assert np.all(solution_1 < instance.n_nodes), "solution_1 contains invalid indices"
+    assert np.all(solution_2 < instance.n_nodes), "solution_2 contains invalid indices"
+
+    adj_matrix = get_lil_csr_matrix(instance.adj_matrix_np)
+    starting_solution = get_starting_solution(instance, solution_1, solution_2)
+    weights = np.ones(instance.n_nodes)
+
+    k_factor = kwargs.get("k_factor", 1.5)
+    assert k_factor > 1, "k_factor must be greater than 1, otherwise problem is infeasible"
+    # use local branching k equal to k_factor * hamming_distance(solution_1, solution_2)
+    n_diff = len(np.setdiff1d(solution_1, solution_2)) + len(np.setdiff1d(solution_2, solution_1))
+    k = n_diff * k_factor
+
+    local_branching = LocalBranching(k=k, sol_1=solution_1, sol_2=solution_2)
+
+    start_time = time.time()
+    mwis = maximum_weighted_independent_set(
+        adj_matrix,
+        weights,
+        starting_solution=starting_solution,
+        local_branching=local_branching,
+        time_limit=time_limit,
+        solver_params={
+            "OutputFlag": kwargs.get("output_flag", 0),
+            "DisplayInterval": kwargs.get("display_interval", 50),
         },
     )
 
@@ -134,6 +202,13 @@ class MWISResult:
     f: float
 
 
+@dataclass
+class LocalBranching:
+    k: int
+    sol_1: np.ndarray
+    sol_2: np.ndarray
+
+
 @optimod()
 def maximum_weighted_independent_set(
     adjacency_matrix,
@@ -142,9 +217,16 @@ def maximum_weighted_independent_set(
     starting_solution: np.ndarray | None = None,
     fix_selection: np.ndarray | None = None,
     fix_unselection: np.ndarray | None = None,
+    local_branching: LocalBranching | None = None,
 ):
-    """This implementation uses the gurobipy matrix friendly APIs which are well
-    suited for the input data in scipy data structures."""
+    # validate that we do not use many things at once
+    error_msg = "Cannot use fix_selection and local_branching at the same time"
+    if local_branching:
+        assert fix_selection is None, error_msg
+        assert fix_unselection is None, error_msg
+    if fix_selection is not None or fix_unselection is not None:
+        assert local_branching is None, error_msg
+
     with create_env() as env, gp.Model("mwis", env=env) as model:
         rows, cols = adjacency_matrix.tocoo().row, adjacency_matrix.tocoo().col
         num_vertices, num_edges = len(weights), len(rows)
@@ -156,6 +238,19 @@ def maximum_weighted_independent_set(
             model.addConstr(x[fix_selection] == 1)
         if fix_unselection is not None:
             model.addConstr(x[fix_unselection] == 0)
+        if local_branching is not None:
+            # Get indices not in solutions (complement sets)
+            sol_1_unselected = np.setdiff1d(np.arange(num_vertices), local_branching.sol_1)
+            sol_2_unselected = np.setdiff1d(np.arange(num_vertices), local_branching.sol_2)
+            hamming_expr = (
+                gp.quicksum(1 - x[i] for i in local_branching.sol_1)
+                + gp.quicksum(x[i] for i in sol_1_unselected)
+                + gp.quicksum(1 - x[i] for i in local_branching.sol_2)
+                + gp.quicksum(x[i] for i in sol_2_unselected)
+            )
+
+            model.addConstr(hamming_expr <= local_branching.k, name="local_branching")
+
         # Maximize the sum of the vertex weights in the independent set
         model.setObjective(weights @ x, sense=GRB.MAXIMIZE)
         # Get the incident matrix from the adjacency matrix where
