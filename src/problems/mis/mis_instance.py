@@ -108,6 +108,10 @@ class MISInstance(MISInstanceBase):
     def get_degrees(self) -> torch.Tensor:
         return self.degrees
 
+    def __repr__(self) -> str:
+        n_edges = self.edge_index.shape[1] // 2  # Divide by 2 since edges are bidirectional
+        return f"MISInstance(n_nodes={self.n_nodes}, n_edges={n_edges}, device='{self.device}')"
+
 
 def create_mis_instance(sample: tuple, device: Literal["cpu", "cuda"] = "cpu") -> MISInstance:
     return MISInstance.create_from_batch_sample(sample, device)
