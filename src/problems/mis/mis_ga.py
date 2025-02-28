@@ -12,7 +12,7 @@ from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
-from problems.mis.solve_optimal_recombination import solve_problem
+from problems.mis.solve_optimal_recombination import solve_wmis
 from torch import no_grad
 
 from difusco.sampler import DifuscoSampler
@@ -269,7 +269,7 @@ class MISGACrossverOptimal(CrossOver):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
             solution_2 = parents2[i].cpu().numpy().nonzero()[0]
 
-            result = solve_problem(self._instance, solution_1, solution_2, time_limit=5)
+            result = solve_wmis(self._instance, solution_1, solution_2, time_limit=5)
 
             children_1[i] = torch.tensor(result["children_np_labels"], device=device)
             children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()

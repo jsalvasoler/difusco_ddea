@@ -10,7 +10,7 @@ from config.myconfig import Config
 from config.mytable import TableSaver
 from ea.ea_utils import instance_factory
 from problems.mis.mis_dataset import MISDataset
-from problems.mis.solve_optimal_recombination import solve_problem
+from problems.mis.solve_optimal_recombination import solve_wmis
 
 
 def get_arg_parser() -> argparse.ArgumentParser:
@@ -99,7 +99,7 @@ def solve_difuscombination(config: Config) -> None:
             solution_1 = solutions[2 * j]
             solution_2 = solutions[2 * j + 1]
 
-            result = solve_problem(instance, solution_1, solution_2)
+            result = solve_wmis(instance, solution_1, solution_2)
 
             sample_file_name = f"{instance_file_name}___{2 * j}_{2 * j + 1}.txt"
             with open(os.path.join(config.output_dir, sample_file_name), "w") as f:
