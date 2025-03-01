@@ -13,7 +13,7 @@ from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
-from problems.mis.solve_optimal_recombination import solve_wmis
+from problems.mis.solve_optimal_recombination import solve_local_branching_mis
 from torch import no_grad
 
 from difusco.sampler import DifuscoSampler
@@ -275,9 +275,13 @@ class MISGACrossverOptimal(CrossOver):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
             solution_2 = parents2[i].cpu().numpy().nonzero()[0]
 
-            # TODO: choose the right optimal recombination solver
-            # will probably be solve_local_branching_mis
-            result = solve_wmis(self._instance, solution_1, solution_2, time_limit=5)
+            result = solve_local_branching_mis(
+                self._instance,
+                solution_1,
+                solution_2,
+                time_limit=30,
+                k_factor=1.75,
+            )
 
             save_in_dict = {
                 "parent_1": ",".join(map(str, solution_1)),
