@@ -242,10 +242,8 @@ def test_mis_ga_crossovers(recombination_config: Config) -> None:
     assert isinstance(crossover, CrossOver)
     children = crossover._do_cross_over(parents_1, parents_2)
 
-    expected_children = config.pop_size // 2 if config.recombination == "optimal" else config.pop_size
-
-    assert children.values.shape == (expected_children, instance.n_nodes)
-    for i in range(expected_children):
+    assert children.values.shape == (config.pop_size, instance.n_nodes)
+    for i in range(config.pop_size):
         assert children.values[i].sum() == instance.evaluate_individual(children.values[i].clone().int())
 
 
@@ -253,7 +251,7 @@ def test_mis_ga_one_generation(recombination_config: Config) -> None:
     """
     This checks that the result of the recombination is the best cost of the population
     """
-    config = recombination_config.update(deselect_prob=0, mutation_prob=0.25)
+    config = common_config.update(recombination_config).update(deselect_prob=0, mutation_prob=0.25)
 
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", config.test_samples_file),
@@ -283,15 +281,12 @@ def test_mis_ga_one_generation(recombination_config: Config) -> None:
 
 def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
     instance = square_instance
-    config = Config(
+    config = common_config.update(
         pop_size=2,
-        device="cpu",
-        initialization="random_feasible",
-        recombination="classic",
-        tournament_size=4,
         deselect_prob=0.05,
         opt_recomb_time_limit=15,
         mutation_prob=0.25,
+        preserve_optimal_recombination=False,
     )
     ga = create_mis_ga(instance, config=config, sample=())
 

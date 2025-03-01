@@ -240,7 +240,7 @@ class MISGACrossverOptimal(CrossOver):
         self,
         problem: MISGaProblem,
         instance: MISInstance,
-        tournament_size: int = 4,
+        tournament_size: int = 2,
         opt_recomb_time_limit: int = 15,
     ) -> None:
         super().__init__(
@@ -269,6 +269,8 @@ class MISGACrossverOptimal(CrossOver):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
             solution_2 = parents2[i].cpu().numpy().nonzero()[0]
 
+            # TODO: choose the right optimal recombination solver
+            # will probably be solve_local_branching_mis
             result = solve_wmis(self._instance, solution_1, solution_2, time_limit=5)
 
             children_1[i] = torch.tensor(result["children_np_labels"], device=device)
@@ -283,7 +285,7 @@ class MISGACrossover(CrossOver):
         self,
         problem: MISGaProblem,
         instance: MISInstance,
-        tournament_size: int = 4,
+        tournament_size: int = 2,
         mode: Literal["classic", "difuscombination"] = "classic",
     ) -> None:
         super().__init__(problem, tournament_size=tournament_size)
