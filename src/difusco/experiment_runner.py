@@ -120,7 +120,7 @@ class ExperimentRunner:
             process = ctx.Process(target=self.process_iteration, args=(sample, queue))
 
             process.start()
-            process.join(timeout=90 * 60)  # 1h30 timeout
+            process.join(timeout=120 * 60)  # 2h timeout
             if process.is_alive():
                 process.terminate()
                 raise TimeoutError(f"Process timed out for iteration {i}")
