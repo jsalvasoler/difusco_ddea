@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import wandb
 from config.myconfig import Config
-from ea.evolutionary_algorithm import ea_factory
+from ea.ea_runner import ea_factory
 from evotorch.operators import CrossOver
 from problems.mis.mis_instance import create_mis_instance
 from torch_geometric.loader import DataLoader
