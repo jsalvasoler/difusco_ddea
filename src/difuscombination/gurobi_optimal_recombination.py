@@ -20,14 +20,11 @@ if TYPE_CHECKING:
     from config.myconfig import Config
 
 
-
-
 def print_dict(d: dict) -> None:
     print(json.dumps(d, indent=4))
 
 
 def prepare_config(dataset: str, base_path: str) -> Config:
-
     common_config = mis_instance_config.update(
         device="cpu",
         task="mis",
@@ -107,9 +104,19 @@ def run_experiment(
             if recombination == "solve_wmis":
                 solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs)
             elif recombination == "solve_constrained_mis":
-                solve_result = solve_constrained_mis(instance, solution_1_np, solution_2_np, time_limit=time_limit  , **kwargs)
+                solve_result = solve_constrained_mis(
+                    instance,
+                    solution_1_np,
+                    solution_2_np,
+                    time_limit=time_limit,
+                    fix_selection=kwargs["fix_selection"],
+                    fix_unselection=kwargs["fix_unselection"],
+                    **kwargs,
+                )
             elif recombination == "solve_local_branching_mis":
-                solve_result = solve_local_branching_mis(instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs)
+                solve_result = solve_local_branching_mis(
+                    instance, solution_1_np, solution_2_np, time_limit=time_limit, k_factor=kwargs["k_factor"], **kwargs
+                )
             else:
                 raise ValueError(f"Invalid recombination type: {recombination}")
 
@@ -207,14 +214,14 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    
+
     results = run_experiment(**vars(args))
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     results["metadata"] = {
         "timestamp": timestamp,
         "args": vars(args),
     }
-    filename = f"{base_path}/results/results_gurobi_optimal_recombination_{timestamp}.json"
+    filename = f"{args.base_path}/results/results_gurobi_optimal_recombination_{timestamp}.json"
     with open(filename, "w") as f:
         json.dump(results, f, indent=4)
 
