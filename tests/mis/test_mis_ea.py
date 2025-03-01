@@ -279,6 +279,33 @@ def test_mis_ga_one_generation(recombination_config: Config) -> None:
     assert evals.max().item() == ga.status["pop_best_eval"]
 
 
+def test_mis_save_optimal_recombination_results(recombination_config: Config, tmp_path: Path) -> None:
+    if recombination_config.recombination != "optimal":
+        return
+
+    config = common_config.update(recombination_config).update(deselect_prob=0, mutation_prob=0.25)
+
+    dataset = MISDatasetComb(
+        samples_file=os.path.join("data", config.test_samples_file),
+        graphs_dir=os.path.join("data", config.test_graphs_dir),
+        labels_dir=os.path.join("data", config.test_labels_dir),
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    batch = next(iter(dataloader))
+
+    instance = create_mis_instance(batch, device="cpu")
+
+    ga = create_mis_ga(instance, config=config, sample=batch, tmp_dir=tmp_path)
+
+    ga.run(num_generations=1)
+
+    # if we are doing optimal recombination, check that the results are saved
+    if config.recombination == "optimal":
+        assert os.path.exists(os.path.join(tmp_path, "optimal_recombination.csv"))
+        results = ga.get_recombination_saved_results()
+        assert len(results) == config.pop_size // 2
+
+
 def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
     instance = square_instance
     config = common_config.update(
