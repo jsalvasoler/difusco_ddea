@@ -199,8 +199,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pop_size", type=int, default=16)
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--lambda_penalty", type=float, default=0.5)  # for solve_mwis
-    parser.add_argument("--fix_selection", type=bool, default=True)  # for solve_constrained_mis
-    parser.add_argument("--fix_unselection", type=bool, default=True)  # for solve_constrained_mis
+    parser.add_argument("--fix_selection", type=lambda x: x.lower() == "true", default=True)  # for solve_constrained_mis
+    parser.add_argument("--fix_unselection", type=lambda x: x.lower() == "true", default=True)  # for solve_constrained_mis
     parser.add_argument("--k_factor", type=float, default=1.5)  # for solve_local_branching_mis
     parser.add_argument("--time_limit", type=int, default=15)
     return parser.parse_args()
@@ -215,7 +215,7 @@ if __name__ == "__main__":
         "timestamp": timestamp,
         "args": vars(args),
     }
-    filename = f"{args.base_path}/results/results_gurobi_optimal_recombination_{timestamp}.json"
+    filename = f"{args.base_path}/results/{args.dataset}_{args.recombination}_{args.fix_selection}_{args.fix_unselection}_{args.k_factor}_{timestamp}.json"
     with open(filename, "w") as f:
         json.dump(results, f, indent=4)
 

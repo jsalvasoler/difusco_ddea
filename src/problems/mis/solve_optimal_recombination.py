@@ -117,8 +117,8 @@ def solve_constrained_mis(
         if kwargs.get("fix_unselection")
         else None
     )
-
-    print(f"fix_selection: {len(fix_selection)}\nfix_unselection: {len(fix_unselection)}")
+    print(f"fix_selection: {len(fix_selection) if fix_selection is not None else 'None'}")
+    print(f"fix_unselection: {len(fix_unselection) if fix_unselection is not None else 'None'}")
 
     start_time = time.time()
     mwis = maximum_weighted_independent_set(
