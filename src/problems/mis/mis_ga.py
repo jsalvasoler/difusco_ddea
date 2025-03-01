@@ -8,11 +8,12 @@ from tempfile import mkdtemp
 from typing import TYPE_CHECKING, Literal
 
 import torch
+from config.mytable import TableSaver
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
-from problems.mis.solve_optimal_recombination import solve_wmis
+from problems.mis.solve_optimal_recombination import solve_local_branching_mis
 from torch import no_grad
 
 from difusco.sampler import DifuscoSampler
@@ -240,7 +241,8 @@ class MISGACrossverOptimal(CrossOver):
         self,
         problem: MISGaProblem,
         instance: MISInstance,
-        tournament_size: int = 4,
+        tmp_dir: Path,
+        tournament_size: int = 2,
         opt_recomb_time_limit: int = 15,
     ) -> None:
         super().__init__(
@@ -248,7 +250,11 @@ class MISGACrossverOptimal(CrossOver):
             tournament_size=tournament_size,
         )
         self._instance = instance
+        self._tmp_dir = tmp_dir
         self._opt_recomb_time_limit = opt_recomb_time_limit
+
+        # create a TableSaver object to save the results of the optimal recombination
+        self.table_saver = TableSaver(self._tmp_dir / "optimal_recombination.csv")
 
     @torch.no_grad()
     def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
@@ -269,9 +275,24 @@ class MISGACrossverOptimal(CrossOver):
             solution_1 = parents1[i].cpu().numpy().nonzero()[0]
             solution_2 = parents2[i].cpu().numpy().nonzero()[0]
 
-            result = solve_wmis(self._instance, solution_1, solution_2, time_limit=5)
+            result = solve_local_branching_mis(
+                self._instance,
+                solution_1,
+                solution_2,
+                time_limit=30,
+                k_factor=1.75,
+            )
 
-            children_1[i] = torch.tensor(result["children_np_labels"], device=device)
+            save_in_dict = {
+                "parent_1": ",".join(map(str, solution_1)),
+                "parent_2": ",".join(map(str, solution_2)),
+                "children": ",".join(map(str, result.children)),
+                "instance_id": self._problem.sample[0].item(),
+                "runtime": result.runtime,
+            }
+            self.table_saver.put(save_in_dict)
+
+            children_1[i] = torch.tensor(result.children_np_labels, device=device)
             children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
 
         children = torch.cat([children_1, children_2], dim=0)
@@ -283,7 +304,7 @@ class MISGACrossover(CrossOver):
         self,
         problem: MISGaProblem,
         instance: MISInstance,
-        tournament_size: int = 4,
+        tournament_size: int = 2,
         mode: Literal["classic", "difuscombination"] = "classic",
     ) -> None:
         super().__init__(problem, tournament_size=tournament_size)
@@ -379,9 +400,15 @@ class TempSaver(CopyingOperator):
         return batch
 
 
-def create_mis_ga(
-    instance: MISInstance, config: Config, sample: tuple, tmp_dir: str | Path | None = None
-) -> GeneticAlgorithm:
+class MISGA(GeneticAlgorithm):
+    def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002
+        super().__init__(*args, **kwargs)
+
+    def get_recombination_saved_results(self) -> None:
+        return self._operators[0].table_saver.get()
+
+
+def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir: str | Path | None = None) -> MISGA:
     if tmp_dir is None:
         tmp_dir = Path(mkdtemp())
 
@@ -393,6 +420,7 @@ def create_mis_ga(
             instance,
             tournament_size=config.tournament_size,
             opt_recomb_time_limit=config.opt_recomb_time_limit,
+            tmp_dir=tmp_dir,
         )
     else:
         crossover = MISGACrossover(
@@ -402,7 +430,7 @@ def create_mis_ga(
             tournament_size=config.tournament_size,
         )
 
-    return GeneticAlgorithm(
+    return MISGA(
         problem=problem,
         popsize=config.pop_size,
         re_evaluate=False,

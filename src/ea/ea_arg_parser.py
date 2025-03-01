@@ -28,6 +28,7 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
     ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
+    ea_settings.add_argument("--save_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False)
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
@@ -52,10 +53,14 @@ def get_arg_parser() -> ArgumentParser:
     tsp_settings.add_argument("--sparse_factor", type=int, default=-1)
 
     mis_settings = parser.add_argument_group("mis_settings")
-    mis_settings.add_argument("--tournament_size", type=int, default=4)
+    mis_settings.add_argument("--tournament_size", type=int, default=2)
     mis_settings.add_argument("--deselect_prob", type=float, default=0.05)
     mis_settings.add_argument("--mutation_prob", type=float, default=0.25)
     mis_settings.add_argument("--opt_recomb_time_limit", type=int, default=15)
+    mis_settings.add_argument("--save_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False)
+    mis_settings.add_argument(
+        "--preserve_optimal_recombination", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False
+    )
 
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true")

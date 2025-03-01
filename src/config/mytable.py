@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import pandas as pd
 
 
 class TableSaver:
-    def __init__(self, table_name: str) -> None:
-        self.table_name = table_name
+    def __init__(self, table_name: str | Path) -> None:
+        self.table_name = str(table_name)
 
         assert self.table_name.endswith(".csv")
 
