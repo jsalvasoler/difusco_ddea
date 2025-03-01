@@ -101,7 +101,7 @@ def problem_factory(task: str) -> Problem:
     raise ValueError(error_msg)
 
 
-class CustomLogger(Logger):
+class LogFigures(Logger):
     def __init__(
         self,
         table_name: str,

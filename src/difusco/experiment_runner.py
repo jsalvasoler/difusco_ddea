@@ -47,6 +47,26 @@ class ExperimentRunner:
         self.config = config
         self.experiment = experiment
 
+    def _validate_config(self) -> None:
+        """Validate that the config has all required fields.
+
+        Raises:
+            AttributeError: If any required field is missing from the config
+        """
+        required_fields = [
+            "profiler",
+            "validate_samples",  # Used for validation runs
+            "project_name",  # Used for wandb
+            "wandb_logger_name",  # Used for wandb
+            "wandb_entity",  # Used for wandb
+            "logs_path",  # Used for wandb
+            "save_results",
+        ]
+
+        for field in required_fields:
+            if not hasattr(self.config, field):
+                raise AttributeError(f"Config missing required field: {field}")
+
     def process_iteration(self, sample: tuple[Any, ...], queue: mp.Queue) -> None:
         """Run the single iteration and store the result in the queue."""
 
@@ -125,11 +145,10 @@ class ExperimentRunner:
             if is_validation_run and i >= self.config.validate_samples - 1:
                 break
 
-        if not is_validation_run:
+        final_results = self.experiment.get_final_results(results)
+        if self.config.save_results or not is_validation_run:
             table_name = self.experiment.get_table_name()
             table_saver = TableSaver(table_name=table_name)
-            final_results = self.experiment.get_final_results(results)
             final_results["wandb_id"] = wandb.run.id
             table_saver.put(final_results)
-
             wandb.finish()

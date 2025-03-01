@@ -15,7 +15,7 @@ from problems.tsp.tsp_ga import create_tsp_ga
 from torch_geometric.loader import DataLoader
 
 from difusco.experiment_runner import Experiment, ExperimentRunner
-from ea.ea_utils import CustomLogger, dataset_factory, get_results_dict, instance_factory
+from ea.ea_utils import LogFigures, dataset_factory, get_results_dict, instance_factory
 
 if TYPE_CHECKING:
     from config.myconfig import Config
@@ -37,7 +37,7 @@ class EvolutionaryAlgorithm(Experiment):
         if self.config.validate_samples:
             # only log ga for a particular instance if validate_samples is not None
             table_name = self._get_logger_table_name(instance_id=sample[0].item())
-            custom_logger = CustomLogger(
+            custom_logger = LogFigures(
                 table_name=table_name,
                 instance_id=sample[0].item(),
                 gt_cost=instance.get_gt_cost(),
