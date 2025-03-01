@@ -279,7 +279,7 @@ class MISGACrossverOptimal(CrossOver):
                 self._instance,
                 solution_1,
                 solution_2,
-                time_limit=30,
+                time_limit=self._opt_recomb_time_limit,
                 k_factor=1.75,
             )
 
