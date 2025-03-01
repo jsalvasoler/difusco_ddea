@@ -105,17 +105,11 @@ def run_experiment(
                 solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs)
             elif recombination == "solve_constrained_mis":
                 solve_result = solve_constrained_mis(
-                    instance,
-                    solution_1_np,
-                    solution_2_np,
-                    time_limit=time_limit,
-                    fix_selection=kwargs["fix_selection"],
-                    fix_unselection=kwargs["fix_unselection"],
-                    **kwargs,
+                    instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs
                 )
             elif recombination == "solve_local_branching_mis":
                 solve_result = solve_local_branching_mis(
-                    instance, solution_1_np, solution_2_np, time_limit=time_limit, k_factor=kwargs["k_factor"], **kwargs
+                    instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs
                 )
             else:
                 raise ValueError(f"Invalid recombination type: {recombination}")
