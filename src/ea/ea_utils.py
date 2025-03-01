@@ -16,8 +16,6 @@ from problems.tsp.tsp_ga import TSPGAProblem
 from problems.tsp.tsp_graph_dataset import TSPGraphDataset
 from problems.tsp.tsp_instance import create_tsp_instance
 
-from ea.ea_arg_parser import get_arg_parser
-
 if TYPE_CHECKING:
     from argparse import ArgumentParser
 
@@ -38,26 +36,13 @@ def filter_args_by_group(parser: ArgumentParser, group_name: str) -> dict:
 
 
 def get_results_dict(config: Config, results: dict) -> None:
-    # filter the name of the arguments of the grup ea_settings
-    parser = get_arg_parser()
-    ea_setting_args = filter_args_by_group(parser, "ea_settings")
-    tsp_setting_args = filter_args_by_group(parser, "tsp_settings")
-    mis_setting_args = filter_args_by_group(parser, "mis_settings")
-    difusco_setting_args = filter_args_by_group(parser, "difusco_settings")
-    dev_setting_args = filter_args_by_group(parser, "dev")
-
     row = {
         "task": config.task,
         "wandb_logger_name": config.wandb_logger_name,
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
     }
-
-    row.update({k: getattr(config, k) for k in ea_setting_args})
-    row.update({k: getattr(config, k) for k in tsp_setting_args})
-    row.update({k: getattr(config, k) for k in mis_setting_args})
-    row.update({k: getattr(config, k) for k in difusco_setting_args})
-    row.update({k: getattr(config, k) for k in dev_setting_args})
     row.update(results)
+    row.update(config.__dict__)
 
     return row
 
