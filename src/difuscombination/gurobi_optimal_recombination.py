@@ -20,28 +20,29 @@ if TYPE_CHECKING:
     from config.myconfig import Config
 
 
-common_config = mis_instance_config.update(
-    device="cpu",
-    task="mis",
-    data_path="data",
-    models_path="models",
-)
 
 
 def print_dict(d: dict) -> None:
     print(json.dumps(d, indent=4))
 
 
-def prepare_config(dataset: str) -> Config:
+def prepare_config(dataset: str, base_path: str) -> Config:
+
+    common_config = mis_instance_config.update(
+        device="cpu",
+        task="mis",
+        data_path=f"{base_path}/data",
+        models_path=f"{base_path}/models",
+    )
     return common_config.update(
         test_split=f"mis/{dataset}/test",
         test_split_label_dir=f"mis/{dataset}/test_labels",
-        training_split=f"mis/{dataset}/train",
-        training_split_label_dir=f"mis/{dataset}/train_labels",
+        training_split=f"mis/{dataset}/test",
+        training_split_label_dir=f"mis/{dataset}/test_labels",
         validation_split=f"mis/{dataset}/test",
         validation_split_label_dir=f"mis/{dataset}/test_labels",
         ckpt_path=f"mis/mis_{dataset}_gaussian.ckpt",
-        cache_dir=f"cache/mis/{dataset}/test",
+        cache_dir=f"{base_path}/cache/mis/{dataset}/test",
     )
 
 
@@ -67,7 +68,8 @@ def run_experiment(
     - "solve_wmis": Greedy recombination
     - "solve_constrained_mis": Random recombination
     """
-    config = prepare_config(dataset)
+    base_path = kwargs.pop("base_path", ".")
+    config = prepare_config(dataset, base_path)
     dataloader = get_dataloader(config)
 
     # we need pop_size samples
@@ -76,6 +78,7 @@ def run_experiment(
     config.mode = "difusco"
 
     sampler = DifuscoSampler(config)
+    time_limit = kwargs.pop("time_limit", 15)
 
     results = []
 
@@ -98,14 +101,15 @@ def run_experiment(
             solution_1_np = from_torch_to_numpy_indices(solution_1)
             solution_2_np = from_torch_to_numpy_indices(solution_2)
 
-            time_limit = kwargs.pop("time_limit", 15)
+            kwargs["output_flag"] = 1
+            kwargs["display_interval"] = 20
 
             if recombination == "solve_wmis":
-                solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit, **kwargs)
+                solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs)
             elif recombination == "solve_constrained_mis":
-                solve_result = solve_constrained_mis(instance, solution_1_np, solution_2_np, time_limit, **kwargs)
+                solve_result = solve_constrained_mis(instance, solution_1_np, solution_2_np, time_limit=time_limit  , **kwargs)
             elif recombination == "solve_local_branching_mis":
-                solve_result = solve_local_branching_mis(instance, solution_1_np, solution_2_np, time_limit, **kwargs)
+                solve_result = solve_local_branching_mis(instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs)
             else:
                 raise ValueError(f"Invalid recombination type: {recombination}")
 
@@ -188,6 +192,7 @@ def run_experiment(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--base_path", type=str, default=".", help="Base directory path")
     parser.add_argument("--recombination", type=str, default=None)
     parser.add_argument("--n_samples", type=int, default=10)
     parser.add_argument("--pop_size", type=int, default=16)
@@ -202,13 +207,14 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
+    
     results = run_experiment(**vars(args))
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     results["metadata"] = {
         "timestamp": timestamp,
         "args": vars(args),
     }
-    filename = f"results/results_gurobi_optimal_recombination_{timestamp}.json"
+    filename = f"{base_path}/results/results_gurobi_optimal_recombination_{timestamp}.json"
     with open(filename, "w") as f:
         json.dump(results, f, indent=4)
 
