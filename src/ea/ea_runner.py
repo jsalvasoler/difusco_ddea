@@ -201,7 +201,7 @@ class EvolutionaryAlgorithm(Experiment):
         return get_results_dict(self.config, agg_results)
 
     def get_table_name(self) -> str:
-        return "results/ea_results.csv"
+        return f"{self.config.results_path}/ea_results.csv"
 
 
 def ea_factory(config: Config, instance: ProblemInstance, **kwargs) -> GeneticAlgorithm:
