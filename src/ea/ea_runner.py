@@ -147,9 +147,9 @@ class EvolutionaryAlgorithm(Experiment):
         tmp_dir = Path(mkdtemp())
         ea = ea_factory(self.config, instance, sample=sample, tmp_dir=tmp_dir)
 
+        table_name = self._get_logger_table_name(instance_id=sample[0].item())
         if self.config.validate_samples:
             # only log ga for a particular instance if validate_samples is not None
-            table_name = self._get_logger_table_name(instance_id=sample[0].item())
             custom_logger = LogFigures(
                 table_name=table_name,
                 instance_id=sample[0].item(),
@@ -176,6 +176,12 @@ class EvolutionaryAlgorithm(Experiment):
         gap = diff / gt_cost
 
         results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": end_time - start_time}
+
+        if self.config.save_results:
+            df = ea.get_recombination_saved_results()
+            table_name = table_name.replace(".csv", "_recombination.csv")
+            df.to_csv(table_name, index=False)
+
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
     def _get_logger_table_name(self, instance_id: int) -> str:
