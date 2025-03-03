@@ -7,6 +7,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 from typing import TYPE_CHECKING, Literal
 
+import pandas as pd
 import torch
 from config.mytable import TableSaver
 from evotorch import Problem, SolutionBatch
@@ -404,8 +405,11 @@ class MISGA(GeneticAlgorithm):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002
         super().__init__(*args, **kwargs)
 
-    def get_recombination_saved_results(self) -> None:
-        return self._operators[0].table_saver.get()
+    def get_recombination_saved_results(self) -> pd.DataFrame | None:
+        try:
+            return self._operators[0].table_saver.get()
+        except AttributeError:
+            return None
 
 
 def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir: str | Path | None = None) -> MISGA:

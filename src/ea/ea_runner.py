@@ -179,8 +179,9 @@ class EvolutionaryAlgorithm(Experiment):
 
         if self.config.save_results:
             df = ea.get_recombination_saved_results()
-            table_name = table_name.replace(".csv", "_recombination.csv")
-            df.to_csv(table_name, index=False)
+            if df is not None:
+                table_name = table_name.replace(".csv", "_recombination.csv")
+                df.to_csv(table_name, index=False)
 
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
