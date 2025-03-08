@@ -7,7 +7,6 @@ from pathlib import Path
 from tempfile import mkdtemp
 from typing import TYPE_CHECKING, Literal
 
-import pandas as pd
 import torch
 from config.mytable import TableSaver
 from evotorch import Problem, SolutionBatch
@@ -16,14 +15,14 @@ from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
 from problems.mis.solve_optimal_recombination import solve_local_branching_mis
 from torch import no_grad
+from torch_geometric.data import Batch
 
 from difusco.sampler import DifuscoSampler
 
 if TYPE_CHECKING:
+    import pandas as pd
     from config.myconfig import Config
     from problems.mis.mis_instance import MISInstance
-
-from torch_geometric.data import Batch
 
 
 @vectorized
@@ -386,7 +385,7 @@ class TempSaver(CopyingOperator):
         os.makedirs(os.path.dirname(tmp_file), exist_ok=True)
 
     def _get_population_string(self, batch: SolutionBatch) -> str:
-        data = batch.access_values()
+        data = batch.values
         # for each solution in the batch, take the non-zero indices
         solutions_str = []
         for i in range(data.shape[0]):
@@ -394,22 +393,64 @@ class TempSaver(CopyingOperator):
             solutions_str.append(",".join(map(str, indices)))
         return " | ".join(solutions_str)
 
-    @torch.no_grad()
-    def _do(self, batch: SolutionBatch) -> SolutionBatch:
+    def save(self, batch: SolutionBatch) -> None:
         with open(self._tmp_file, "a") as f:
             f.write(self._get_population_string(batch) + "\n")  # Added newline for better readability
-        return batch
 
 
 class MISGA(GeneticAlgorithm):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002
+        self._tmp_dir = kwargs.pop("tmp_dir", Path(mkdtemp()))
         super().__init__(*args, **kwargs)
+        self._temp_saver = TempSaver(self._problem, self._tmp_dir / "population.txt")
 
     def get_recombination_saved_results(self) -> pd.DataFrame | None:
         try:
             return self._operators[0].table_saver.get()
         except AttributeError:
             return None
+
+    def _step(self) -> None:
+        # Get the population size
+        popsize = self._popsize
+
+        # Produce and get an extended population in a single SolutionBatch
+        extended_population = self._make_extended_population(split=False)
+
+        # From the extended population, take the best n solutions, n being the popsize.
+        # self._population = extended_population.take_best(popsize)
+        self._population = self._take_best_unique(extended_population, popsize)
+
+        # Save population stats to file
+        self._temp_saver.save(self._population)
+
+    def _take_best_unique(self, extended_population: SolutionBatch, popsize: int) -> SolutionBatch:
+        sorted_indices = extended_population.argsort().tolist()
+
+        # get unique indices
+        unique_indices = get_unique_indices(extended_population.values)
+        num_unique = unique_indices.shape[0]
+
+        # sort unique indices by objective value, i.e., by the sorted_indices.index(idx)
+        unique_indices_sorted = sorted(unique_indices, key=lambda idx: sorted_indices.index(idx))
+        unique_indices_sorted_torch = torch.tensor(unique_indices_sorted, device=extended_population.device)
+
+        # Repeat indices to match population size
+        k = popsize // num_unique
+        remainder = popsize % num_unique
+
+        final_indices = torch.cat((*unique_indices_sorted_torch.repeat(k), unique_indices_sorted_torch[:remainder]))
+        return SolutionBatch(slice_of=(extended_population, final_indices.tolist()))
+
+
+def get_unique_indices(t: torch.Tensor) -> torch.Tensor:
+    """Returns the indices of the first occurrences of unique rows in a 2D tensor, preserving order."""
+    n = t.size(0)
+    unique_mask = torch.ones(n, dtype=torch.bool, device=t.device)
+    for i in range(n - 1):
+        if unique_mask[i]:
+            unique_mask[i + 1 :] &= ~(t[i + 1 :] == t[i]).all(dim=1)
+    return torch.nonzero(unique_mask).squeeze(dim=1)
 
 
 def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir: str | Path | None = None) -> MISGA:
@@ -447,6 +488,6 @@ def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir:
                 preserve_optimal_recombination=config.preserve_optimal_recombination,
                 mutation_prob=config.mutation_prob,
             ),
-            TempSaver(problem, tmp_dir / "population.txt"),
         ],
+        tmp_dir=tmp_dir,
     )
