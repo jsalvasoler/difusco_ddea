@@ -439,7 +439,10 @@ class MISGA(GeneticAlgorithm):
         k = popsize // num_unique
         remainder = popsize % num_unique
 
-        final_indices = torch.cat((*unique_indices_sorted_torch.repeat(k), unique_indices_sorted_torch[:remainder]))
+        final_indices = torch.cat([
+            unique_indices_sorted_torch.repeat(k),
+            unique_indices_sorted_torch[:remainder]
+        ])
         return SolutionBatch(slice_of=(extended_population, final_indices.tolist()))
 
 
