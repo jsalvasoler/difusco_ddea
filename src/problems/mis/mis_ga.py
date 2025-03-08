@@ -5,15 +5,16 @@ import warnings
 from copy import deepcopy
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
+import numpy as np
 import torch
 from config.mytable import TableSaver
 from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
-from problems.mis.solve_optimal_recombination import solve_local_branching_mis
+from problems.mis.solve_optimal_recombination import OptimalRecombResults, solve_local_branching_mis
 from torch import no_grad
 from torch_geometric.data import Batch
 
@@ -236,6 +237,46 @@ class MISGAMutation(CopyingOperator):
         return result
 
 
+class LocalBranchingSolver:
+    """Solver for the recombination. Cache results for the same instance."""
+
+    # Class-level cache dictionary with ClassVar annotation
+    _cache: ClassVar[dict[tuple, OptimalRecombResults]] = {}
+
+    def __init__(self, instance: MISInstance) -> None:
+        self.instance = instance
+        # Instance-specific cache key prefix (based on instance identity)
+        self._instance_id = id(instance)
+
+    def solve(self, solution_1: tuple, solution_2: tuple, time_limit: int = 60, **kwargs) -> OptimalRecombResults:
+        # Create a cache key that includes the instance ID and all parameters
+        k_factor = kwargs.get("k_factor", None)
+        cache_key = (self._instance_id, solution_1, solution_2, time_limit, k_factor)
+
+        # Check if result is in cache
+        if cache_key in self._cache:
+            print("using cached result")
+            return self._cache[cache_key]
+
+        # Convert tuples back to np.array
+        solution_1_array = np.array(solution_1)
+        solution_2_array = np.array(solution_2)
+
+        # Call the original function
+        result = solve_local_branching_mis(
+            self.instance, solution_1_array, solution_2_array, time_limit=time_limit, **kwargs
+        )
+
+        # Store in cache
+        self._cache[cache_key] = result
+        return result
+
+    @classmethod
+    def clear_cache(cls: type[LocalBranchingSolver]) -> None:
+        """Clear the class-level cache."""
+        cls._cache.clear()
+
+
 class MISGACrossverOptimal(CrossOver):
     def __init__(
         self,
@@ -252,6 +293,7 @@ class MISGACrossverOptimal(CrossOver):
         self._instance = instance
         self._tmp_dir = tmp_dir
         self._opt_recomb_time_limit = opt_recomb_time_limit
+        self.solver = LocalBranchingSolver(instance)  # Initialize the solver
 
         # create a TableSaver object to save the results of the optimal recombination
         self.table_saver = TableSaver(self._tmp_dir / "optimal_recombination.csv")
@@ -272,11 +314,10 @@ class MISGACrossverOptimal(CrossOver):
         children_2 = parents2.clone()
 
         for i in range(num_pairings):
-            solution_1 = parents1[i].cpu().numpy().nonzero()[0]
-            solution_2 = parents2[i].cpu().numpy().nonzero()[0]
+            solution_1 = tuple(parents1[i].cpu().numpy().nonzero()[0])
+            solution_2 = tuple(parents2[i].cpu().numpy().nonzero()[0])
 
-            result = solve_local_branching_mis(
-                self._instance,
+            result = self.solver.solve(
                 solution_1,
                 solution_2,
                 time_limit=self._opt_recomb_time_limit,
@@ -439,10 +480,7 @@ class MISGA(GeneticAlgorithm):
         k = popsize // num_unique
         remainder = popsize % num_unique
 
-        final_indices = torch.cat([
-            unique_indices_sorted_torch.repeat(k),
-            unique_indices_sorted_torch[:remainder]
-        ])
+        final_indices = torch.cat([unique_indices_sorted_torch.repeat(k), unique_indices_sorted_torch[:remainder]])
         return SolutionBatch(slice_of=(extended_population, final_indices.tolist()))
 
 
