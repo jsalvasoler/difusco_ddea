@@ -247,11 +247,15 @@ def test_mis_ga_crossovers(recombination_config: Config) -> None:
         assert children.values[i].sum() == instance.evaluate_individual(children.values[i].clone().int())
 
 
-def test_mis_ga_one_generation(recombination_config: Config) -> None:
+def test_mis_ga_recombination_in_ga(recombination_config: Config) -> None:
     """
     This checks that the result of the recombination is the best cost of the population
     """
-    config = common_config.update(recombination_config).update(deselect_prob=0, mutation_prob=0.25)
+    config = common_config.update(recombination_config).update(
+        pop_size=4,
+        deselect_prob=0,
+        mutation_prob=0.25,
+    )
 
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", config.test_samples_file),
@@ -271,6 +275,32 @@ def test_mis_ga_one_generation(recombination_config: Config) -> None:
     # crossover = ga._operators[0]
     # assert isinstance(crossover, MISGACrossover)
 
+    ga.run(num_generations=1)
+
+    # evaluate the population manually
+    pop = ga.population.values
+    evals = pop.sum(dim=-1)
+    assert evals.max().item() == ga.status["pop_best_eval"]
+
+
+def test_mis_ga_one_generation(recombination_config: Config) -> None:
+    config = common_config.update(recombination_config).update(
+        pop_size=16,
+        deselect_prob=0,
+        mutation_prob=0.25,
+    )
+
+    dataset = MISDatasetComb(
+        samples_file=os.path.join("data", config.test_samples_file),
+        graphs_dir=os.path.join("data", config.test_graphs_dir),
+        labels_dir=os.path.join("data", config.test_labels_dir),
+    )
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    batch = next(iter(dataloader))
+
+    instance = create_mis_instance(batch, device="cpu")
+
+    ga = create_mis_ga(instance, config=config, sample=batch)
     ga.run(num_generations=1)
 
     # evaluate the population manually

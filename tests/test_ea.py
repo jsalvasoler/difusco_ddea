@@ -3,10 +3,7 @@ from typing import Generator
 import numpy as np
 import pytest
 from config.myconfig import Config
-from ea.ea_arg_parser import get_arg_parser
-from ea.ea_runner import (
-    run_ea,
-)
+from ea.ea_runner import get_arg_parser, run_ea
 from ea.ea_utils import dataset_factory, filter_args_by_group, get_results_dict, instance_factory
 from torch_geometric.loader import DataLoader
 
