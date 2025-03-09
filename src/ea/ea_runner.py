@@ -59,7 +59,7 @@ def get_arg_parser() -> ArgumentParser:
     difusco_settings.add_argument("--diffusion_schedule", type=str, default="linear")
     difusco_settings.add_argument("--inference_schedule", type=str, default="cosine")
     difusco_settings.add_argument("--diffusion_steps", type=int, default=1000)
-    difusco_settings.add_argument("--inference_diffusion_steps", type=int, default=1000)
+    difusco_settings.add_argument("--inference_diffusion_steps", type=int, default=50)
     difusco_settings.add_argument("--parallel_sampling", type=int, default=1)
     difusco_settings.add_argument("--sequential_sampling", type=int, default=1)
     difusco_settings.add_argument("--hidden_dim", type=int, default=256)

@@ -30,7 +30,7 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--diffusion_type", type=str, default="categorical")
     parser.add_argument("--diffusion_schedule", type=str, default="linear")
     parser.add_argument("--diffusion_steps", type=int, default=1000)
-    parser.add_argument("--inference_diffusion_steps", type=int, default=1000)
+    parser.add_argument("--inference_diffusion_steps", type=int, default=50)
     parser.add_argument("--inference_schedule", type=str, default="linear")
     parser.add_argument("--inference_trick", type=str, default="ddim")
     parser.add_argument("--sequential_sampling", type=int, default=1)
