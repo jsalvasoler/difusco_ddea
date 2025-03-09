@@ -38,9 +38,11 @@ class MISDatasetComb(Dataset):
             assert any(
                 f.endswith(".csv") for f in os.listdir(self.samples_file)
             ), f"No csv file found in {self.samples_file}"
+            # filter by those starting with difuscombination_samples_
+            samples_files = [f for f in os.listdir(self.samples_file) if f.startswith("difuscombination_samples_")]
             # sort the csv files by timestamp, take the latest one
-            csv_files = sorted([f for f in os.listdir(self.samples_file) if f.endswith(".csv")])
-            self.samples_file = os.path.join(self.samples_file, csv_files[-1])
+            samples_files = sorted(samples_files)
+            self.samples_file = os.path.join(self.samples_file, samples_files[-1])
             assert os.path.exists(self.samples_file), f"File {self.samples_file} does not exist"
             print(f"Using samples file {self.samples_file}")
 
