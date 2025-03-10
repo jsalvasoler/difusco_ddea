@@ -18,17 +18,25 @@ class TableSaver:
     def put(self, row: dict) -> None:
         new_df = pd.DataFrame({col: [val] for col, val in row.items()})
 
-        if not os.path.exists(self.table_name):
+        # Check if file exists to determine if we need to write headers
+        file_exists = os.path.exists(self.table_name)
+
+        if not file_exists:
+            # Create new file with headers
             new_df.to_csv(self.table_name, index=False)
         else:
-            try:
-                df = pd.read_csv(self.table_name)
-            except pd.errors.EmptyDataError:
-                # File exists but is empty, treat it like a new file
-                new_df.to_csv(self.table_name, index=False)
+            # Check if we need to handle new columns
+            existing_columns = set(pd.read_csv(self.table_name, nrows=0).columns)
+            row_columns = set(row.keys())
+
+            if row_columns.issubset(existing_columns):
+                # No new columns, just append
+                new_df.to_csv(self.table_name, mode="a", header=False, index=False)
             else:
-                df = pd.concat([df, new_df], ignore_index=True)
-                df.to_csv(self.table_name, index=False)
+                # New columns detected, need to rewrite the file
+                existing_df = pd.read_csv(self.table_name)
+                combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+                combined_df.to_csv(self.table_name, index=False)
 
     def get(self) -> pd.DataFrame:
         return pd.read_csv(self.table_name)
