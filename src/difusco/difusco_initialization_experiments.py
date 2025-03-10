@@ -52,6 +52,9 @@ def get_arg_parser() -> ArgumentParser:
     general.add_argument("--training_split_label_dir", type=str, default=None)
     general.add_argument("--validation_split", type=str, required=True)
     general.add_argument("--validation_split_label_dir", type=str, default=None)
+    general.add_argument("--split", type=str, default="test")
+    general.add_argument("--process_idx", type=int, required=False, default=0)
+    general.add_argument("--num_processes", type=int, required=False, default=1)
 
     wandb = parser.add_argument_group("wandb")
     wandb.add_argument("--project_name", type=str, default="difusco")
@@ -121,7 +124,7 @@ class DifuscoInitializationExperiment(Experiment):
 
     def get_dataloader(self) -> DataLoader:
         """Get the dataloader for the experiment."""
-        dataset = dataset_factory(self.config)
+        dataset = dataset_factory(self.config, split=self.config.split)
         return DataLoader(dataset, batch_size=1, shuffle=False)
 
     def get_final_results(self, results: list[dict]) -> dict:

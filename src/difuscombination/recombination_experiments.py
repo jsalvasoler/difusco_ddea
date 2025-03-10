@@ -38,6 +38,9 @@ def get_arg_parser() -> ArgumentParser:
     general.add_argument("--test_samples_file", type=str, required=True)
     general.add_argument("--test_graphs_dir", type=str, required=True)
     general.add_argument("--test_labels_dir", type=str, required=True)
+    general.add_argument("--process_idx", type=int, required=False, default=0)
+    general.add_argument("--num_processes", type=int, required=False, default=1)
+
 
     wandb = parser.add_argument_group("wandb")
     wandb.add_argument("--project_name", type=str, default="difusco")
@@ -126,6 +129,12 @@ class RecombinationExperiment(Experiment):
         self.config.device = "cuda"
         self.config.pop_size = 2
         self.config.initialization = "random_feasible"
+        self.config.recombination = "classic"
+        self.config.tournament_size = 2
+        self.config.deselect_prob = 0.05
+        self.config.mutation_prob = 0.1
+        self.config.opt_recomb_time_limit = 15
+        self.config.preserve_optimal_recombination = False
 
     def run_single_iteration(self, sample: tuple) -> None:
         """
@@ -139,7 +148,7 @@ class RecombinationExperiment(Experiment):
         - (2) run trained difuscombinatino inference on the graph with random noise parents
         - (3) run trained difuscombination inference on the graph with 2 heuristic construction parents
         - (4) run trained difusco inference on the graph
-        - (5) run MIS GA recombination on the 2 parent solutions
+        - (5) run MIS GA classic recombination on the 2 parent solutions
 
         We then want to compute the gaps between all and *
         """
@@ -191,9 +200,9 @@ class RecombinationExperiment(Experiment):
 
         # 3.
         # generate feasible parents using the construction heuristic
-        feasible_parents = torch.empty(n_nodes, 2)
-        feasible_parents[:, 0] = instance.get_feasible_from_individual(random_noise_parents[:, 0]).clone().detach()
-        feasible_parents[:, 1] = instance.get_feasible_from_individual(random_noise_parents[:, 1]).clone().detach()
+        feasible_parents = torch.empty(n_nodes, 2, device=self.config.device)
+        feasible_parents[:, 0] = instance.get_feasible_from_individual(random_noise_parents[:, 0].to(self.config.device)).clone().detach()
+        feasible_parents[:, 1] = instance.get_feasible_from_individual(random_noise_parents[:, 1].to(self.config.device)).clone().detach()
         heatmaps = self.sampler_difuscombination.sample(sample, features=feasible_parents)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 3, solutions)
@@ -204,12 +213,11 @@ class RecombinationExperiment(Experiment):
         update_results(results, 4, solutions)
 
         # 5.
-        ga = ea_factory(self.config, instance)
+        ga = ea_factory(self.config, instance, sample=sample)
         crossover = ga._operators[0]  # noqa: SLF001
         assert isinstance(crossover, CrossOver)
         children = crossover._do_cross_over(parents[:, 0].unsqueeze(0), parents[:, 1].unsqueeze(0))  # noqa: SLF001
-        heatmaps = children.values.float()
-        solutions = from_heatmaps_to_solution(heatmaps)
+        solutions = children.values.float()
         update_results(results, 5, solutions)
 
         return results
@@ -226,7 +234,6 @@ class RecombinationExperiment(Experiment):
         # results is a list of dicts, each with the same keys
         # we want to compute the mean of each key
         final = {f"final_{key}": np.mean([result[key] for result in results]) for key in results[0]}
-
         wandb.log(final)
 
         # we also add all the config parameters
@@ -247,15 +254,15 @@ if __name__ == "__main__":
     # Example configuration for testing
     config = Config(
         task="mis",
-        data_path="/home/e12223411/repos/difusco/data",
-        logs_path="/home/e12223411/repos/difusco/logs",
-        results_path="/home/e12223411/repos/difusco/results",
-        models_path="/home/e12223411/repos/difusco/models",
+        data_path="/share/joan.salva/repos/difusco/data/data",
+        logs_path="/home/joan.salva/repos/difusco/logs",
+        results_path="/home/joan.salva/repos/difusco/results",
+        models_path="/home/joan.salva/repos/difusco/models",
         test_graphs_dir="mis/er_50_100/test",
         test_samples_file="difuscombination/mis/er_50_100/test",
         test_labels_dir="difuscombination/mis/er_50_100/test_labels",
         ckpt_path_difusco="mis/mis_er_50_100_gaussian.ckpt",
-        ckpt_path_difuscombination="difuscombination/mis_er_50_100_gaussian.ckpt",
+        ckpt_path_difuscombination="difuscombination/mis_er_50_100_gaussian_new.ckpt",
         parallel_sampling=2,
         sequential_sampling=1,
         diffusion_steps=2,
@@ -263,6 +270,8 @@ if __name__ == "__main__":
         validate_samples=2,
         profiler=False,
         device="cuda",
+        process_idx=0,
+        num_processes=1,
     )
     from config.configs.mis_inference import config as mis_inference_config
 
