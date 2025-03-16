@@ -154,7 +154,7 @@ class DifuscoInitializationExperiment(Experiment):
             ],
         )
 
-        return self._add_config_and_timestamp(aggregated_results)
+        return self._add_config_and_timestamp(aggregated_results, self.config)
 
     def get_table_name(self) -> str:
         """Get the name of the table to save results to."""
