@@ -46,6 +46,7 @@ class DifuscoSampler:
                 print(f"Loading Difusco model from {ckpt_path}")
                 self.model = MISModel.load_from_checkpoint(ckpt_path, param_args=config, map_location=self.device)
             elif self.mode == "difuscombination":
+                print(f"Loading Difuscombination model from {ckpt_path}")
                 self.model = DifusCombinationMISModel.load_from_checkpoint(
                     ckpt_path, config=config, map_location=self.device
                 )
