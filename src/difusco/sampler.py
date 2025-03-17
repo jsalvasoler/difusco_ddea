@@ -105,7 +105,7 @@ class DifuscoSampler:
         batch_size = batch[0].shape[0]
         edge_index = edge_index.to(self.device)
 
-        if self.cache_dir is not None:
+        if self.cache_dir is not None and self.mode == "difusco":
             instance_id = batch[0].item()
             cache_file = Path(self.cache_dir) / f"heatmaps_{instance_id}.pt"
             assert cache_file.exists(), f"Cache file {cache_file} does not exist"
@@ -145,7 +145,7 @@ class DifuscoSampler:
             heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=-2)
 
         # If we sampled too many, return only the first par * seq heatmaps
-        if heatmaps.shape[0] > self.model.args.parallel_sampling * self.model.args.sequential_sampling:
+        if batch_size == 1 and heatmaps.shape[0] > self.model.args.parallel_sampling * self.model.args.sequential_sampling:
             heatmaps = heatmaps[: self.model.args.parallel_sampling * self.model.args.sequential_sampling]
 
         return torch.clamp(heatmaps, 0, 1)
