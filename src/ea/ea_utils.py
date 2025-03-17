@@ -102,8 +102,6 @@ class LogFigures(Logger):
             "mean_eval",
             "median_eval",
             "pop_best_eval",
-            "best_eval",
-            "worst_eval",
         ]
         self.keys_to_plot = [k for k in self.keys_to_log if k != "iter"] + ["unique_solutions"]
         self.table_saver = TableSaver(table_name=table_name)
