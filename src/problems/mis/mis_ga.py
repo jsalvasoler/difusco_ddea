@@ -56,14 +56,15 @@ class MISGaProblem(Problem):
     @staticmethod
     def _fake_paths_for_difuscombination_models(config: Config) -> Config:
         # fake paths for difuscombination
-        config.test_graphs_dir = config.test_split
-        config.training_samples_file = config.test_samples_file
-        config.training_labels_dir = config.test_labels_dir
-        config.training_graphs_dir = config.test_split
-        config.validation_samples_file = config.test_samples_file
-        config.validation_labels_dir = config.test_labels_dir
-        config.validation_graphs_dir = config.test_split
-        return config
+        return config.update(
+            test_graphs_dir=config.test_split,
+            training_samples_file=config.test_samples_file,
+            training_labels_dir=config.test_labels_dir,
+            training_graphs_dir=config.test_split,
+            validation_samples_file=config.test_samples_file,
+            validation_labels_dir=config.test_labels_dir,
+            validation_graphs_dir=config.test_split,
+        )
 
     @staticmethod
     def _fake_paths_for_difusco_models(config: Config) -> Config:
