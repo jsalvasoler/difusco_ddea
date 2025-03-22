@@ -232,6 +232,7 @@ def maximum_weighted_independent_set(
     fix_selection: np.ndarray | None = None,
     fix_unselection: np.ndarray | None = None,
     local_branching: LocalBranching | None = None,
+    desired_cost: float | None = None,
 ):
     # validate that we do not use many things at once
     error_msg = "Cannot use fix_selection and local_branching at the same time"
@@ -265,6 +266,9 @@ def maximum_weighted_independent_set(
 
             model.addConstr(hamming_expr <= local_branching.k, name="local_branching")
 
+        if desired_cost is not None:
+            model.addConstr(weights @ x == desired_cost, name="desired_cost")
+
         # Maximize the sum of the vertex weights in the independent set
         model.setObjective(weights @ x, sense=GRB.MAXIMIZE)
         # Get the incident matrix from the adjacency matrix where
@@ -284,5 +288,8 @@ def maximum_weighted_independent_set(
             name="no_adjacent_vertices",
         )
         model.optimize()
-        (mwis,) = np.where(x.X >= 0.5)
-        return MWISResult(mwis, sum(weights[mwis]))
+        if model.status in {GRB.Status.OPTIMAL, GRB.Status.SOLUTION_LIMIT}:
+            (mwis,) = np.where(x.X >= 0.5)
+            return MWISResult(mwis, sum(weights[mwis]))
+        else:
+            return None
