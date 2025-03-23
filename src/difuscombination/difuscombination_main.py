@@ -73,7 +73,7 @@ def difuscombination(config: Config) -> None:
 
     if config.do_train:
         if config.resume_weight_only:
-            model = model_class.load_from_checkpoint(ckpt_path, param_args=config)
+            model = model_class.load_from_checkpoint(ckpt_path, config=config)
             trainer.fit(model)
         else:
             trainer.fit(model, ckpt_path=ckpt_path)
