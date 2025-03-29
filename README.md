@@ -1,6 +1,6 @@
-# DIFUSCO
+# Diffusion-Based Evolutionary Algorithms
 
-This repository contains the code of my Master Thesis, which is based on the work of [Difusco - Sun et al. (2023)](https://arxiv.org/abs/2302.08224).
+This repository contains the code of my Master Thesis
 
 -----
 
@@ -9,12 +9,13 @@ This repository contains the code of my Master Thesis, which is based on the wor
 - [Dependencies](#dependencies)
 - [Data](#data)
   - [Traveling Salesman Problem](#traveling-salesman-problem)
+  - [Maximum Independent Set (MIS)](#maximum-independent-set-mis)
 - [Models](#models)
 - [License](#license)
 
 ## Dependencies and Installation
 
-This project uses [hatch](https://hatch.pypa.io/) as a project manager. To install it, just `pip install hatch`. 
+This project uses [hatch](https://hatch.pypa.io/) as a project manager. To install it, just `pip install hatch` or `pipx install hatch`.
 
 Unfortunately, two dependencies (`torch-scatter` and `torch-sparse`) require `torch` as an runtime dependency. The usual `hatch` dependency sync will not work for these two packages. To install them, do:
 
@@ -48,25 +49,73 @@ hatch run cli --help
 There are two groups of commands: `difusco` and `ea`. Run `hatch run cli difusco --help` and `hatch run cli ea --help` to see the available commands for each group.
 
 
+## Testing
+
+Set up the test environment by running:
+
+```bash
+hatch shell hatch-test.py3.11
+
+pip install torch-scatter torch-sparse -f https://pytorch-geometric.com/whl/torch-2.3.1+cu121.html
+```
+
+Run the tests (in parallel if -p is specified) with:
+
+```bash
+hatch test -p
+```
+
+Some tests require the data to be present, otherwise they will be skipped. Same with cuda availability.
+
+
+
 ## Data
 
 The data should be saved following the directory structure:
 
 ```bash
-difusco/
-├── data/                      # Directory for datasets
-│   ├── tsp/                   # TSP dataset files
-│   │   ├── tsp500_train_concorde.txt  # Training data for TSP
-│   │   ├── tsp1000_train_concorde.txt # Additional training data for TSP
-│   │   └── ...                # Other TSP data files
-│   ├── mis/                   # MIS dataset files
-│   │   ├── er_50_100/         # ER-50-100 dataset
-│   │   ├── er_700_800/        # ER-700-800 dataset
-│   │   ├── satlib/            # SATLIB dataset
-│   │   └── ...                # Other MIS data files
-│   └── etc/                   # Other datasets or resources
-│       ├── example_data.txt    # Example dataset
-│       └── ...                # Other miscellaneous data files
+data/                      # Directory for datasets
+├── tsp/                   # TSP dataset files
+│   ├── tsp500_train_concorde.txt  # Training data for TSP
+│   ├── tsp1000_train_concorde.txt # Additional training data for TSP
+│   └── ...                # Other TSP data files
+├── mis/                   # MIS dataset files
+│   ├── er_50_100/         # ER-50-100 dataset
+│   │   ├── test           # Test instances
+│   │   ├── test_labels    # Labels for test instances
+│   │   ├── train          # Training instances
+│   │   └── train_labels   # Labels for training instances
+│   ├── er_700_800/        # ER-700-800 dataset
+│   │   ├── test           # Test instances
+│   │   ├── test_labels    # Labels for test instances
+│   │   ├── train          # Training instances
+│   │   └── train_labels   # Labels for training instances
+│   ├── satlib/            # SATLIB dataset
+│   │   ├── test           # Test instances
+│   │   ├── test_labels    # Labels for test instances
+│   │   ├── train          # Training instances
+│   │   └── train_labels   # Labels for training instances
+│   └── ...                # Other MIS data files
+├── difuscombination/      # Directory for diffusion combination experiments
+│   └── mis/               # MIS experiments for diffusion combination
+│       ├── er_50_100/     # ER-50-100 dataset
+│       │   ├── test       # Test instances directory
+│       │   ├── test_labels# Labels for test instances directory
+│       │   ├── train      # Training instances directory
+│       │   └── train_labels# Labels for training instances directory
+│       ├── er_300_400/    # ER-300-400 dataset
+│       │   ├── test       # Test instances directory
+│       │   ├── test_labels# Labels for test instances directory
+│       │   ├── train      # Training instances directory
+│       │   └── train_labels# Labels for training instances directory
+│       └── er_700_800/    # ER-700-800 dataset
+│           ├── test       # Test instances directory
+│           ├── test_labels# Labels for test instances directory
+│           ├── train      # Training instances directory
+│           └── train_labels# Labels for training instances directory
+└── etc/                   # Other datasets or resources
+    ├── example_data.txt    # Example dataset
+    └── ...                # Other miscellaneous data files
 ```
 ### Traveling Salesman Problem
 
@@ -107,6 +156,18 @@ hatch run difusco generate_tsp_data \
   --seed 1234 \
   --lkh_path "/path/to/lkh"
 ```
+
+### Maximum Independent Set (MIS)
+
+Each MIS dataset directory (e.g., er_50_100, er_700_800, satlib) follows the same structure containing four files:
+
+- `test`: Contains the test graph instances
+- `test_labels`: Contains the optimal/best-known solution labels for test instances
+- `train`: Contains the training graph instances
+- `train`: Contains the optimal/best-known solution labels for training instances
+
+The format of these files is specific to the MIS problem representation used in this project.
+
 ## Models
 
 Trained models by the work of [Difusco - Sun et al. (2023)](https://github.com/Edward-Sun/DIFUSCO) can be found here: [Difusco Models](https://drive.google.com/drive/folders/1IjaWtkqTAs7lwtFZ24lTRspE0h1N6sBH).
@@ -114,7 +175,6 @@ Trained models by the work of [Difusco - Sun et al. (2023)](https://github.com/E
 We recommend saving the models in the following directory structure:
 
 ```bash
-difusco/
 ├── models/                    # Directory for models
 │   ├── tsp/                   # TSP models
 │   ├── mis/                   # MIS models
