@@ -2,6 +2,7 @@ import os
 from argparse import Namespace
 
 import numpy as np
+import pytest
 import torch
 from problems.tsp.tsp_evaluation import TSPEvaluator
 
@@ -10,6 +11,7 @@ from difusco.difusco_main import difusco
 from difusco.tsp.pl_tsp_model import TSPGraphDataset, TSPModel
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 def test_categorical_tsp_training_step() -> None:
     example_dataset = "tsp50_example_dataset.txt"
 
@@ -54,10 +56,7 @@ def test_categorical_tsp_training_step() -> None:
     assert isinstance(loss.item(), float)
 
 
-if __name__ == "__main__":
-    test_categorical_tsp_training_step()
-
-
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 def test_tsp_test_step() -> None:
     example_dataset = "tsp50_example_dataset.txt"
 
@@ -111,6 +110,7 @@ def test_tsp_test_step() -> None:
     assert metrics["test/gt_cost"] == gt_tour_length
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 def test_tsp_test_step_saving_heatmaps() -> None:
     example_dataset = "tsp50_example_dataset_two_samples.txt"
 
@@ -157,9 +157,3 @@ def test_tsp_test_step_saving_heatmaps() -> None:
     points = np.load(os.path.join(heatmap_path, "test-points-0.npy"))
     assert heatmap.shape == (1, 50, 50)
     assert points.shape == (50, 2)
-
-
-if __name__ == "__main__":
-    test_tsp_test_step_saving_heatmaps()
-    # test_tsp_test_step()
-    # test_categorical_tsp_training_step()
