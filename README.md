@@ -183,8 +183,15 @@ data/                      # Directory for datasets
 
 ### Downloading Data
 
-TODO: Add links to the data here.
-TODO: how to unzip and set it up
+We provide the test sets for the TSP and MIS instances, and for the MIS diffusion recombination. 
+It is available as an asset of the v1.0 release of the repository: [v1.0 release](https://github.com/jsalvasoler/difusco_dea/releases/tag/v1.0).
+This is the exact downloadable: [data_release.zip](https://github.com/jsalvasoler/difusco_dea/releases/download/v1.0/data_release.zip)
+
+To unzip the data, run the following command:
+
+```bash
+unzip data_release.zip
+```
 
 
 ### Traveling Salesman Problem (TSP)
@@ -260,9 +267,14 @@ python -u src/mis_benchmark_framework/main.py gendata \
 
 ## Models
 
-We provide the pretrained models for the TSP (initialization) and MIS (initialization and recombination) in the following links:
+We provide the pretrained models for the TSP (initialization) and MIS (initialization and recombination) as assets of the v1.0 release of the repository: [v1.0 release](https://github.com/jsalvasoler/difusco_dea/releases/tag/v1.0).
+This is the exact downloadable: [checkpoints.zip](https://github.com/jsalvasoler/difusco_dea/releases/download/v1.0/checkpoints.zip)
 
-TODO: add links to the models and how to download them
+To unzip the models, run the following command:
+
+```bash
+unzip checkpoints.zip
+```
 
 The TSP models come from the work of [Difusco - Sun et al. (2023)](https://github.com/Edward-Sun/DIFUSCO). The MIS models for er_700_800 and satlib as well. The rest of the models are trained by us.
 
