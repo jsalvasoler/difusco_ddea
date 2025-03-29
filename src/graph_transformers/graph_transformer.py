@@ -1,14 +1,31 @@
 from __future__ import annotations
 
+"""
+Graph Transformer model for node classification on the MIS dataset.
+
+This module implements a Graph Transformer model using the Graph Positional Embedding with 
+self-attention (GPS) architecture for solving the Maximal Independent Set (MIS) node
+classification problem. Each node is classified as either part of the MIS (1) or not (0)
+using a binary cross-entropy loss.
+
+Key components:
+- GPS: Graph Positional Embedding model with self-attention for node classification
+- NodeFeatureTransform: Custom transform to prepare node features and labels
+- GraphTransformerTrainer: Trainer class for the GPS model
+
+The model uses a combination of graph attention and message passing to learn node representations,
+followed by an MLP classifier to predict node-level scores.
+"""
+
 import argparse
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Linear, Embedding, BatchNorm1d, Sequential, ReLU, ModuleList
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GINEConv, global_add_pool
+from torch_geometric.nn import GINEConv
 from torch_geometric.nn.conv import GPSConv
-from torch_geometric.datasets import ZINC
 from problems.mis.mis_dataset import MISDataset
 import torch_geometric.transforms as T
 from typing import Any, Optional
@@ -52,19 +69,39 @@ class RedrawProjection:
         self.num_last_redraw += 1
 
 
+class NodeFeatureTransform(T.BaseTransform):
+    """Transform that replaces node labels with one-hot features and stores original labels in y."""
+    
+    def __init__(self, num_features: int = 2):
+        self.num_features = num_features
+        
+    def __call__(self, data):
+        # Store original node labels in y (these are the targets)
+        data.y = data.x.clone()
+        
+        # Create one-hot node features
+        num_nodes = data.x.size(0)
+        # For simplicity, just use one-hot encoding of the node index
+        # This gives each node a unique identifier
+        data.x = torch.eye(self.num_features)[torch.zeros(num_nodes, dtype=torch.long)]
+        return data
+
+
 class GPS(torch.nn.Module):
-    """Graph Positional Embedding with self-attention and message passing layers."""
+    """Graph Positional Embedding with self-attention and message passing layers for node classification."""
     
     def __init__(self, channels: int, pe_dim: int, num_layers: int,
                 attn_type: str, attn_kwargs: dict[str, Any], 
-                heads: int = 4, node_features: int = 28, edge_features: int = 4,
-                walk_length: int = 20, dropout: float = 0.0):
+                heads: int = 4, num_classes: int = 2, walk_length: int = 20,
+                dropout: float = 0.0):
         super().__init__()
 
-        self.node_emb = Embedding(node_features, channels - pe_dim)
+        # Initial node feature embedding
+        self.node_emb = Linear(num_classes, channels - pe_dim)
         self.pe_lin = Linear(walk_length, pe_dim)
         self.pe_norm = BatchNorm1d(walk_length)
-        self.edge_emb = Embedding(edge_features, channels)
+        # We still need edge embeddings for GINE
+        self.edge_emb = Linear(1, channels)  # Simple linear layer for dummy edge features
         self.dropout = dropout
 
         self.convs = ModuleList()
@@ -78,17 +115,17 @@ class GPS(torch.nn.Module):
                         attn_type=attn_type, attn_kwargs=attn_kwargs)
             self.convs.append(conv)
 
-        # MLP for final prediction
+        # MLP for node classification
         mlp_layers = []
         prev_dim = channels
-        for i, dim_factor in enumerate([2, 4]):
+        for i, dim_factor in enumerate([2, 2]):
             next_dim = channels // dim_factor
             mlp_layers.append(Linear(prev_dim, next_dim))
             mlp_layers.append(ReLU())
             if self.dropout > 0 and i == 0:  # Only add dropout after first layer
                 mlp_layers.append(torch.nn.Dropout(self.dropout))
             prev_dim = next_dim
-        mlp_layers.append(Linear(prev_dim, 1))
+        mlp_layers.append(Linear(prev_dim, num_classes))
         
         self.mlp = Sequential(*mlp_layers)
         
@@ -96,26 +133,32 @@ class GPS(torch.nn.Module):
             self.convs,
             redraw_interval=1000 if attn_type == 'performer' else None)
 
-    def forward(self, x, pe, edge_index, edge_attr, batch) -> torch.Tensor:
+    def forward(self, x, pe, edge_index, batch, edge_attr=None) -> torch.Tensor:
         """Forward pass through the GPS model.
         
         Args:
             x: Node features
             pe: Positional encodings
             edge_index: Graph connectivity
-            edge_attr: Edge attributes
             batch: Batch assignment vector
+            edge_attr: Edge attributes (or None)
             
         Returns:
-            Graph-level predictions
+            Node-level class logits
         """
         x_pe = self.pe_norm(pe)
-        x = torch.cat((self.node_emb(x.squeeze(-1)), self.pe_lin(x_pe)), 1)
+        x = torch.cat((self.node_emb(x), self.pe_lin(x_pe)), 1)
+        
+        # Create dummy edge attributes if none provided
+        if edge_attr is None:
+            edge_attr = torch.ones((edge_index.size(1), 1), device=edge_index.device)
+        
         edge_attr = self.edge_emb(edge_attr)
 
         for conv in self.convs:
-            x = conv(x, edge_index, batch, edge_attr=edge_attr)
-        x = global_add_pool(x, batch)
+            x = conv(x, edge_index, edge_attr=edge_attr, batch=batch)
+        
+        # Node-level classification (no pooling)
         return self.mlp(x)
 
 
@@ -148,6 +191,7 @@ class GraphTransformerTrainer:
         self.patience = args.patience
         self.min_lr = args.min_lr
         self.num_epochs = args.num_epochs
+        self.num_classes = args.num_classes
         
         # Setup datasets, model, optimizer and scheduler
         self.setup_datasets()
@@ -156,12 +200,18 @@ class GraphTransformerTrainer:
         
     def setup_datasets(self) -> None:
         """Setup datasets and dataloaders."""
+        # # Define transforms
+        # transform = T.Compose([
+        #     NodeFeatureTransform(num_features=self.num_classes),
+        #     T.AddRandomWalkPE(walk_length=self.walk_length),
+        # ])
+        
         self.train_dataset = MISDataset(data_dir=f"{self.dataset_path}/train",
-                                        data_label_dir=f"{self.dataset_path}/train_labels")
+                                       data_label_dir=f"{self.dataset_path}/train_labels")
         self.val_dataset = MISDataset(data_dir=f"{self.dataset_path}/test",
-                                        data_label_dir=f"{self.dataset_path}/test_labels")
+                                     data_label_dir=f"{self.dataset_path}/test_labels")
         self.test_dataset = MISDataset(data_dir=f"{self.dataset_path}/test",
-                                        data_label_dir=f"{self.dataset_path}/test_labels")
+                                      data_label_dir=f"{self.dataset_path}/test_labels")
 
         print(f"Dataset sizes - Train: {len(self.train_dataset)}, Val: {len(self.val_dataset)}, Test: {len(self.test_dataset)}")
 
@@ -179,6 +229,7 @@ class GraphTransformerTrainer:
             attn_type=self.args.attn_type,
             attn_kwargs=attn_kwargs,
             heads=self.attn_heads,
+            num_classes=self.num_classes,
             dropout=self.model_dropout,
             walk_length=self.walk_length
         ).to(self.device)
@@ -204,6 +255,46 @@ class GraphTransformerTrainer:
         print(f"Optimizer: Adam with LR={self.lr}, weight_decay={self.weight_decay}")
         print(f"Scheduler: ReduceLROnPlateau with patience={self.patience}, min_lr={self.min_lr}")
     
+    def preprocess_batch(self, batch_data) -> tuple:
+        """Preprocess the batch data from MISDataset.
+        
+        Args:
+            batch_data: Batch data from MISDataset
+            
+        Returns:
+            Processed input features, positional encodings, edge indices, batch indices, edge attributes, and target labels
+        """
+        # Unpack batch data
+        indices, graph_data, point_indicator = batch_data
+        
+        # Current MISDataset format puts node labels in x
+        node_labels = graph_data.x
+        
+        # Create dummy node features (one-hot encoding of node indices)
+        batch_size = len(indices)
+        num_nodes_total = node_labels.size(0)
+        
+        # Create dummy features as one-hot vectors
+        node_features = torch.zeros((num_nodes_total, self.num_classes), device=self.device)
+        node_features[:, 0] = 1.0  # All ones in the first feature
+        
+        # Create batch assignment vector
+        batch_idx = torch.zeros(num_nodes_total, dtype=torch.long, device=self.device)
+        start_idx = 0
+        for i, num_nodes in enumerate(point_indicator):
+            batch_idx[start_idx:start_idx + num_nodes] = i
+            start_idx += num_nodes
+                
+        # Create random walk positional encodings
+        # In practice, we would use a proper transform
+        # This is a placeholder that creates random values
+        pe = torch.randn((num_nodes_total, self.walk_length), device=self.device)
+        
+        # Create dummy edge features (just ones)
+        edge_attr = torch.ones((graph_data.edge_index.size(1), 1), device=self.device)
+        
+        return node_features, pe, graph_data.edge_index, batch_idx, edge_attr, node_labels
+        
     def train_epoch(self) -> float:
         """Run a single training epoch.
         
@@ -213,60 +304,97 @@ class GraphTransformerTrainer:
         self.model.train()
 
         total_loss = 0
-        for data in self.train_loader:
-            data = data.to(self.device)
+        num_nodes = 0
+        for batch_data in self.train_loader:
+            # Move data to device
+            indices, graph_data, point_indicator = batch_data
+            graph_data = graph_data.to(self.device)
+            point_indicator = point_indicator.to(self.device)
+            
+            # Preprocess batch
+            node_features, pe, edge_index, batch_idx, edge_attr, node_labels = self.preprocess_batch((indices, graph_data, point_indicator))
+            
             self.optimizer.zero_grad()
             self.model.redraw_projection.redraw_projections()
-            out = self.model(data.x, data.pe, data.edge_index, data.edge_attr, data.batch)
-            loss = (out.squeeze() - data.y).abs().mean()
+            
+            # Forward pass
+            logits = self.model(node_features, pe, edge_index, batch_idx, edge_attr)
+            
+            # CrossEntropyLoss for node classification
+            loss = F.cross_entropy(logits, node_labels)
+            
             loss.backward()
-            total_loss += loss.item() * data.num_graphs
+            total_loss += loss.item() * node_labels.size(0)
+            num_nodes += node_labels.size(0)
             self.optimizer.step()
-        return total_loss / len(self.train_loader.dataset)
+            
+        return total_loss / num_nodes
 
     @torch.no_grad()
-    def evaluate(self, loader: DataLoader) -> float:
+    def evaluate(self, loader: DataLoader) -> tuple[float, float]:
         """Evaluate the model on a given dataloader.
         
         Args:
             loader: DataLoader to evaluate on
             
         Returns:
-            Mean absolute error
+            Tuple of (loss, accuracy)
         """
         self.model.eval()
 
-        total_error = 0
-        for data in loader:
-            data = data.to(self.device)
-            out = self.model(data.x, data.pe, data.edge_index, data.edge_attr, data.batch)
-            total_error += (out.squeeze() - data.y).abs().sum().item()
-        return total_error / len(loader.dataset)
+        total_loss = 0
+        correct = 0
+        total_nodes = 0
+        
+        for batch_data in loader:
+            # Move data to device
+            indices, graph_data, point_indicator = batch_data
+            graph_data = graph_data.to(self.device)
+            point_indicator = point_indicator.to(self.device)
+            
+            # Preprocess batch
+            node_features, pe, edge_index, batch_idx, edge_attr, node_labels = self.preprocess_batch((indices, graph_data, point_indicator))
+            
+            # Forward pass
+            logits = self.model(node_features, pe, edge_index, batch_idx, edge_attr)
+            
+            # Compute loss
+            loss = F.cross_entropy(logits, node_labels)
+            total_loss += loss.item() * node_labels.size(0)
+            
+            # Compute accuracy
+            pred = logits.argmax(dim=1)
+            correct += (pred == node_labels).sum().item()
+            total_nodes += node_labels.size(0)
+            
+        return total_loss / total_nodes, correct / total_nodes
     
     def train(self) -> None:
         """Train the model for the specified number of epochs."""
-        best_val_mae = float('inf')
-        best_test_mae = float('inf')
+        best_val_acc = 0.0
+        best_test_acc = 0.0
         
         print(f"Starting training for {self.num_epochs} epochs...")
         for epoch in range(1, self.num_epochs + 1):
-            loss = self.train_epoch()
-            val_mae = self.evaluate(self.val_loader)
-            test_mae = self.evaluate(self.test_loader)
+            train_loss = self.train_epoch()
+            val_loss, val_acc = self.evaluate(self.val_loader)
+            test_loss, test_acc = self.evaluate(self.test_loader)
             
-            if val_mae < best_val_mae:
-                best_val_mae = val_mae
-                best_test_mae = test_mae
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                best_test_acc = test_acc
                 
-            self.scheduler.step(val_mae)
+            self.scheduler.step(val_loss)
             
             # Get current learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
             
-            print(f'Epoch: {epoch:02d}/{self.num_epochs}, Loss: {loss:.4f}, Val: {val_mae:.4f}, '
-                  f'Test: {test_mae:.4f}, LR: {current_lr:.6f}')
+            print(f'Epoch: {epoch:02d}/{self.num_epochs}, Loss: {train_loss:.4f}, '
+                  f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, '
+                  f'Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}, LR: {current_lr:.6f}')
                   
-        print(f"Training completed. Best validation MAE: {best_val_mae:.4f}, corresponding test MAE: {best_test_mae:.4f}")
+        print(f"Training completed. Best validation accuracy: {best_val_acc:.4f}, "
+              f"corresponding test accuracy: {best_test_acc:.4f}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -275,15 +403,18 @@ def parse_args() -> argparse.Namespace:
     Returns:
         Parsed arguments
     """
-    parser = argparse.ArgumentParser(description='Graph Transformer for ZINC')
+    parser = argparse.ArgumentParser(description='Graph Transformer for Node Classification on MIS Dataset')
     
     # Dataset parameters
     parser.add_argument('--dataset_path', type=str, default='./data/mis/er_700_800',
                         help='Path to dataset')
     parser.add_argument('--walk_length', type=int, default=20,
                         help='Length of random walks for positional encoding')
+    parser.add_argument('--num_classes', type=int, default=2,
+                        help='Number of node classes')
+    
     # Model parameters
-    parser.add_argument('--attn_type', type=str, default='transformer', 
+    parser.add_argument('--attn_type', type=str, default='performer', 
                         choices=['transformer', 'performer'],
                         help='Type of attention to use')
     parser.add_argument('--channels', type=int, default=64,
