@@ -268,13 +268,6 @@ def test_mis_ga_recombination_in_ga(recombination_config: Config) -> None:
     instance = create_mis_instance(batch, device="cpu")
 
     ga = create_mis_ga(instance, config=config, sample=batch)
-
-    ga._population.set_values(torch.zeros(config.pop_size, instance.n_nodes, dtype=torch.bool, device=config.device))
-    ga._population.forget_evals()
-
-    # crossover = ga._operators[0]
-    # assert isinstance(crossover, MISGACrossover)
-
     ga.run(num_generations=1)
 
     # evaluate the population manually
@@ -463,7 +456,7 @@ def test_temp_saver(tmp_path: Path) -> None:
     instance, sample = read_mis_instance()
     config = common_config.update(pop_size=10)
     ga = create_mis_ga(instance, config=config, sample=sample, tmp_dir=tmp_path)
-    
+
     # Access the temp_saver directly from the ga instance instead of from operators
     saver = ga._temp_saver
     population = ga.population
