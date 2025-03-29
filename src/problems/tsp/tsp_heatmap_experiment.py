@@ -39,7 +39,7 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
         assert heatmaps.shape[1] == n_edges, f"Heatmaps shape: {heatmaps.shape}x{n_edges}"
 
     start_time = timeit.default_timer()
-    solutions = get_feasible_solutions(heatmaps, instance, config)
+    solutions = get_feasible_solutions(heatmaps, instance)
     end_time = timeit.default_timer()
     feasibility_heuristics_time = end_time - start_time
 

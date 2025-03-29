@@ -25,6 +25,11 @@ def config_factory() -> Config:
             wandb_logger_name="justatest",
             np_eval=True,
             profiler=False,
+            save_heatmaps=False,
+            save_heatmaps_path=None,
+            split="test",
+            process_idx=0,
+            num_processes=1,
         )
         if task == "mis":
             config = Config(
@@ -85,6 +90,11 @@ def test_satlib_initialization_experiments() -> None:
         ckpt_path="mis/mis_sat_categorical.ckpt",
         diffusion_type="categorical",
         profiler=False,
+        save_heatmaps=False,
+        save_heatmaps_path=None,
+        process_idx=0,
+        num_processes=1,
+        split="test",
     )
     config = mis_inference_config.update(base)
     main_init_experiments(config)
@@ -113,6 +123,11 @@ def test_tsp500_sparse_initialization_experiments() -> None:
         inference_diffusion_steps=50,
         validate_samples=2,
         np_eval=True,
+        save_heatmaps=False,
+        save_heatmaps_path=None,
+        process_idx=0,
+        num_processes=1,
+        split="test",
     )
     config = tsp_inference_config.update(config)
     main_init_experiments(config)
