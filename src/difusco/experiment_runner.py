@@ -47,6 +47,9 @@ class ExperimentRunner:
         self.config = config
         self.experiment = experiment
 
+        if "save_results" not in self.config:
+            self.config.save_results = False
+
     def _validate_config(self) -> None:
         """Validate that the config has all required fields.
 
@@ -115,7 +118,20 @@ class ExperimentRunner:
         results = []
         ctx = mp.get_context("spawn")
 
+        # validate process_idx and num_processes
+        assert 0 <= self.config.process_idx < self.config.num_processes, "Invalid process index"
+        assert self.config.num_processes > 0, "Number of processes must be greater than 0"
+
         for i, sample in tqdm(enumerate(dataloader)):
+            print("hello bin hier")
+            if is_validation_run and i >= self.config.validate_samples:
+                break
+
+            if i % self.config.num_processes != self.config.process_idx:
+                continue
+            
+            print(f"process_idx {self.config.process_idx} processing sample {i} of {len(dataloader)}")
+
             queue = ctx.Queue()
             process = ctx.Process(target=self.process_iteration, args=(sample, queue))
 
@@ -141,9 +157,6 @@ class ExperimentRunner:
             if process.is_alive():
                 process.terminate()
                 process.join()
-
-            if is_validation_run and i >= self.config.validate_samples - 1:
-                break
 
         final_results = self.experiment.get_final_results(results)
         if self.config.save_results or not is_validation_run:
