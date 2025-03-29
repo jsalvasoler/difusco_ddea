@@ -27,6 +27,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GINEConv
 from torch_geometric.nn.conv import GPSConv
 from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_instance import MISInstance
 import torch_geometric.transforms as T
 from typing import Any, Optional
 
@@ -218,6 +219,8 @@ class GraphTransformerTrainer:
         self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size_train, shuffle=True)
         self.val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size_eval)
         self.test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size_eval)
+
+        self.test_loader_batch_one = DataLoader(self.test_dataset, batch_size=1)
     
     def setup_model(self) -> None:
         """Setup the model architecture."""
@@ -369,12 +372,59 @@ class GraphTransformerTrainer:
             
         return total_loss / total_nodes, correct / total_nodes
     
+    @torch.no_grad()
+    def evaluate_mis_size(self, loader: DataLoader) -> float:
+        """Evaluate the average MIS size on a given dataloader using actual MIS construction.
+        
+        Args:
+            loader: DataLoader to evaluate on
+            
+        Returns:
+            Average MIS size across all graphs
+        """
+        self.model.eval()
+        
+        total_mis_size = 0
+        num_graphs = 0
+        
+        for batch_data in loader:
+            # Move data to device
+            indices, graph_data, point_indicator = batch_data
+            graph_data = graph_data.to(self.device)
+            point_indicator = point_indicator.to(self.device)
+            
+            # Preprocess batch
+            node_features, pe, edge_index, batch_idx, edge_attr, node_labels = self.preprocess_batch((indices, graph_data, point_indicator))
+            
+            # Forward pass to get node scores
+            logits = self.model(node_features, pe, edge_index, batch_idx, edge_attr)
+            
+            # Get node scores (probability of being in MIS)
+            node_scores = F.softmax(logits, dim=1)[:, 1].cpu()  # Probability of class 1 (in MIS)
+            
+            # Create MIS instance
+            mis_instance = MISInstance.create_from_batch_sample(batch_data, "cpu")
+            
+            # Get feasible MIS solution
+            mis_solution = mis_instance.get_feasible_from_individual(node_scores)
+            mis_size = mis_solution.sum().item()
+            
+            total_mis_size += mis_size
+            num_graphs += 1
+        
+        return total_mis_size / num_graphs if num_graphs > 0 else 0.0
+    
     def train(self) -> None:
         """Train the model for the specified number of epochs."""
         best_val_acc = 0.0
         best_test_acc = 0.0
         
         print(f"Starting training for {self.num_epochs} epochs...")
+        
+        # Evaluate MIS size at epoch 0
+        avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
+        print(f'Epoch 0: Average MIS size on test set: {avg_mis_size:.4f}')
+        
         for epoch in range(1, self.num_epochs + 1):
             train_loss = self.train_epoch()
             val_loss, val_acc = self.evaluate(self.val_loader)
@@ -389,12 +439,22 @@ class GraphTransformerTrainer:
             # Get current learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
             
+            # Print standard metrics
             print(f'Epoch: {epoch:02d}/{self.num_epochs}, Loss: {train_loss:.4f}, '
                   f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, '
                   f'Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}, LR: {current_lr:.6f}')
+            
+            # Evaluate MIS size every 5 epochs
+            if epoch % 5 == 0:
+                avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
+                print(f'Epoch {epoch}: Average MIS size on test set: {avg_mis_size:.4f}')
                   
         print(f"Training completed. Best validation accuracy: {best_val_acc:.4f}, "
               f"corresponding test accuracy: {best_test_acc:.4f}")
+        
+        # Final MIS size evaluation
+        avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
+        print(f'Final average MIS size on test set: {avg_mis_size:.4f}')
 
 
 def parse_args() -> argparse.Namespace:
