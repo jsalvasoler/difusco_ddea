@@ -45,9 +45,62 @@ There is a simple click CLI that can be used to run all the relevant modules. To
 ```bash
 hatch run cli --help
 ```
+The result of the command above is quite explanatory:
 
-There are two groups of commands: `difusco` and `ea`. Run `hatch run cli difusco --help` and `hatch run cli ea --help` to see the available commands for each group.
+```bash
+Usage:
+ - hatch run cli difusco <subcommand>
+ - hatch run cli ea <subcommand>
+ - hatch run cli difuscombination <subcommand>
 
+Commands:
+ - difusco:
+     run-difusco
+     generate-tsp-data
+     generate-node-degree-labels
+     run-tsp-heuristics
+     run-difusco-initialization-experiments
+ - ea:
+     run-ea
+ - difuscombination:
+     run-difuscombination
+     recombination-experiments
+
+For command-specific info, run 'hatch run cli <group> <subcommand>' --help
+```
+
+## Main Commands
+
+We now guide you through the main commands of the project.
+
+### 1. Train or test a simple Difusco model
+
+Assume we want to test or train a simple Difusco model on a set of high-quality labels. In this case, take a look at the `src/cli_tools/scripts/train.sh` script. It is a bash script that runs the `hatch run cli difusco run-difusco` command with the appropriate arguments. You will need to modify parameters such as dataset paths, model configuration, batch size, and learning rate to match your specific requirements.
+
+### 2. Run the evolutionary algorithm
+
+We can run the evolutionary algorithm by running the `src/cli_tools/bash_scripts/evo.sh` script. It is a bash script that runs the `hatch run cli ea run-ea` command with the appropriate arguments. For the full DEA, a Difusco and a diffusion recombination model need to be specified through the `--cktp_path` and `--ckpt_path_difuscombination` arguments, respectively. You should modify evolutionary parameters like population size, number of generations, mutation rates, and model paths according to your specific experimental setup.
+
+### 3. Generate a train or test set for the diffusion recombination model
+
+We do this by running the evolutionary algorithm with the optimal recombination, and storing the results. 
+
+This is done by running the `src/cli_tools/bash_scripts/evo.sh` script with the `--save_results` argument set to `True`. Be sure to adjust other arguments to match your dataset and experimental configuration.
+
+Finally, we need to aggregate the results in order to generate the train and test sets for the diffusion recombination model. This is done by running the following command, which should be customized with your specific paths and parameters:
+
+```bash
+python src/data/build_difuscombination_dataset.py
+ --which er_700_800 # which dataset to use (replace with your target dataset)
+ --split train # train or test
+ --data_dir data # where to save the final dataset (adjust to your data directory)
+ --raw_data_dir data # containing the results of the evolutionary algorithm (adjust to your results directory)
+ --n_select 20 # number of random examples to select for each instance (adjust as needed)
+```
+
+### 4. Train or test a diffusion recombination model
+
+We provide the script `src/cli_tools/bash_scripts/train_difuscombination.sh` to train or test a diffusion recombination model. It is a bash script that runs the `hatch run cli difuscombination run-difuscombination` command with the appropriate arguments. It works very similarly to the basic train / test script for Difusco. You will need to modify parameters such as dataset paths, model configuration, training hyperparameters, and output directories to match your specific requirements.
 
 ## Testing
 
