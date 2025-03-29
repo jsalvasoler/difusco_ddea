@@ -41,7 +41,6 @@ def get_arg_parser() -> ArgumentParser:
     general.add_argument("--process_idx", type=int, required=False, default=0)
     general.add_argument("--num_processes", type=int, required=False, default=1)
 
-
     wandb = parser.add_argument_group("wandb")
     wandb.add_argument("--project_name", type=str, default="difusco")
     wandb.add_argument("--wandb_entity", type=str, default=None)
@@ -201,8 +200,12 @@ class RecombinationExperiment(Experiment):
         # 3.
         # generate feasible parents using the construction heuristic
         feasible_parents = torch.empty(n_nodes, 2, device=self.config.device)
-        feasible_parents[:, 0] = instance.get_feasible_from_individual(random_noise_parents[:, 0].to(self.config.device)).clone().detach()
-        feasible_parents[:, 1] = instance.get_feasible_from_individual(random_noise_parents[:, 1].to(self.config.device)).clone().detach()
+        feasible_parents[:, 0] = (
+            instance.get_feasible_from_individual(random_noise_parents[:, 0].to(self.config.device)).clone().detach()
+        )
+        feasible_parents[:, 1] = (
+            instance.get_feasible_from_individual(random_noise_parents[:, 1].to(self.config.device)).clone().detach()
+        )
         heatmaps = self.sampler_difuscombination.sample(sample, features=feasible_parents)
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 3, solutions)

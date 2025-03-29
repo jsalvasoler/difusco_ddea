@@ -11,20 +11,17 @@ from problems.mis.mis_instance import create_mis_instance
 from problems.mis.solve_optimal_recombination import get_lil_csr_matrix, maximum_weighted_independent_set
 
 
-def solve_datasets(dataset_name: str,
-                   retrieve_kamis_labels: bool = False,
-                   time_limit: int = 60,
-                   n_instances: int | None = None) -> None:
-    """Solve MIS datasets using Gurobi.
-    
+def solve_datasets(
+    dataset_name: str, retrieve_kamis_labels: bool = False, time_limit: int = 60, n_instances: int | None = None
+) -> None:
+    """
+    Solve MIS datasets using Gurobi.
+
     Args:
         dataset_name: Name of the dataset to solve
     """
     # Create config
-    config = Config(
-        dataset=dataset_name,
-        table_name=f"results/gurobi_solve_{dataset_name}.csv"
-    )
+    config = Config(dataset=dataset_name, table_name=f"results/gurobi_solve_{dataset_name}.csv")
 
     # Setup data paths
     data_dir = "/home/e12223411/repos/difusco/data"
@@ -44,7 +41,6 @@ def solve_datasets(dataset_name: str,
     print(f"Already solved: {len(already_solved)} samples")
     s = 0
     for i, batch in enumerate(mis_dataset):
-
         if n_instances is not None and i >= n_instances:
             break
 
@@ -54,7 +50,6 @@ def solve_datasets(dataset_name: str,
             print(f"Label cost: {cost}")
             s += cost
             continue
-
 
         print(f"Solving sample {i+1}/{len(mis_dataset)}")
 
@@ -88,10 +83,10 @@ def solve_datasets(dataset_name: str,
             weights,
             time_limit=time_limit,
             solver_params={
-                "OutputFlag": 0,       # Suppress Gurobi output
-                "MIPFocus": 1,         # Focus on finding feasible solutions quickly
-                "Threads": 6,          # Use 4 threads
-            }
+                "OutputFlag": 0,  # Suppress Gurobi output
+                "MIPFocus": 1,  # Focus on finding feasible solutions quickly
+                "Threads": 6,  # Use 4 threads
+            },
         )
 
         runtime = time.time() - start_time
@@ -105,14 +100,17 @@ def solve_datasets(dataset_name: str,
         print(f"Runtime: {runtime:.4f} seconds")
 
         # Save solution to table
-        table_saver.put({
-            "sample_file_name": sample_file_name,
-            "gurobi_cost": mwis_result.f,
-            "runtime": runtime,
-        })
+        table_saver.put(
+            {
+                "sample_file_name": sample_file_name,
+                "gurobi_cost": mwis_result.f,
+                "runtime": runtime,
+            }
+        )
 
     if retrieve_kamis_labels:
         print(f"avg label cost: {s/len(mis_dataset)}")
+
 
 if __name__ == "__main__":
     import argparse
@@ -125,4 +123,3 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     solve_datasets(args.dataset, args.retrieve_kamis_labels, args.time_limit, args.n_instances)
-

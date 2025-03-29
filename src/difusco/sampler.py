@@ -145,7 +145,10 @@ class DifuscoSampler:
             heatmaps = labels_pred if heatmaps is None else torch.cat((heatmaps, labels_pred), dim=-2)
 
         # If we sampled too many, return only the first par * seq heatmaps
-        if batch_size == 1 and heatmaps.shape[0] > self.model.args.parallel_sampling * self.model.args.sequential_sampling:
+        if (
+            batch_size == 1
+            and heatmaps.shape[0] > self.model.args.parallel_sampling * self.model.args.sequential_sampling
+        ):
             heatmaps = heatmaps[: self.model.args.parallel_sampling * self.model.args.sequential_sampling]
 
         return torch.clamp(heatmaps, 0, 1)

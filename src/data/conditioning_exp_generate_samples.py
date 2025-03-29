@@ -13,11 +13,13 @@ from problems.mis.solve_optimal_recombination import maximum_weighted_independen
 N_SAMPLES = 20
 N_SOLUTIONS = 24
 
+
 def get_lil_csr_matrix(adj_matrix: sp.csr_matrix) -> sp.csr_matrix:
     """Convert adjacency matrix to lil format and zero out lower triangle."""
     adj_matrix_lil = sp.lil_matrix(adj_matrix)
     adj_matrix_lil[np.tril_indices(adj_matrix.shape[0])] = 0
     return adj_matrix_lil.tocsr()
+
 
 def solve_plain_mis(config: Config) -> None:
     """Solve plain MIS using maximum_weighted_independent_set directly.
@@ -57,7 +59,6 @@ def solve_plain_mis(config: Config) -> None:
         # Set all weights to 1 for plain MIS
         weights = np.ones(instance.n_nodes)
 
-
         step = {
             "er_50_100": 1,
             "er_300_400": 2,
@@ -80,9 +81,7 @@ def solve_plain_mis(config: Config) -> None:
                 weights,
                 desired_cost=desired_cost,
                 time_limit=15,
-                solver_params={"OutputFlag": 0,
-                            "SolutionLimit": 1,
-                            "MIPFocus": 1}  # Enable output for debugging
+                solver_params={"OutputFlag": 0, "SolutionLimit": 1, "MIPFocus": 1},  # Enable output for debugging
             )
 
             runtime = time.time() - start_time
@@ -96,10 +95,7 @@ def solve_plain_mis(config: Config) -> None:
 
         sol_str = " | ".join([str(sol) for sol in solutions])
 
-        table_saver.put({
-            "sample_file_name": sample_file_name,
-            "solutions": sol_str
-        })
+        table_saver.put({"sample_file_name": sample_file_name, "solutions": sol_str})
 
 
 if __name__ == "__main__":
@@ -109,8 +105,5 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, required=True, help="Dataset name.")
     args = parser.parse_args()
 
-    config = Config(
-        dataset=args.dataset,
-        table_name=f"results/conditioning_experiment_{args.dataset}.csv"
-    )
+    config = Config(dataset=args.dataset, table_name=f"results/conditioning_experiment_{args.dataset}.csv")
     solve_plain_mis(config)

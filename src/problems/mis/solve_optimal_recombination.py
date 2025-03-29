@@ -291,5 +291,4 @@ def maximum_weighted_independent_set(
         if model.status in {GRB.Status.OPTIMAL, GRB.Status.SOLUTION_LIMIT}:
             (mwis,) = np.where(x.X >= 0.5)
             return MWISResult(mwis, sum(weights[mwis]))
-        else:
-            return None
+        return None

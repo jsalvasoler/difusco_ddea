@@ -70,11 +70,11 @@ def load_solutions_from_csv(csv_path: str) -> dict:
 
     # Process each row
     for _, row in df.iterrows():
-        sample_file_name = row['sample_file_name']
-        solutions_str = row['solutions']
+        sample_file_name = row["sample_file_name"]
+        solutions_str = row["solutions"]
 
         # Parse the solutions string
-        solution_lists = solutions_str.split(' | ')
+        solution_lists = solutions_str.split(" | ")
         solutions = []
         for sol_str in solution_lists:
             try:
@@ -89,84 +89,83 @@ def load_solutions_from_csv(csv_path: str) -> dict:
 
     return solutions_dict
 
+
 def run_experiment_for_sample(
-    sample: tuple,
-    sampler: DifuscoSampler,
-    solutions_dict: dict,
-    sample_file_name: str
+    sample: tuple, sampler: DifuscoSampler, solutions_dict: dict, sample_file_name: str
 ) -> dict | None:
-        # Skip if we don't have solutions for this sample
-        if sample_file_name not in solutions_dict:
-            print(f"No solutions found for {sample_file_name}, skipping")
-            return None
+    # Skip if we don't have solutions for this sample
+    if sample_file_name not in solutions_dict:
+        print(f"No solutions found for {sample_file_name}, skipping")
+        return None
 
-        solutions = solutions_dict[sample_file_name]
-        if len(solutions) < 2:
-            print(f"Not enough solutions for {sample_file_name}, skipping")
-            return None
+    solutions = solutions_dict[sample_file_name]
+    if len(solutions) < 2:
+        print(f"Not enough solutions for {sample_file_name}, skipping")
+        return None
 
-        # Make sure solutions are sorted by quality (length)
-        solutions = sorted(solutions, key=len)
+    # Make sure solutions are sorted by quality (length)
+    solutions = sorted(solutions, key=len)
 
-        # Create MIS instance
-        instance = create_mis_instance(sample, device="cpu")
-        print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
+    # Create MIS instance
+    instance = create_mis_instance(sample, device="cpu")
+    print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
 
-        # Create pairs of solutions for batch processing
-        solution_pairs = []
-        parents_1 = []
-        parents_2 = []
-        for i in range(0, len(solutions) - 1, 2):
-            if i + 1 < len(solutions):
-                solution_pairs.append((solutions[i], solutions[i+1]))
-                parent_1 = torch.zeros(instance.n_nodes, dtype=torch.float32)
-                parent_2 = torch.zeros(instance.n_nodes, dtype=torch.float32)
-                parent_1[solutions[i]] = 1.0
-                parent_2[solutions[i+1]] = 1.0
-                parents_1.append(parent_1)
-                parents_2.append(parent_2)
+    # Create pairs of solutions for batch processing
+    solution_pairs = []
+    parents_1 = []
+    parents_2 = []
+    for i in range(0, len(solutions) - 1, 2):
+        if i + 1 < len(solutions):
+            solution_pairs.append((solutions[i], solutions[i + 1]))
+            parent_1 = torch.zeros(instance.n_nodes, dtype=torch.float32)
+            parent_2 = torch.zeros(instance.n_nodes, dtype=torch.float32)
+            parent_1[solutions[i]] = 1.0
+            parent_2[solutions[i + 1]] = 1.0
+            parents_1.append(parent_1)
+            parents_2.append(parent_2)
 
-        parents_1 = torch.stack(parents_1)
-        costs_1 = parents_1.sum(dim=1)
-        parents_2 = torch.stack(parents_2)
-        costs_2 = parents_2.sum(dim=1)
-        print(f"created parents: {parents_1.shape}, {parents_2.shape}")
+    parents_1 = torch.stack(parents_1)
+    costs_1 = parents_1.sum(dim=1)
+    parents_2 = torch.stack(parents_2)
+    costs_2 = parents_2.sum(dim=1)
+    print(f"created parents: {parents_1.shape}, {parents_2.shape}")
 
-        num_pairings = parents_1.shape[0]
+    num_pairings = parents_1.shape[0]
 
-        features = torch.stack([parents_1, parents_2], dim=2)
-        assert features.shape == (num_pairings, instance.n_nodes, 2), "Incorrect features shape"
-        # we need to reshape the features to (num_pairings * n_nodes, 2)
-        features = features.reshape(num_pairings * instance.n_nodes, 2)
-        assert features.shape == (num_pairings * instance.n_nodes, 2), "Incorrect features shape"
+    features = torch.stack([parents_1, parents_2], dim=2)
+    assert features.shape == (num_pairings, instance.n_nodes, 2), "Incorrect features shape"
+    # we need to reshape the features to (num_pairings * n_nodes, 2)
+    features = features.reshape(num_pairings * instance.n_nodes, 2)
+    assert features.shape == (num_pairings * instance.n_nodes, 2), "Incorrect features shape"
 
-        # make a batch with the sample
-        batch = duplicate_batch(num_pairings, sample)
+    # make a batch with the sample
+    batch = duplicate_batch(num_pairings, sample)
 
-        heatmaps = sampler.sample(batch, features=features).to(device="cpu")
-        assert heatmaps.shape == (
-            num_pairings,
-            2,
-            instance.n_nodes,
-        ), f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
+    heatmaps = sampler.sample(batch, features=features).to(device="cpu")
+    assert heatmaps.shape == (
+        num_pairings,
+        2,
+        instance.n_nodes,
+    ), f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
 
-        # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
-        heatmaps_child1 = heatmaps.select(1, 0)
-        heatmaps_child2 = heatmaps.select(1, 1)
+    # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
+    heatmaps_child1 = heatmaps.select(1, 0)
+    heatmaps_child2 = heatmaps.select(1, 1)
 
-        heatmaps_child = torch.cat([heatmaps_child1, heatmaps_child2], dim=0)
-        children = instance.get_feasible_from_individual_batch(heatmaps_child)
-        print(f"created children: {children.shape}")
-        children_costs = children.sum(dim=1)
-        print(f"children costs: {children_costs}")
+    heatmaps_child = torch.cat([heatmaps_child1, heatmaps_child2], dim=0)
+    children = instance.get_feasible_from_individual_batch(heatmaps_child)
+    print(f"created children: {children.shape}")
+    children_costs = children.sum(dim=1)
+    print(f"children costs: {children_costs}")
 
-        results = {"label_cost": instance.get_gt_cost(), "parent_costs": [], "child_costs": []}
-        for i in range(num_pairings):
-            results["parent_costs"].append((int(costs_1[i].item()), int(costs_2[i].item())))
-            results["child_costs"].append((int(children_costs[2*i].item()), int(children_costs[2*i+1].item())))
+    results = {"label_cost": instance.get_gt_cost(), "parent_costs": [], "child_costs": []}
+    for i in range(num_pairings):
+        results["parent_costs"].append((int(costs_1[i].item()), int(costs_2[i].item())))
+        results["child_costs"].append((int(children_costs[2 * i].item()), int(children_costs[2 * i + 1].item())))
 
-        print(results)
-        return results
+    print(results)
+    return results
+
 
 def condition_difusco_with_solutions(config: Config) -> None:
     """
@@ -206,13 +205,14 @@ def condition_difusco_with_solutions(config: Config) -> None:
         parallel_sampling=2,  # Sample 2 times like in recombination operator
         sequential_sampling=1,
         sparse_factor=-1,
-        mode="difuscombination"
+        mode="difuscombination",
     )
     sampler: DifuscoSampler = DifuscoSampler(config=sampler_config)
 
     table_saver = TableSaver(config.output_table)
 
     from tqdm import tqdm
+
     for i, sample in tqdm(enumerate(dataloader)):
         if i >= N_SAMPLES:
             break
@@ -226,12 +226,14 @@ def condition_difusco_with_solutions(config: Config) -> None:
                 "sample_file_name": sample_file_name,
                 "label_cost": results["label_cost"],
                 "parent_costs": results["parent_costs"],
-                "child_costs": results["child_costs"]
+                "child_costs": results["child_costs"],
             }
             table_saver.put(row)
 
+
 def main(config: Config) -> None:
     condition_difusco_with_solutions(config)
+
 
 if __name__ == "__main__":
     import argparse
@@ -242,6 +244,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     from config.configs.mis_inference import config as inference_config
+
     config = inference_config.update(
         dataset=args.dataset,
         device="cpu",  # Use CPU to avoid CUDA issues
@@ -249,6 +252,6 @@ if __name__ == "__main__":
         models_path="models",
         data_path="data",
         logs_path="logs",
-        results_path="results"
+        results_path="results",
     )
     main(config)
