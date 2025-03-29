@@ -11,6 +11,9 @@ Our ablation studies highlight the crucial contributions of both diffusion-based
 
 **Short abstract paper**: available [here](https://jsalvasoler.vercel.app/dea_short_abstract.pdf).
 
+![DEA Framework](dea_framework.png)
+
+
 -----
 
 ## Table of Contents
