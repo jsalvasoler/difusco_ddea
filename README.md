@@ -2,6 +2,15 @@
 
 This repository contains the code of my Master Thesis
 
+**Abstract:** 
+This thesis explores the integration of denoising diffusion models with evolutionary algorithms (EAs) to enhance machine learning-based combinatorial optimization. While diffusion models have shown promise as generative solvers for NP-hard problems, they often rely on problem-specific heuristics and lack the robust exploration capabilities of traditional search methods. 
+To address these limitations, we propose a novel Diffusion-based Evolutionary Algorithm (DEA) framework. This approach leverages pre-trained diffusion models for both population initialization and recombination, effectively exploiting the multimodal solution space captured by diffusion models within the exploratory structure of an EA. We focus on the Maximum Independent Set (MIS) problem, developing a baseline EA and then introducing diffusion-based initialization and a diffusion recombination operator trained via imitation learning from an optimal recombination demonstrator formulated as an Integer Linear Program.
+Computational experiments on Erdős-Rényi graph datasets of varying sizes demonstrate that DEA significantly outperforms standalone Difusco, a state-of-the-art diffusion-based solver for combinatorial optimization, achieving improved solution quality and better out-of-distribution generalization to larger graph instances. 
+Notably, DEA outperforms the MIP solver Gurobi on larger instances when considering the same time limit, while still falling short of highly specialized classical solvers like KaMIS.
+Our ablation studies highlight the crucial contributions of both diffusion-based initialization and recombination to the DEA framework's success. This work provides empirical evidence for the synergistic potential of combining diffusion models and EAs, offering a promising direction for developing more robust and effective machine learning approaches to complex combinatorial optimization problems and paving the way for future research into hybrid ML-metaheuristic methods.
+
+**Short abstract paper**: available [here](https://jsalvasoler.vercel.app/dea_short_abstract.pdf).
+
 -----
 
 ## Table of Contents
