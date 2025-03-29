@@ -6,9 +6,20 @@ This repository contains the code of my Master Thesis
 
 ## Table of Contents
 
-- [Dependencies](#dependencies)
+- [Dependencies and Installation](#dependencies-and-installation)
+  - [KaMIS](#kamis)
+  - [LKH](#lkh)
+  - [Cython TSP heuristics](#cython-tsp-heuristics)
+- [CLI Usage](#cli-usage)
+- [Core Workflows](#core-workflows)
+  - [1. Train or test a simple Difusco model](#1-train-or-test-a-simple-difusco-model)
+  - [2. Run the evolutionary algorithm](#2-run-the-evolutionary-algorithm)
+  - [3. Generate a train or test set for the diffusion recombination model](#3-generate-a-train-or-test-set-for-the-diffusion-recombination-model)
+  - [4. Train or test a diffusion recombination model](#4-train-or-test-a-diffusion-recombination-model)
+- [Testing](#testing)
 - [Data](#data)
-  - [Traveling Salesman Problem](#traveling-salesman-problem)
+  - [Downloading Data](#downloading-data)
+  - [Traveling Salesman Problem (TSP)](#traveling-salesman-problem-tsp)
   - [Maximum Independent Set (MIS)](#maximum-independent-set-mis)
 - [Models](#models)
 - [License](#license)
@@ -79,9 +90,9 @@ Commands:
 For command-specific info, run 'hatch run cli <group> <subcommand>' --help
 ```
 
-## Main Commands
+## Core Workflows
 
-We now guide you through the main commands of the project.
+We now guide you through the main workflows of the project.
 
 ### 1. Train or test a simple Difusco model
 
