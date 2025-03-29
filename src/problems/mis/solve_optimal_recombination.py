@@ -288,7 +288,7 @@ def maximum_weighted_independent_set(
             name="no_adjacent_vertices",
         )
         model.optimize()
-        if model.status in {GRB.Status.OPTIMAL, GRB.Status.SOLUTION_LIMIT}:
+        if model.status in {GRB.Status.OPTIMAL, GRB.Status.SOLUTION_LIMIT, GRB.Status.TIME_LIMIT}:
             (mwis,) = np.where(x.X >= 0.5)
             return MWISResult(mwis, sum(weights[mwis]))
         return None
