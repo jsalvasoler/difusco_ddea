@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-import os
 import ast
+from copy import deepcopy
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 import torch
-from config.myconfig import Config
+
+if TYPE_CHECKING:
+    from config.myconfig import Config
+from config.mytable import TableSaver
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import create_mis_instance
-from torch_geometric.loader import DataLoader
-from copy import deepcopy
 from torch_geometric.data import Batch
-from difusco.sampler import DifuscoSampler
-from config.mytable import TableSaver
+from torch_geometric.loader import DataLoader
 
+from difusco.sampler import DifuscoSampler
 
 N_SAMPLES = 20
 
@@ -21,11 +24,11 @@ N_SAMPLES = 20
 def duplicate_batch(n_times: int, batch: tuple) -> tuple:
     """
     Duplicate a batch n_times.
-    
+
     Args:
         n_times: Number of times to duplicate the batch
         batch: Input batch to duplicate
-        
+
     Returns:
         tuple: Duplicated batch
     """
@@ -53,23 +56,23 @@ def duplicate_batch(n_times: int, batch: tuple) -> tuple:
 def load_solutions_from_csv(csv_path: str) -> dict:
     """
     Load solutions from a CSV file using pandas.
-    
+
     Args:
         csv_path: Path to the CSV file containing solutions
-        
+
     Returns:
         dict: Mapping from sample file name to list of solutions
     """
     # Read CSV file with pandas
     df = pd.read_csv(csv_path)
-    
+
     solutions_dict = {}
-    
+
     # Process each row
     for _, row in df.iterrows():
         sample_file_name = row['sample_file_name']
         solutions_str = row['solutions']
-        
+
         # Parse the solutions string
         solution_lists = solutions_str.split(' | ')
         solutions = []
@@ -81,29 +84,34 @@ def load_solutions_from_csv(csv_path: str) -> dict:
             except (SyntaxError, ValueError):
                 # Skip malformed solutions
                 continue
-        
+
         solutions_dict[sample_file_name] = solutions
-    
+
     return solutions_dict
 
-def run_experiment_for_sample(sample, sampler, solutions_dict, sample_file_name):
+def run_experiment_for_sample(
+    sample: tuple,
+    sampler: DifuscoSampler,
+    solutions_dict: dict,
+    sample_file_name: str
+) -> dict | None:
         # Skip if we don't have solutions for this sample
         if sample_file_name not in solutions_dict:
             print(f"No solutions found for {sample_file_name}, skipping")
-            return
-            
+            return None
+
         solutions = solutions_dict[sample_file_name]
         if len(solutions) < 2:
             print(f"Not enough solutions for {sample_file_name}, skipping")
-            return
-    
+            return None
+
         # Make sure solutions are sorted by quality (length)
         solutions = sorted(solutions, key=len)
-        
+
         # Create MIS instance
         instance = create_mis_instance(sample, device="cpu")
         print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
-        
+
         # Create pairs of solutions for batch processing
         solution_pairs = []
         parents_1 = []
@@ -117,7 +125,7 @@ def run_experiment_for_sample(sample, sampler, solutions_dict, sample_file_name)
                 parent_2[solutions[i+1]] = 1.0
                 parents_1.append(parent_1)
                 parents_2.append(parent_2)
-        
+
         parents_1 = torch.stack(parents_1)
         costs_1 = parents_1.sum(dim=1)
         parents_2 = torch.stack(parents_2)
@@ -156,14 +164,14 @@ def run_experiment_for_sample(sample, sampler, solutions_dict, sample_file_name)
         for i in range(num_pairings):
             results["parent_costs"].append((int(costs_1[i].item()), int(costs_2[i].item())))
             results["child_costs"].append((int(children_costs[2*i].item()), int(children_costs[2*i+1].item())))
-        
+
         print(results)
         return results
 
 def condition_difusco_with_solutions(config: Config) -> None:
     """
     Condition DifuscoSampler with pairs of solutions of increasing quality.
-    
+
     Args:
         config: Configuration object with parameters
     """
@@ -171,16 +179,16 @@ def condition_difusco_with_solutions(config: Config) -> None:
     csv_path = f"results/conditioning_experiment_{config.dataset}.csv"
     print(f"Loading solutions from {csv_path}")
     solutions_dict = load_solutions_from_csv(csv_path)
-    
+
     # Initialize dataset and dataloader
     data_dir = "/home/e12223411/repos/difusco/data"
     mis_dataset = MISDataset(
         data_dir=f"{data_dir}/mis/{config.dataset}/test",
         data_label_dir=f"{data_dir}/mis/{config.dataset}/test_labels",
     )
-    
+
     dataloader = DataLoader(mis_dataset, batch_size=1, shuffle=False)
-    
+
     # Initialize DifuscoSampler
     sampler_config: Config = config.update(
         test_samples_file=f"difuscombination/mis/{config.dataset}/test",
@@ -203,7 +211,7 @@ def condition_difusco_with_solutions(config: Config) -> None:
     sampler: DifuscoSampler = DifuscoSampler(config=sampler_config)
 
     table_saver = TableSaver(config.output_table)
-    
+
     from tqdm import tqdm
     for i, sample in tqdm(enumerate(dataloader)):
         if i >= N_SAMPLES:
@@ -213,25 +221,26 @@ def condition_difusco_with_solutions(config: Config) -> None:
         print(f"\nProcessing sample {i}: {sample_file_name}")
 
         results = run_experiment_for_sample(sample, sampler, solutions_dict, sample_file_name)
-        row = {
-            "sample_file_name": sample_file_name,
-            "label_cost": results["label_cost"],
-            "parent_costs": results["parent_costs"],
-            "child_costs": results["child_costs"]
-        }
-        table_saver.put(row)
+        if results:
+            row = {
+                "sample_file_name": sample_file_name,
+                "label_cost": results["label_cost"],
+                "parent_costs": results["parent_costs"],
+                "child_costs": results["child_costs"]
+            }
+            table_saver.put(row)
 
 def main(config: Config) -> None:
     condition_difusco_with_solutions(config)
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Run conditioning experiment.")
     parser.add_argument("--dataset", type=str, default="er_50_100", help="Dataset name")
-    
+
     args = parser.parse_args()
-    
+
     from config.configs.mis_inference import config as inference_config
     config = inference_config.update(
         dataset=args.dataset,

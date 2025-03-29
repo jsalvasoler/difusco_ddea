@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import time
+
 import numpy as np
-import torch
+import scipy.sparse as sp
 from config.myconfig import Config
+from config.mytable import TableSaver
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import create_mis_instance
 from problems.mis.solve_optimal_recombination import maximum_weighted_independent_set
-import time
-import scipy.sparse as sp
-from config.mytable import TableSaver
 
 N_SAMPLES = 20
 N_SOLUTIONS = 24
@@ -21,7 +21,7 @@ def get_lil_csr_matrix(adj_matrix: sp.csr_matrix) -> sp.csr_matrix:
 
 def solve_plain_mis(config: Config) -> None:
     """Solve plain MIS using maximum_weighted_independent_set directly.
-    
+
     Args:
         config: Configuration containing dataset name
     """
@@ -33,7 +33,7 @@ def solve_plain_mis(config: Config) -> None:
 
     table_saver = TableSaver(config.table_name)
     already_solved = set(table_saver.get().sample_file_name.unique().tolist())
-    
+
     for i, batch in enumerate(mis_dataset):
         if i >= N_SAMPLES:
             break
@@ -42,21 +42,21 @@ def solve_plain_mis(config: Config) -> None:
         if sample_file_name in already_solved:
             print(f"Skipping {sample_file_name} because it is already solved")
             continue
-            
+
         print(f"\nSample {i}:")
         label_cost = batch[1].x.sum()
         print(f"Label cost: {label_cost}")
-        
+
         # Create MIS instance from batch
         instance = create_mis_instance(batch, device="cpu")
         print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
-        
+
         # Get adjacency matrix in proper format for maximum_weighted_independent_set
         adj_matrix = get_lil_csr_matrix(instance.adj_matrix_np)
-        
+
         # Set all weights to 1 for plain MIS
         weights = np.ones(instance.n_nodes)
-        
+
 
         step = {
             "er_50_100": 1,
@@ -80,11 +80,11 @@ def solve_plain_mis(config: Config) -> None:
                 weights,
                 desired_cost=desired_cost,
                 time_limit=15,
-                solver_params={"OutputFlag": 0, 
-                            "SolutionLimit": 1, 
+                solver_params={"OutputFlag": 0,
+                            "SolutionLimit": 1,
                             "MIPFocus": 1}  # Enable output for debugging
             )
-            
+
             runtime = time.time() - start_time
             if mwis_result is None:
                 continue
