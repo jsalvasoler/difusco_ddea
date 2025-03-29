@@ -198,10 +198,10 @@ def _train_or_solve(args):
 
 def _data_generation(args):
     if args.type == "sat":
-        from data_generation.sat import SATGraphDataGenerator
+        from mis_benchmark_framework.data_generation.sat import SATGraphDataGenerator
         gen = SATGraphDataGenerator(args.input_folder, args.output_folder)
     elif args.type == "random":
-        from data_generation.random_graph import (
+        from mis_benchmark_framework.data_generation.random_graph import (
             BarabasiAlbert,
             ErdosRenyi,
             HolmeKim,
@@ -223,7 +223,7 @@ def _data_generation(args):
             raise ValueError(f"Unknown random graph model {args.model}")
         gen = RandomGraphGenerator(args.output_folder, graph_generator, num_graphs=args.num_graphs)
     elif args.type == "realworld":
-        from data_generation.realworld import RealWorldGraphGenerator
+        from mis_benchmark_framework.data_generation.realworld import RealWorldGraphGenerator
         limit_rw_graphs = None
         if args.limit_rw_graphs:
             limit_rw_graphs = args.limit_rw_graphs
