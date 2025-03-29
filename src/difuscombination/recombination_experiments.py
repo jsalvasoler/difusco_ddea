@@ -237,7 +237,8 @@ class RecombinationExperiment(Experiment):
         # results is a list of dicts, each with the same keys
         # we want to compute the mean of each key
         final = {f"final_{key}": np.mean([result[key] for result in results]) for key in results[0]}
-        wandb.log(final)
+        if wandb.run is not None:
+            wandb.log(final)
 
         # we also add all the config parameters
         final.update(self.config.__dict__)

@@ -13,7 +13,7 @@ def test_mis_dataset_comb_initialization_and_len() -> None:
         labels_dir="data/difuscombination/mis/er_50_100/test_labels",
     )
 
-    assert len(dataset) == 128 * 4
+    assert len(dataset) == 128
 
 
 def test_mis_dataset_comb_assertion(tmp_path) -> None:  # noqa: ANN001

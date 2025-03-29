@@ -25,6 +25,9 @@ def test_recombination_experiments() -> None:
         validate_samples=2,
         profiler=False,
         device="cuda",
+        num_processes=1,
+        process_idx=0,
+        split="test",
     )
     from config.configs.mis_inference import config as mis_inference_config
 
