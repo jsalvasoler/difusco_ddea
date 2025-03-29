@@ -71,7 +71,7 @@ Some tests require the data to be present, otherwise they will be skipped. Same 
 
 ## Data
 
-The data should be saved following the directory structure:
+While path engineering allows for flexibility in script compatibility with various directory structures, we strongly recommend adhering to the following directory structure for optimal organization and ease of use:
 
 ```bash
 data/                      # Directory for datasets
@@ -117,7 +117,16 @@ data/                      # Directory for datasets
     ├── example_data.txt    # Example dataset
     └── ...                # Other miscellaneous data files
 ```
-### Traveling Salesman Problem
+
+### Downloading Data
+
+TODO: Add links to the data here.
+TODO: how to unzip and set it up
+
+
+### Traveling Salesman Problem (TSP)
+
+The downloaded data contains the testing sets for the TSP instances. The origin of the training sets are the following:
 
 The data for the TSP comes from different sources. 
  - Files tsp{50,100}_{test,train}_concorde.txt come from [chaitjo/learning-tsp](https://github.com/chaitjo/learning-tsp) (Resources section).
@@ -159,18 +168,40 @@ hatch run difusco generate_tsp_data \
 
 ### Maximum Independent Set (MIS)
 
-Each MIS dataset directory (e.g., er_50_100, er_700_800, satlib) follows the same structure containing four files:
+Each MIS dataset directory (e.g., er_50_100, er_300_400, er_700_800, satlib) follows the same structure containing four files:
 
 - `test`: Contains the test graph instances
 - `test_labels`: Contains the optimal/best-known solution labels for test instances
 - `train`: Contains the training graph instances
-- `train`: Contains the optimal/best-known solution labels for training instances
+- `train_labels`: Contains the optimal/best-known solution labels for training instances
 
-The format of these files is specific to the MIS problem representation used in this project.
+
+The downloaded data contains the testing sets for the MIS instances. The er_700_800 and satlib datasets come from [Difusco - Sun et al. (2023)](https://github.com/Edward-Sun/DIFUSCO). The training sets, and the rest of the test / train sets are generated using the following commands:
+
+```bash
+min_nodes=700
+max_nodes=800
+num_graphs=163840
+er_p=0.15
+
+python -u src/mis_benchmark_framework/main.py gendata \
+    random \
+    None \
+    /your/path/to/data_er/train \
+    --model er \
+    --min_n $min_nodes \
+    --max_n $max_nodes \
+    --num_graphs $num_graphs \
+    --er_p $er_p
+```
 
 ## Models
 
-Trained models by the work of [Difusco - Sun et al. (2023)](https://github.com/Edward-Sun/DIFUSCO) can be found here: [Difusco Models](https://drive.google.com/drive/folders/1IjaWtkqTAs7lwtFZ24lTRspE0h1N6sBH).
+We provide the pretrained models for the TSP (initialization) and MIS (initialization and recombination) in the following links:
+
+TODO: add links to the models and how to download them
+
+The TSP models come from the work of [Difusco - Sun et al. (2023)](https://github.com/Edward-Sun/DIFUSCO). The MIS models for er_700_800 and satlib as well. The rest of the models are trained by us.
 
 We recommend saving the models in the following directory structure:
 
@@ -178,9 +209,11 @@ We recommend saving the models in the following directory structure:
 ├── models/                    # Directory for models
 │   ├── tsp/                   # TSP models
 │   ├── mis/                   # MIS models
-│   └── etc/                   # Other models
+│   └── difuscombination/      # Diffusion recombination models
+│       ├── tsp/               # TSP diffusion recombination models
+│       └── mis/               # MIS diffusion recombination models
 ```
 
 ## License
 
-`difusco` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+This repository is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
