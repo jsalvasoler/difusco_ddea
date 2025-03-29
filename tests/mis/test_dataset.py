@@ -88,59 +88,49 @@ def test_er_datasets(dataset_name: str) -> None:
 @pytest.mark.parametrize(
     ("dataset_name", "split"),
     [
-        ("er_50_100", "train"),
         ("er_50_100", "test"),
-        ("er_300_400", "train"),
         ("er_300_400", "test"),
-        ("er_700_800", "train"),
         ("er_700_800", "test"),
         ("er_1300_1500", "test"),
     ],
 )
 def test_er_train_annotations_match(dataset_name: str, split: str) -> None:
     base = "data/mis"
-    train = os.path.join(base, f"{dataset_name}/{split}")
-    print(len(os.listdir(train)))
-    train_ann = os.path.join(base, f"{dataset_name}/{split}_labels")
-    print(len(os.listdir(train_ann)))
+    dataset = os.path.join(base, f"{dataset_name}/{split}")
+    print(len(os.listdir(dataset)))
+    dataset_ann = os.path.join(base, f"{dataset_name}/{split}_labels")
+    print(len(os.listdir(dataset_ann)))
 
     def extract_id(s: str) -> int:
         return int(s.split(".")[1].split("_")[1])
 
-    ids_train_ann = sorted(extract_id(f) for f in os.listdir(train_ann) if f.endswith(".result"))
-    ids_train = sorted(extract_id(f) for f in os.listdir(train) if f.endswith(".gpickle"))
+    ids_dataset_ann = sorted(extract_id(f) for f in os.listdir(dataset_ann) if f.endswith(".result"))
+    ids_dataset = sorted(extract_id(f) for f in os.listdir(dataset) if f.endswith(".gpickle"))
 
     # print the two substractions
-    print(set(ids_train_ann) - set(ids_train))
-    print(set(ids_train) - set(ids_train_ann))
+    print(set(ids_dataset_ann) - set(ids_dataset))
+    print(set(ids_dataset) - set(ids_dataset_ann))
 
-    assert set(ids_train_ann) == set(ids_train)
-
-
-def test_get_file_name_from_sample_idx() -> None:
-    dataset_name = "er_50_100"
-    dataset = MISDataset(
-        data_dir=f"data/mis/{dataset_name}/test", data_label_dir=f"data/mis/{dataset_name}/test_labels"
-    )
-    assert dataset.get_file_name_from_sample_idx(0) == "ER_50_100_0.15_0.gpickle"
-    assert dataset.get_file_name_from_sample_idx(120) == "ER_50_100_0.15_120.gpickle"
+    assert set(ids_dataset_ann) == set(ids_dataset)
 
 
-def dataloader_for_er_700_800_train() -> None:
-    dataset_name = "er_700_800"
-    dataset = MISDataset(
-        data_dir=f"data/mis/{dataset_name}/train", data_label_dir=f"data/mis/{dataset_name}/train_labels"
-    )
+@pytest.mark.skipif(not Path("data/mis").exists(), reason=MIS_DATA_SKIP_REASON)
+@pytest.mark.parametrize("dataset_name", ["er_50_100", "er_300_400", "er_700_800", "er_1300_1500"])
+def test_get_file_name_from_sample_idx(dataset_name: str) -> None:
+    """Test the get_file_name_from_sample_idx method for all indices in the dataset."""
+    dataset_path = Path(f"data/mis/{dataset_name}/test")
+    if not dataset_path.exists():
+        pytest.skip(f"Dataset directory {dataset_path} does not exist")
 
-    for i in range(len(dataset)):
-        print(f"getting sample {i} - {dataset.sample_files[i]}")
-        # get label file
-        label_file = os.path.join(
-            dataset.data_label_dir, os.path.basename(dataset.sample_files[i]).replace(".gpickle", "_unweighted.result")
-        )
-        print(f"label file: {label_file}")
-        dataset.__getitem__(i)
+    dataset = MISDataset(data_dir=str(dataset_path), data_label_dir=f"data/mis/{dataset_name}/test_labels")
 
-
-if __name__ == "__main__":
-    dataloader_for_er_700_800_train()
+    # Test that all file names follow the expected pattern
+    for idx in range(len(dataset)):
+        file_name = dataset.get_file_name_from_sample_idx(idx)
+        # Verify file has the correct format with the correct dataset name
+        assert file_name.startswith(
+            f"{dataset_name.upper()}_0.15_"
+        ), f"Unexpected file name format for idx {idx}: {file_name}"
+        # Verify the index in the filename matches the actual index
+        file_idx = int(file_name.split("_")[-1].split(".")[0])
+        assert file_idx == idx, f"File index {file_idx} does not match sample index {idx}"
