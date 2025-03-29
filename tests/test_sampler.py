@@ -16,6 +16,9 @@ from torch_geometric.loader import DataLoader
 
 from difusco.sampler import DifuscoSampler
 
+# Define a reusable skip reason for CUDA tests
+CUDA_SKIP_REASON = "CUDA not available, skipping test that requires GPU"
+
 common = Config(
     data_path="data",
     logs_path="logs",
@@ -149,10 +152,12 @@ def run_test_on_config(config: Config) -> None:
     assert_heatmap_properties(heatmaps, config)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 def test_sampler_tsp_sampling(config_tsp: Config) -> None:
     run_test_on_config(config_tsp)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 @pytest.mark.parametrize("cache_dir", [True, False])
 def test_sampler_mis_sampling(config_mis: Config, cache_dir: bool) -> None:
     if cache_dir:
@@ -178,6 +183,7 @@ def test_sampler_mis_sampling(config_mis: Config, cache_dir: bool) -> None:
         assert num_heatmaps > 0, "Number of loaded heatmaps should be positive"
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 @pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
 def test_sampler_mis_recombination(
     parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config
@@ -188,7 +194,6 @@ def test_sampler_mis_recombination(
         sequential_sampling=sequential_sampling,
         mode="difuscombination",
     )
-    assert torch.cuda.is_available(), "CUDA is not available"
 
     dataloader = get_dataloader(config)
 
@@ -206,6 +211,7 @@ def test_sampler_mis_recombination(
     assert not torch.allclose(heatmaps1, heatmaps2), "Heatmaps are not different"
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 @pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
 def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int) -> None:
     config = common.update(
@@ -217,6 +223,7 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
         parallel_sampling=parallel_sampling,
         sequential_sampling=sequential_sampling,
         sparse_factor=50,
+        device="cuda",
     )
     config = tsp_inference_config.update(config)
     dataloader = get_dataloader(config)
@@ -229,6 +236,7 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
     assert_heatmap_properties(heatmaps, config)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 @pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(3, 1), (1, 3), (3, 3)])
 @pytest.mark.parametrize("override_features", [True, False])
 def test_sampler_mis_recombination_batch(

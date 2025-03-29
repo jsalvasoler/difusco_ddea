@@ -144,6 +144,7 @@ def test_tsp_ga_fill_random_feasible(batch_sample_size_one: tuple) -> None:
         assert evaluations[i] == problem._objective_func(values[i])  # noqa: SLF001
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 def test_tsp_ga_fill_difusco_sampling(batch_sample_size_one: tuple) -> None:
     sample = batch_sample_size_one
     instance = create_tsp_instance(sample, device="cuda", sparse_factor=-1)

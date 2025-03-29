@@ -12,6 +12,9 @@ if TYPE_CHECKING:
 
 from difusco.gnn_encoder import GNNEncoder
 
+# Define a reusable skip reason for CUDA tests
+CUDA_SKIP_REASON = "CUDA not available, skipping test that requires GPU"
+
 
 @pytest.fixture
 def mis_sample() -> tuple[torch.Tensor, GraphData, torch.Tensor]:
@@ -56,6 +59,7 @@ def get_random_difuscombination_x_sample(graph_data: GraphData) -> torch.tensor:
     return x, features
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 def test_gnn_encoder_mis_inference(
     mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor], gnn_model: GNNEncoder
 ) -> None:
@@ -77,6 +81,7 @@ def test_gnn_encoder_mis_inference(
     assert output.shape[1] == 1, "Output should have 1 channel for Gaussian diffusion"
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
 def test_gnn_encoder_difuscombination_mis(mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor]) -> None:
     from config.configs.mis_inference import config as mis_inf_config
 

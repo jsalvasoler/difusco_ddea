@@ -104,6 +104,7 @@ def test_categorical_training_step(diffusion_type: str) -> None:
     assert isinstance(loss.item(), float)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 @pytest.mark.parametrize("diffusion_type", ["categorical", "gaussian"])
 def test_difuscombination_training_step(diffusion_type: str) -> None:
     from config.configs.mis_inference import config as mis_inf_config
@@ -146,6 +147,7 @@ def test_difuscombination_training_step(diffusion_type: str) -> None:
     assert isinstance(loss.item(), float)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 @pytest.mark.parametrize("diffusion_type", ["categorical", "gaussian"])
 def test_difuscombination_test_step(diffusion_type: str) -> None:
     from config.configs.mis_inference import config as mis_inf_config

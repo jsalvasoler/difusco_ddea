@@ -131,6 +131,7 @@ def test_mis_ga_fill_random_feasible() -> None:
     assert (values[0] == instance.get_feasible_from_individual(-instance.get_degrees())).all()
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
 def test_mis_ga_fill_difusco() -> None:
     instance, sample = read_mis_instance(device="cuda")
 
