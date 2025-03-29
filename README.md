@@ -28,9 +28,19 @@ pip install torch-scatter torch-sparse -f https://pytorch-geometric.com/whl/torc
 ```
 You only need to install `torch-scatter`, `torch-sparse` once. After that, you can use `hatch run` as usual to run the project, and dependencies will sync automatically (without removing the extra installed packages).
 
-Generating the data for the TSP instances requires the `lkh` solver, which is run via the python wrapper `lkh`. To install it, use the [official LKH-3 site](
-http://akira.ruc.dk/~keld/research/LKH-3/). Make sure to specify the ``--lkh_path`` argument pointing to the LKH-3 binary when generating the data with this solver.
+**KaMIS**
+Generating MIS datasets requires the KaMIS solver. We pull the code from the official repository and place it in the `src/mis_benchmark_framework/kamis` directory. To pull the code and compile it, run the following commands:
 
+```bash
+cd src/mis_benchmark_framework/kamis
+git clone https://github.com/KarlsruheMIS/KaMIS
+bash compile_withcmake.sh
+```
+
+**LKH**
+Generating the data for the TSP instances requires the `lkh` solver, which is run via the python wrapper `lkh`. To install it, use the [official LKH-3 site](http://akira.ruc.dk/~keld/research/LKH-3/). Make sure to specify the ``--lkh_path`` argument pointing to the LKH-3 binary when generating the data with this solver.
+
+**Cython TSP heuristics**
 Finally, we need to compile the `cython` code for the TSP heuristics. To do so, run the following command:
 
 ```bash
