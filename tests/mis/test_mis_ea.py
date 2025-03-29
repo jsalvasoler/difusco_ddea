@@ -463,7 +463,9 @@ def test_temp_saver(tmp_path: Path) -> None:
     instance, sample = read_mis_instance()
     config = common_config.update(pop_size=10)
     ga = create_mis_ga(instance, config=config, sample=sample, tmp_dir=tmp_path)
-    saver = ga._operators[2]
+    
+    # Access the temp_saver directly from the ga instance instead of from operators
+    saver = ga._temp_saver
     population = ga.population
 
     # check the solution string representation
@@ -471,7 +473,7 @@ def test_temp_saver(tmp_path: Path) -> None:
     assert len(sol_str.split(" | ")) == config.pop_size
 
     # check the saving of the solution
-    saver._do(population)
+    saver.save(population)
     assert os.path.exists(os.path.join(tmp_path, "population.txt"))
     with open(os.path.join(tmp_path, "population.txt")) as f:
         last_line = f.readlines()[-1]
