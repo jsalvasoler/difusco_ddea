@@ -170,6 +170,7 @@ def test_sampler_mis_sampling(config_mis: Config, cache_dir: bool) -> None:
     if cache_dir:
         # Check that heatmaps were loaded from cache without hardcoding the exact number
         import re
+
         heatmap_pattern = re.compile(r"Loaded (\d+) heatmaps from cache for instance")
         match = heatmap_pattern.search(output)
         assert match is not None, "No message about loading heatmaps from cache found"
@@ -239,11 +240,20 @@ def test_sampler_mis_recombination_batch(
         sequential_sampling=sequential_sampling,
         mode="difuscombination",
     )
-    dataloader = get_dataloader(config, batch_size=2)
+
+    # Get dataloader with batch_size=1
+    dataloader = get_dataloader(config, batch_size=1)
+
+    # Get a single batch
+    single_batch = next(iter(dataloader))
+
+    # Use _duplicate_batch from MISGaProblem to create a batch with 2 samples
+    from problems.mis.mis_ga import MISGaProblem
+
+    batch = MISGaProblem._duplicate_batch(2, single_batch)  # noqa: SLF001
 
     sampler = DifuscoSampler(config=config)
 
-    batch = next(iter(dataloader))
     if override_features:
         features = torch.randn(56 * 2, 2).bool().float()
         heatmaps = sampler.sample(batch, features=features)
