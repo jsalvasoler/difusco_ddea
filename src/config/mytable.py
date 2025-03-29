@@ -43,7 +43,7 @@ class TableSaver:
                 rewrite_needed = True
 
             # Determine the target column order for the append step
-            target_column_order = existing_columns # Default to existing order
+            target_column_order = existing_columns  # Default to existing order
             if rewrite_needed:
                 # Define the final column order based on the row that triggered the rewrite
                 target_column_order = row_columns + [col for col in existing_columns if col not in row_columns_set]
@@ -60,7 +60,6 @@ class TableSaver:
             # Always append the new row efficiently, ensuring columns match target order
             new_df_reordered = new_df.reindex(columns=target_column_order)
             new_df_reordered.to_csv(self.table_name, mode="a", header=False, index=False)
-
 
     def get(self) -> pd.DataFrame:
         return pd.read_csv(self.table_name)

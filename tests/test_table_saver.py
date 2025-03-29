@@ -107,13 +107,13 @@ def test_put_reordered_columns_preserves_data(temp_csv_file: str) -> None:
 def test_multiple_new_columns(temp_csv_file: str) -> None:
     """Test adding multiple new columns sequentially."""
     saver = TableSaver(temp_csv_file)
-    saver.put({"a": 1, "b": 2})          # Initial: [a, b]
-    saver.put({"a": 3, "c": 4})          # Add c: [a, c, b]
-    saver.put({"b": 5, "d": 6})          # Add d: [b, d, a, c]
+    saver.put({"a": 1, "b": 2})  # Initial: [a, b]
+    saver.put({"a": 3, "c": 4})  # Add c: [a, c, b]
+    saver.put({"b": 5, "d": 6})  # Add d: [b, d, a, c]
 
     df = saver.get()
     assert len(df) == 3
-    assert list(df.columns) == ["b", "d", "a", "c"] # Final order based on last rewrite
+    assert list(df.columns) == ["b", "d", "a", "c"]  # Final order based on last rewrite
 
     # Check data integrity
     assert df.iloc[0]["a"] == 1
@@ -135,13 +135,13 @@ def test_multiple_new_columns(temp_csv_file: str) -> None:
 def test_add_then_reorder(temp_csv_file: str) -> None:
     """Test adding a column then reordering."""
     saver = TableSaver(temp_csv_file)
-    saver.put({"a": 1, "b": 2})          # Initial: [a, b]
-    saver.put({"a": 3, "c": 4})          # Add c: [a, c, b]
-    saver.put({"c": 6, "a": 5, "b": 7}) # Reorder: [c, a, b]
+    saver.put({"a": 1, "b": 2})  # Initial: [a, b]
+    saver.put({"a": 3, "c": 4})  # Add c: [a, c, b]
+    saver.put({"c": 6, "a": 5, "b": 7})  # Reorder: [c, a, b]
 
     df = saver.get()
     assert len(df) == 3
-    assert list(df.columns) == ["c", "a", "b"] # Final order based on last rewrite
+    assert list(df.columns) == ["c", "a", "b"]  # Final order based on last rewrite
 
     # Check data
     assert df.iloc[0]["a"] == 1
@@ -160,9 +160,9 @@ def test_add_then_reorder(temp_csv_file: str) -> None:
 def test_reorder_then_add(temp_csv_file: str) -> None:
     """Test reordering then adding a column."""
     saver = TableSaver(temp_csv_file)
-    saver.put({"a": 1, "b": 2})          # Initial: [a, b]
-    saver.put({"b": 4, "a": 3})          # Reorder: [b, a]
-    saver.put({"c": 5, "a": 6})          # Add c: [c, a, b]
+    saver.put({"a": 1, "b": 2})  # Initial: [a, b]
+    saver.put({"b": 4, "a": 3})  # Reorder: [b, a]
+    saver.put({"c": 5, "a": 6})  # Add c: [c, a, b]
 
     df = saver.get()
     assert len(df) == 3
@@ -185,14 +185,14 @@ def test_reorder_then_add(temp_csv_file: str) -> None:
 def test_subset_after_rewrite(temp_csv_file: str) -> None:
     """Test adding a subset of columns after a rewrite doesn't cause another rewrite."""
     saver = TableSaver(temp_csv_file)
-    saver.put({"a": 1, "b": 2})          # Initial: [a, b]
-    saver.put({"c": 4, "a": 3})          # Rewrite: [c, a, b]
-    saver.put({"a": 5})                  # Append subset: should not rewrite
-    saver.put({"b": 6, "c": 7})          # Append subset: should not rewrite
+    saver.put({"a": 1, "b": 2})  # Initial: [a, b]
+    saver.put({"c": 4, "a": 3})  # Rewrite: [c, a, b]
+    saver.put({"a": 5})  # Append subset: should not rewrite
+    saver.put({"b": 6, "c": 7})  # Append subset: should not rewrite
 
     df = saver.get()
     assert len(df) == 4
-    assert list(df.columns) == ["c", "a", "b"] # Order from the rewrite
+    assert list(df.columns) == ["c", "a", "b"]  # Order from the rewrite
 
     # Check data
     assert df.iloc[0]["a"] == 1
@@ -212,13 +212,13 @@ def test_subset_after_rewrite(temp_csv_file: str) -> None:
 def test_complex_sequence_of_rewrites(temp_csv_file: str) -> None:
     """Test a more complex sequence of puts involving adds and reorders."""
     saver = TableSaver(temp_csv_file)
-    saver.put({"x": 1, "y": 2})          # Initial: [x, y]
-    saver.put({"x": 3, "z": 4})          # Add z: [x, z, y]
-    saver.put({"y": 6, "x": 5})          # Reorder: [y, x, z]
-    saver.put({"a": 7, "x": 8})          # Add a: [a, x, y, z]
-    saver.put({"z": 10, "y": 9})         # Append subset
-    saver.put({"x": 11, "y": 12, "z": 13, "a": 14}) # Reorder: [x, y, z, a]
-    saver.put({"b": 15, "x": 16})         # Add b: [b, x, y, z, a]
+    saver.put({"x": 1, "y": 2})  # Initial: [x, y]
+    saver.put({"x": 3, "z": 4})  # Add z: [x, z, y]
+    saver.put({"y": 6, "x": 5})  # Reorder: [y, x, z]
+    saver.put({"a": 7, "x": 8})  # Add a: [a, x, y, z]
+    saver.put({"z": 10, "y": 9})  # Append subset
+    saver.put({"x": 11, "y": 12, "z": 13, "a": 14})  # Reorder: [x, y, z, a]
+    saver.put({"b": 15, "x": 16})  # Add b: [b, x, y, z, a]
 
     df = saver.get()
     assert len(df) == 7
