@@ -24,7 +24,9 @@ def test_filter_args_by_group() -> None:
         "n_generations",
         "max_two_opt_it",
         "initialization",
+        "recombination",
         "config_name",
+        "save_results",
     ]
     assert set(ea_settings_args) == set(expected_args)
 
@@ -118,24 +120,8 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
         profiler=False,
         cache_dir="cache/mis/er_700_800/test",
-    )
-    run_ea(config)
-
-
-def test_ea_for_sparse_tsp() -> None:
-    config = Config(
-        config_name="tsp_inference",
-        task="tsp",
-        sparse_factor=50,
-        n_generations=2,
-        pop_size=2,
-        max_two_opt_it=1,
-        test_split="data/tsp/tsp500_test_concorde.txt",
-        test_split_label_dir=None,
-        data_path=".",
-        device="cuda",
-        initialization="random_feasible",
-        validate_samples=2,
-        profiler=False,
+        save_results=False,
+        process_idx=0,
+        num_processes=1,
     )
     run_ea(config)

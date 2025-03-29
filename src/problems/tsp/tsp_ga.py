@@ -109,7 +109,7 @@ class TSPGACrossover(CrossOver):
         return self._make_children_batch(children)
 
 
-def create_tsp_ga(instance: TSPInstance, config: Config) -> GeneticAlgorithm:
+def create_tsp_ga(instance: TSPInstance, config: Config, **kwargs) -> GeneticAlgorithm:
     problem = TSPGAProblem(instance, config)
 
     return GeneticAlgorithm(
