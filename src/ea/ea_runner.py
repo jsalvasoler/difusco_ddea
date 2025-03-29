@@ -19,6 +19,7 @@ from difusco.experiment_runner import Experiment, ExperimentRunner
 from ea.ea_utils import LogFigures, dataset_factory, get_results_dict, instance_factory
 
 if TYPE_CHECKING:
+    import pandas as pd
     from config.myconfig import Config
     from evotorch.algorithms import GeneticAlgorithm
 
@@ -35,6 +36,7 @@ def get_arg_parser() -> ArgumentParser:
     general.add_argument("--results_path", type=str, default=None)
     general.add_argument("--test_split", type=str, required=True)
     general.add_argument("--test_split_label_dir", type=str, default=None)
+    general.add_argument("--split", type=str, default="test")
 
     wandb = parser.add_argument_group("wandb")
     wandb.add_argument("--project_name", type=str, default="difusco")
@@ -142,6 +144,60 @@ class EvolutionaryAlgorithm(Experiment):
         super().__init__()
         self.config = config
 
+        self.config.dataset = self.config.test_split.split("/")[1]
+
+    def process_recombination_results(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Process recombination results dataframe to prepare it for saving.
+
+        This method:
+        1. Takes unique rows based on parent_1, parent_2, children, instance_id
+        2. Sorts parents so shorter/alphabetically first parent is always parent_1_sorted
+        3. Removes duplicates after sorting
+        4. Filters out cases where either parent equals the children
+        5. Samples up to 10 rows (or fewer if not available)
+
+        Args:
+            df: DataFrame containing recombination results
+
+        Returns:
+            Processed DataFrame ready for saving
+        """
+
+        # take unique parent_1, parent_2, children, instance_id
+        df = df[["parent_1", "parent_2", "children", "instance_id"]].drop_duplicates()
+
+        # sort parent_1 and parent_2 by length and alphabetically
+        # i.e. swap row values if parent_1 is longer than parent_2
+        df["parent_1_len"] = df["parent_1"].str.count(",")
+        df["parent_2_len"] = df["parent_2"].str.count(",")
+
+        df["parent_1_sorted"] = np.where(df["parent_1_len"] > df["parent_2_len"], df["parent_2"], df["parent_1"])
+        df["parent_2_sorted"] = np.where(df["parent_1_len"] > df["parent_2_len"], df["parent_1"], df["parent_2"])
+
+        # remove duplicates again
+        df = df[["parent_1_sorted", "parent_2_sorted", "children", "instance_id"]].drop_duplicates()
+
+        # remove cases in which parent_1_sorted = children, or parent_2_sorted = children
+        df = df[df["parent_1_sorted"] != df["children"]]
+        df = df[df["parent_2_sorted"] != df["children"]]
+
+        # rename columns to parent_1, parent_2, children, instance_id
+        df = df.rename(
+            columns={
+                "parent_1_sorted": "parent_1",
+                "parent_2_sorted": "parent_2",
+                "children": "children",
+                "instance_id": "instance_id",
+            }
+        )
+
+        n_samples = min(8, len(df))
+        # Sample n_samples rows
+        if len(df) > 0:
+            df = df.sample(n_samples)
+
+        return df
+
     def run_single_iteration(self, sample: tuple) -> dict:
         instance = instance_factory(self.config, sample)
         tmp_dir = Path(mkdtemp())
@@ -180,8 +236,21 @@ class EvolutionaryAlgorithm(Experiment):
         if self.config.save_results:
             df = ea.get_recombination_saved_results()
             if df is not None:
-                table_name = table_name.replace(".csv", "_recombination.csv")
-                df.to_csv(table_name, index=False)
+                # Process the dataframe
+                df = self.process_recombination_results(df)
+
+                table_name = (
+                    f"{self.config.data_path}/difuscombination/"
+                    f"{self.config.dataset}/{self.config.split}/"
+                    f"table_{self.config.process_idx}.csv"
+                )
+                os.makedirs(os.path.dirname(table_name), exist_ok=True)
+
+                # Check if file exists to determine if we need to write headers
+                file_exists = os.path.exists(table_name)
+
+                # Append to the CSV file without reading it first
+                df.to_csv(table_name, mode="a", header=not file_exists, index=False)
 
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
@@ -195,7 +264,7 @@ class EvolutionaryAlgorithm(Experiment):
         return table_name
 
     def get_dataloader(self) -> DataLoader:
-        return DataLoader(dataset_factory(self.config), batch_size=1, shuffle=False)
+        return DataLoader(dataset_factory(self.config, split=self.config.split), batch_size=1, shuffle=False)
 
     def get_final_results(self, results: list[dict]) -> dict:
         agg_results = {
@@ -223,4 +292,5 @@ def ea_factory(config: Config, instance: ProblemInstance, **kwargs) -> GeneticAl
 def run_ea(config: Config) -> None:
     experiment = EvolutionaryAlgorithm(config)
     runner = ExperimentRunner(config, experiment)
+
     runner.main()
