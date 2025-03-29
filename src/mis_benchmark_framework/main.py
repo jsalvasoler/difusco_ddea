@@ -49,10 +49,10 @@ def _train_or_solve(args):
     global got_devices_from_folder
 
     if args.solver == "gurobi":
-        from solvers.gurobi import Gurobi
+        from mis_benchmark_framework.solvers.gurobi import Gurobi
         solver = Gurobi()
     elif args.solver == "kamis":
-        from solvers.kamis import KaMIS
+        from mis_benchmark_framework.solvers.kamis import KaMIS
         solver = KaMIS()
     else:
         solver = None

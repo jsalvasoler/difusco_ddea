@@ -129,4 +129,4 @@ ignore = [
 ]
 
 [tool.ruff]
-exclude = ["src/mis-benchmark-framework/**"]
+exclude = ["src/mis_benchmark_framework/**"]
