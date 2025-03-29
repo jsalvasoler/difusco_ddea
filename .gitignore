@@ -25,3 +25,4 @@ run.sh
 
 myenv/
 scripts/
+wandb/

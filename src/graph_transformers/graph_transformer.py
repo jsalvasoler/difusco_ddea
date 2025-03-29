@@ -21,6 +21,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
 from torch.nn import Linear, Embedding, BatchNorm1d, Sequential, ReLU, ModuleList
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.loader import DataLoader
@@ -194,11 +195,51 @@ class GraphTransformerTrainer:
         self.num_epochs = args.num_epochs
         self.num_classes = args.num_classes
         
+        # Initialize wandb
+        self.setup_wandb(args)
+        
         # Setup datasets, model, optimizer and scheduler
         self.setup_datasets()
         self.setup_model()
         self.setup_optimizer()
         
+    def setup_wandb(self, args: argparse.Namespace) -> None:
+        """Initialize wandb for logging.
+        
+        Args:
+            args: Command line arguments
+        """
+        if not args.use_wandb:
+            self.use_wandb = False
+            return
+            
+        self.use_wandb = True
+        wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_name,
+            config={
+                "architecture": "GPS",
+                "dataset": self.dataset_path,
+                "num_layers": self.num_layers,
+                "channels": self.channels,
+                "pe_dim": self.pe_dim,
+                "heads": self.attn_heads,
+                "attn_type": args.attn_type,
+                "model_dropout": self.model_dropout,
+                "attn_dropout": self.attn_dropout,
+                "learning_rate": self.lr,
+                "weight_decay": self.weight_decay,
+                "batch_size_train": self.batch_size_train,
+                "batch_size_eval": self.batch_size_eval,
+                "num_epochs": self.num_epochs,
+                "walk_length": self.walk_length,
+                "num_classes": self.num_classes,
+                "seed": args.seed,
+            }
+        )
+        
+        print(f"Wandb initialized. Project: {args.wandb_project}, Run: {args.wandb_name}")
+    
     def setup_datasets(self) -> None:
         """Setup datasets and dataloaders."""
         # # Define transforms
@@ -425,6 +466,13 @@ class GraphTransformerTrainer:
         avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
         print(f'Epoch 0: Average MIS size on test set: {avg_mis_size:.4f}')
         
+        # Log initial metrics
+        if self.use_wandb:
+            wandb.log({
+                "epoch": 0,
+                "avg_mis_size": avg_mis_size,
+            })
+        
         for epoch in range(1, self.num_epochs + 1):
             train_loss = self.train_epoch()
             val_loss, val_acc = self.evaluate(self.val_loader)
@@ -444,10 +492,29 @@ class GraphTransformerTrainer:
                   f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, '
                   f'Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}, LR: {current_lr:.6f}')
             
+            # Log metrics to wandb
+            if self.use_wandb:
+                wandb.log({
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_accuracy": val_acc,
+                    "test_loss": test_loss,
+                    "test_accuracy": test_acc,
+                    "learning_rate": current_lr,
+                })
+            
             # Evaluate MIS size every 5 epochs
             if epoch % 5 == 0:
                 avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
                 print(f'Epoch {epoch}: Average MIS size on test set: {avg_mis_size:.4f}')
+                
+                # Log MIS size to wandb
+                if self.use_wandb:
+                    wandb.log({
+                        "epoch": epoch,
+                        "avg_mis_size": avg_mis_size,
+                    })
                   
         print(f"Training completed. Best validation accuracy: {best_val_acc:.4f}, "
               f"corresponding test accuracy: {best_test_acc:.4f}")
@@ -455,6 +522,16 @@ class GraphTransformerTrainer:
         # Final MIS size evaluation
         avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
         print(f'Final average MIS size on test set: {avg_mis_size:.4f}')
+        
+        # Log final metrics
+        if self.use_wandb:
+            wandb.log({
+                "epoch": self.num_epochs,
+                "final_avg_mis_size": avg_mis_size,
+                "best_val_accuracy": best_val_acc,
+                "best_test_accuracy": best_test_acc,
+            })
+            wandb.finish()
 
 
 def parse_args() -> argparse.Namespace:
@@ -505,6 +582,14 @@ def parse_args() -> argparse.Namespace:
                         help='Patience for learning rate scheduler')
     parser.add_argument('--min_lr', type=float, default=0.00001,
                         help='Minimum learning rate')
+    
+    # Wandb parameters
+    parser.add_argument('--use_wandb', action='store_true',
+                        help='Whether to use wandb for logging')
+    parser.add_argument('--wandb_project', type=str, default='graph-transformer-mis',
+                        help='Wandb project name')
+    parser.add_argument('--wandb_name', type=str, default=None,
+                        help='Wandb run name')
     
     # Misc
     parser.add_argument('--seed', type=int, default=42,
