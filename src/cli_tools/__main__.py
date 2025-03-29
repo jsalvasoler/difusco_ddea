@@ -57,23 +57,6 @@ def run_difusco_initialization_experiments() -> None:
     main_init_experiments(config)
 
 
-def generate_difuscombination_samples() -> None:
-    """Generate training samples for difuscombination."""
-    from data.generate_difuscombination_samples import parse_arguments, run_training_data_generation
-
-    args, extra = parse_arguments()
-    config = Config.load_from_args(args, extra)
-    run_training_data_generation(config)
-
-
-def solve_difuscombination() -> None:
-    from data.solve_difuscombination import get_arg_parser, solve_difuscombination
-
-    args, _ = get_arg_parser().parse_known_args()
-    config = Config.load_from_namespace(args)
-    solve_difuscombination(config)
-
-
 def run_difuscombination() -> None:
     from difuscombination.arg_parser import get_arg_parser
     from difuscombination.difuscombination_main import main_difuscombination
@@ -104,10 +87,6 @@ def main() -> None:
         "ea": {
             "run-ea": run_ea,
         },
-        "data": {
-            "generate-difuscombination-samples": generate_difuscombination_samples,
-            "solve-difuscombination": solve_difuscombination,
-        },
         "difuscombination": {
             "run-difuscombination": run_difuscombination,
             "recombination-experiments": run_recombination_experiments,
@@ -116,10 +95,8 @@ def main() -> None:
 
     if len(sys.argv) < 2 or sys.argv[1] not in commands:
         print("Usage:")
-        print(" - hatch run cli difusco <subcommand>")
-        print(" - hatch run cli ea <subcommand>")
-        print(" - hatch run cli data <subcommand>")
-        print(" - hatch run cli difuscombination <subcommand>")
+        for group in commands:
+            print(f" - hatch run cli {group} <subcommand>")
         print("\nCommands:")
         for group, subcommands in commands.items():
             print(f" - {group}:")
