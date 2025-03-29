@@ -129,4 +129,4 @@ ignore = [
 ]
 
 [tool.ruff]
-exclude = ["src/difusco_edward_sun/**"]
+exclude = ["src/mis-benchmark-framework/**"]
