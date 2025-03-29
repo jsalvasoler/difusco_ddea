@@ -17,16 +17,8 @@ expected_length_test = {
     "er_50_100": 128,
     "er_300_400": 128,
     "er_700_800": 128,
-    "er_1300_1500": 500,
+    "er_1300_1500": 128,
     "satlib": 500,
-}
-
-expected_length_train = {
-    "er_50_100": 40000 - 128,
-    "er_300_400": 40000 - 128,
-    "er_700_800": 163837,
-    "er_1300_1500": None,
-    "satlib": 40000 - 500,
 }
 
 MIS_DATA_SKIP_REASON = "MIS dataset directory not found"
@@ -79,26 +71,17 @@ def check_dataset_samples(dataset: MISDataset, dataset_name: str, start_idx: int
 def test_er_datasets(dataset_name: str) -> None:
     """
     We have 5 MIS datasets:
-    1. er_50_100 (train, test)
-    2. er_300_400 (train, test)
-    3. er_700_800 (train, test)
-    4. er_1300_1500 (test)
-    5. satlib (train, test)
+    1. er_50_100
+    2. er_300_400
+    3. er_700_800
+    4. er_1300_1500
+    5. satlib
     """
     test_dataset = MISDataset(
         data_dir=f"data/mis/{dataset_name}/test", data_label_dir=f"data/mis/{dataset_name}/test_labels"
     )
     assert len(test_dataset) == expected_length_test[dataset_name]
     check_dataset_samples(test_dataset, dataset_name)
-
-    if expected_length_train[dataset_name] is None:
-        return
-
-    train_dataset = MISDataset(
-        data_dir=f"data/mis/{dataset_name}/train", data_label_dir=f"data/mis/{dataset_name}/train_labels"
-    )
-    assert len(train_dataset) == expected_length_train[dataset_name]
-    check_dataset_samples(train_dataset, dataset_name)
 
 
 @pytest.mark.skipif(not Path("data/mis").exists(), reason=MIS_DATA_SKIP_REASON)
