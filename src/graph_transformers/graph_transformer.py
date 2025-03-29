@@ -22,6 +22,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
+import time
 from torch.nn import Linear, Embedding, BatchNorm1d, Sequential, ReLU, ModuleList
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.loader import DataLoader
@@ -473,10 +474,19 @@ class GraphTransformerTrainer:
                 "avg_mis_size": avg_mis_size,
             })
         
+        total_training_time = 0.0
+        
         for epoch in range(1, self.num_epochs + 1):
+            # Start timing the epoch
+            epoch_start_time = time.time()
+            
             train_loss = self.train_epoch()
             val_loss, val_acc = self.evaluate(self.val_loader)
             test_loss, test_acc = self.evaluate(self.test_loader)
+            
+            # Calculate epoch duration
+            epoch_duration = time.time() - epoch_start_time
+            total_training_time += epoch_duration
             
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
@@ -487,10 +497,11 @@ class GraphTransformerTrainer:
             # Get current learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
             
-            # Print standard metrics
+            # Print standard metrics with time information
             print(f'Epoch: {epoch:02d}/{self.num_epochs}, Loss: {train_loss:.4f}, '
                   f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, '
-                  f'Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}, LR: {current_lr:.6f}')
+                  f'Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}, LR: {current_lr:.6f}, '
+                  f'Time: {epoch_duration:.2f}s')
             
             # Log metrics to wandb
             if self.use_wandb:
@@ -502,6 +513,8 @@ class GraphTransformerTrainer:
                     "test_loss": test_loss,
                     "test_accuracy": test_acc,
                     "learning_rate": current_lr,
+                    "epoch_duration": epoch_duration,
+                    "total_training_time": total_training_time,
                 })
             
             # Evaluate MIS size every 5 epochs
@@ -516,8 +529,11 @@ class GraphTransformerTrainer:
                         "avg_mis_size": avg_mis_size,
                     })
                   
+        # Print final statistics
+        avg_epoch_time = total_training_time / self.num_epochs
         print(f"Training completed. Best validation accuracy: {best_val_acc:.4f}, "
               f"corresponding test accuracy: {best_test_acc:.4f}")
+        print(f"Total training time: {total_training_time:.2f}s, Average epoch time: {avg_epoch_time:.2f}s")
         
         # Final MIS size evaluation
         avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
@@ -530,6 +546,8 @@ class GraphTransformerTrainer:
                 "final_avg_mis_size": avg_mis_size,
                 "best_val_accuracy": best_val_acc,
                 "best_test_accuracy": best_test_acc,
+                "total_training_time": total_training_time,
+                "avg_epoch_time": avg_epoch_time,
             })
             wandb.finish()
 
