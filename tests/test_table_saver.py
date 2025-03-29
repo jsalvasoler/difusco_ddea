@@ -82,22 +82,22 @@ def test_put_new_field_creates_new_column(temp_csv_file: str) -> None:
 def test_put_reordered_columns_preserves_data(temp_csv_file: str) -> None:
     """Test that putting columns in a different order preserves the data correctly"""
     saver = TableSaver(temp_csv_file)
-    
+
     # First row with columns in order a, b, c
     saver.put({"a": 1, "b": 2, "c": 3})
-    
+
     # Second row with columns in different order a, c, b
     saver.put({"a": 4, "c": 6, "b": 5})
-    
+
     df = saver.get()
     assert len(df) == 2
     assert list(df.columns) == ["a", "c", "b"]
-    
+
     # First row data preserved and reordered
     assert df.iloc[0]["a"] == 1
     assert df.iloc[0]["c"] == 3
     assert df.iloc[0]["b"] == 2
-    
+
     # Second row data correctly mapped despite reordering
     assert df.iloc[1]["a"] == 4
     assert df.iloc[1]["c"] == 6
@@ -147,15 +147,15 @@ def test_add_then_reorder(temp_csv_file: str) -> None:
     assert df.iloc[0]["a"] == 1
     assert df.iloc[0]["b"] == 2
     assert pd.isna(df.iloc[0]["c"])
-    
+
     assert df.iloc[1]["a"] == 3
     assert pd.isna(df.iloc[1]["b"])
     assert df.iloc[1]["c"] == 4
-    
+
     assert df.iloc[2]["a"] == 5
     assert df.iloc[2]["b"] == 7
     assert df.iloc[2]["c"] == 6
-    
+
 
 def test_reorder_then_add(temp_csv_file: str) -> None:
     """Test reordering then adding a column."""
@@ -172,7 +172,7 @@ def test_reorder_then_add(temp_csv_file: str) -> None:
     assert df.iloc[0]["a"] == 1
     assert df.iloc[0]["b"] == 2
     assert pd.isna(df.iloc[0]["c"])
-    
+
     assert df.iloc[1]["a"] == 3
     assert df.iloc[1]["b"] == 4
     assert pd.isna(df.iloc[1]["c"])
@@ -195,10 +195,18 @@ def test_subset_after_rewrite(temp_csv_file: str) -> None:
     assert list(df.columns) == ["c", "a", "b"] # Order from the rewrite
 
     # Check data
-    assert df.iloc[0]["a"] == 1; assert df.iloc[0]["b"] == 2; assert pd.isna(df.iloc[0]["c"])
-    assert df.iloc[1]["a"] == 3; assert pd.isna(df.iloc[1]["b"]); assert df.iloc[1]["c"] == 4
-    assert df.iloc[2]["a"] == 5; assert pd.isna(df.iloc[2]["b"]); assert pd.isna(df.iloc[2]["c"])
-    assert pd.isna(df.iloc[3]["a"]); assert df.iloc[3]["b"] == 6; assert df.iloc[3]["c"] == 7
+    assert df.iloc[0]["a"] == 1
+    assert df.iloc[0]["b"] == 2
+    assert pd.isna(df.iloc[0]["c"])
+    assert df.iloc[1]["a"] == 3
+    assert pd.isna(df.iloc[1]["b"])
+    assert df.iloc[1]["c"] == 4
+    assert df.iloc[2]["a"] == 5
+    assert pd.isna(df.iloc[2]["b"])
+    assert pd.isna(df.iloc[2]["c"])
+    assert pd.isna(df.iloc[3]["a"])
+    assert df.iloc[3]["b"] == 6
+    assert df.iloc[3]["c"] == 7
 
 
 def test_complex_sequence_of_rewrites(temp_csv_file: str) -> None:
@@ -215,19 +223,44 @@ def test_complex_sequence_of_rewrites(temp_csv_file: str) -> None:
     df = saver.get()
     assert len(df) == 7
     assert list(df.columns) == ["b", "x", "y", "z", "a"]
+    assert df.iloc[0]["x"] == 1
+    assert df.iloc[0]["y"] == 2
+    assert pd.isna(df.iloc[0]["z"])
+    assert pd.isna(df.iloc[0]["a"])
+    assert pd.isna(df.iloc[0]["b"])
 
-    # Spot check some data
-    # Row 0 (Initial)
-    assert df.iloc[0]["x"] == 1; assert df.iloc[0]["y"] == 2; assert pd.isna(df.iloc[0]["z"]); assert pd.isna(df.iloc[0]["a"]); assert pd.isna(df.iloc[0]["b"])
-    # Row 1 (Add z)
-    assert df.iloc[1]["x"] == 3; assert pd.isna(df.iloc[1]["y"]); assert df.iloc[1]["z"] == 4; assert pd.isna(df.iloc[1]["a"]); assert pd.isna(df.iloc[1]["b"])
-    # Row 2 (Reorder y,x)
-    assert df.iloc[2]["x"] == 5; assert df.iloc[2]["y"] == 6; assert pd.isna(df.iloc[2]["z"]); assert pd.isna(df.iloc[2]["a"]); assert pd.isna(df.iloc[2]["b"])
-    # Row 3 (Add a)
-    assert df.iloc[3]["x"] == 8; assert pd.isna(df.iloc[3]["y"]); assert pd.isna(df.iloc[3]["z"]); assert df.iloc[3]["a"] == 7; assert pd.isna(df.iloc[3]["b"])
-    # Row 4 (Subset z,y)
-    assert pd.isna(df.iloc[4]["x"]); assert df.iloc[4]["y"] == 9; assert df.iloc[4]["z"] == 10; assert pd.isna(df.iloc[4]["a"]); assert pd.isna(df.iloc[4]["b"])
-    # Row 5 (Reorder x,y,z,a)
-    assert df.iloc[5]["x"] == 11; assert df.iloc[5]["y"] == 12; assert df.iloc[5]["z"] == 13; assert df.iloc[5]["a"] == 14; assert pd.isna(df.iloc[5]["b"])
-    # Row 6 (Add b)
-    assert df.iloc[6]["x"] == 16; assert pd.isna(df.iloc[6]["y"]); assert pd.isna(df.iloc[6]["z"]); assert pd.isna(df.iloc[6]["a"]); assert df.iloc[6]["b"] == 15
+    assert df.iloc[1]["x"] == 3
+    assert pd.isna(df.iloc[1]["y"])
+    assert df.iloc[1]["z"] == 4
+    assert pd.isna(df.iloc[1]["a"])
+    assert pd.isna(df.iloc[1]["b"])
+
+    assert df.iloc[2]["x"] == 5
+    assert df.iloc[2]["y"] == 6
+    assert pd.isna(df.iloc[2]["z"])
+    assert pd.isna(df.iloc[2]["a"])
+    assert pd.isna(df.iloc[2]["b"])
+
+    assert df.iloc[3]["x"] == 8
+    assert pd.isna(df.iloc[3]["y"])
+    assert pd.isna(df.iloc[3]["z"])
+    assert df.iloc[3]["a"] == 7
+    assert pd.isna(df.iloc[3]["b"])
+
+    assert pd.isna(df.iloc[4]["x"])
+    assert df.iloc[4]["y"] == 9
+    assert df.iloc[4]["z"] == 10
+    assert pd.isna(df.iloc[4]["a"])
+    assert pd.isna(df.iloc[4]["b"])
+
+    assert df.iloc[5]["x"] == 11
+    assert df.iloc[5]["y"] == 12
+    assert df.iloc[5]["z"] == 13
+    assert df.iloc[5]["a"] == 14
+    assert pd.isna(df.iloc[5]["b"])
+
+    assert df.iloc[6]["x"] == 16
+    assert pd.isna(df.iloc[6]["y"])
+    assert pd.isna(df.iloc[6]["z"])
+    assert pd.isna(df.iloc[6]["a"])
+    assert df.iloc[6]["b"] == 15

@@ -29,12 +29,12 @@ class TableSaver:
             # File exists, check if structure needs update
             existing_df_header = pd.read_csv(self.table_name, nrows=0)
             existing_columns = list(existing_df_header.columns)
-            
+
             # Check for new columns or different order if the sets of columns are identical
             existing_columns_set = set(existing_columns)
             row_columns_set = set(row.keys())
             has_new_columns = not row_columns_set.issubset(existing_columns_set)
-            
+
             rewrite_needed = False
             if has_new_columns:
                 rewrite_needed = True
@@ -56,7 +56,7 @@ class TableSaver:
                 existing_df_rewritten = existing_df.reindex(columns=target_column_order)
                 # Write the rewritten structure back, overwriting the file
                 existing_df_rewritten.to_csv(self.table_name, index=False)
-            
+
             # Always append the new row efficiently, ensuring columns match target order
             new_df_reordered = new_df.reindex(columns=target_column_order)
             new_df_reordered.to_csv(self.table_name, mode="a", header=False, index=False)
