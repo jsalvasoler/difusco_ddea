@@ -1,6 +1,6 @@
 # Diffusion-Based Evolutionary Algorithms
 
-This repository contains the code of my Master Thesis
+This repository contains the code of the work described in the following abstract.
 
 **Abstract:** 
 This work explores the integration of denoising diffusion models with evolutionary algorithms (EAs) to enhance machine learning-based combinatorial optimization. While diffusion models have shown promise as generative solvers for NP-hard problems, they often rely on problem-specific heuristics and lack the robust exploration capabilities of traditional search methods. 
