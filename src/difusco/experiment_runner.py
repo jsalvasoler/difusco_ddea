@@ -123,7 +123,6 @@ class ExperimentRunner:
         assert self.config.num_processes > 0, "Number of processes must be greater than 0"
 
         for i, sample in tqdm(enumerate(dataloader)):
-            print("hello bin hier")
             if is_validation_run and i >= self.config.validate_samples:
                 break
 

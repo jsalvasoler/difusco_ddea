@@ -16,6 +16,7 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--validation_split", type=str, default=None)
     parser.add_argument("--validation_split_label_dir", type=str, default=None)
     parser.add_argument("--validation_examples", type=int, default=64)
+    parser.add_argument("--time_limit_inf_s", type=float, default=0.0)
 
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--num_epochs", type=int, default=50)
