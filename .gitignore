@@ -25,3 +25,6 @@ run.sh
 
 myenv/
 scripts/
+wandb/
+src/graph_transformers/jobs.sh
+checkpoints/graph_transformer/
