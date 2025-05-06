@@ -45,6 +45,7 @@ def prepare_config(dataset: str) -> Config:
     config.validation_split_label_dir = f"mis/{dataset}/test_labels"
     config.ckpt_path = f"mis/mis_{dataset}_gaussian.ckpt"
     config.save_results = False
+    config.save_recombination_results = False
     return config
 
 

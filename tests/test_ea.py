@@ -27,6 +27,7 @@ def test_filter_args_by_group() -> None:
         "recombination",
         "config_name",
         "save_results",
+        "save_recombination_results",
     ]
     assert set(ea_settings_args) == set(expected_args)
 

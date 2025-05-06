@@ -49,6 +49,8 @@ class ExperimentRunner:
 
         if "save_results" not in self.config:
             self.config.save_results = False
+        if "save_recombination_results" not in self.config:
+            self.config.save_recombination_results = False
 
     def _validate_config(self) -> None:
         """Validate that the config has all required fields.
@@ -63,7 +65,8 @@ class ExperimentRunner:
             "wandb_logger_name",  # Used for wandb
             "wandb_entity",  # Used for wandb
             "logs_path",  # Used for wandb
-            "save_results",
+            "save_results",  # Used for wandb
+            "save_recombination_results",  # Used for wandb
         ]
 
         for field in required_fields:
