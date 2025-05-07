@@ -249,17 +249,17 @@ class EvolutionaryAlgorithm(Experiment):
 
                 # Append to the CSV file without reading it first
                 df.to_csv(table_name, mode="a", header=not file_exists, index=False)
-        
+
         if self.config.save_results:
             table_name = self._get_results_table_name()
             custom_logger.save_run_results(table_name=table_name)
-            
+
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
     def _get_results_table_name(self) -> str:
         directory = os.path.join(self.config.results_path, "ea_results")
         os.makedirs(directory, exist_ok=True)
-        return os.path.join(directory, self.config.wandb_logger_name, ".csv")
+        return os.path.join(directory, self.config.wandb_logger_name, f"pop_logs_{self.config.process_idx}.csv")
 
     def _get_logger_table_name(self, instance_id: int) -> str:
         """Path will be logs_path/ea_logs/wandb_logger_name/id_timestamp.csv"""

@@ -18,40 +18,39 @@ followed by an MLP classifier to predict node-level scores.
 """
 
 import argparse
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import wandb
-import time
 import os
-from torch.nn import Linear, Embedding, BatchNorm1d, Sequential, ReLU, ModuleList
+import time
+from typing import Any, Optional
+
+import torch
+import torch.nn.functional as F
+from problems.mis.mis_dataset import MISDataset
+from problems.mis.mis_instance import MISInstance
+from torch.nn import BatchNorm1d, Linear, ModuleList, ReLU, Sequential
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GINEConv
 from torch_geometric.nn.conv import GPSConv
-from problems.mis.mis_dataset import MISDataset
-from problems.mis.mis_instance import MISInstance
-import torch_geometric.transforms as T
-from typing import Any, Optional
 from tqdm import tqdm
+
+import wandb
 
 
 class PerformerAttention:
     """Implementation of Performer Attention for efficient attention computation."""
-    
+
     def __init__(self):
         # Placeholder for initialization
         pass
-    
+
     def redraw_projection_matrix(self) -> None:
         """Redraws projection matrices in performer attention."""
         # Placeholder for redrawing projection matrices
-        pass
 
 
 class RedrawProjection:
     """Helper class to handle redrawing projections for attention mechanisms."""
-    
+
     def __init__(self, model: torch.nn.Module,
                 redraw_interval: Optional[int] = None):
         self.model = model
@@ -75,9 +74,9 @@ class RedrawProjection:
 
 class GPS(torch.nn.Module):
     """Graph Positional Embedding with self-attention and message passing layers for node classification."""
-    
+
     def __init__(self, channels: int, pe_dim: int, num_layers: int,
-                attn_type: str, attn_kwargs: dict[str, Any], 
+                attn_type: str, attn_kwargs: dict[str, Any],
                 heads: int = 4, num_classes: int = 2, walk_length: int = 20,
                 dropout: float = 0.0):
         super().__init__()
@@ -112,9 +111,9 @@ class GPS(torch.nn.Module):
                 mlp_layers.append(torch.nn.Dropout(self.dropout))
             prev_dim = next_dim
         mlp_layers.append(Linear(prev_dim, num_classes))
-        
+
         self.mlp = Sequential(*mlp_layers)
-        
+
         self.redraw_projection = RedrawProjection(
             self.convs,
             redraw_interval=1000 if attn_type == 'performer' else None)
@@ -134,23 +133,23 @@ class GPS(torch.nn.Module):
         """
         x_pe = self.pe_norm(pe)
         x = torch.cat((self.node_emb(x), self.pe_lin(x_pe)), 1)
-        
+
         # Create dummy edge attributes if none provided
         if edge_attr is None:
             edge_attr = torch.ones((edge_index.size(1), 1), device=edge_index.device)
-        
+
         edge_attr = self.edge_emb(edge_attr)
 
         for conv in self.convs:
             x = conv(x, edge_index, edge_attr=edge_attr, batch=batch)
-        
+
         # Node-level classification (no pooling)
         return self.mlp(x)
 
 
 class GraphTransformerTrainer:
     """Trainer class for Graph Transformer models."""
-    
+
     def __init__(self, args: argparse.Namespace):
         """Initialize the trainer with arguments.
         
@@ -160,7 +159,7 @@ class GraphTransformerTrainer:
         self.args = args
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f"Using device: {self.device}")
-        
+
         # Set parameters from args
         self.dataset_path = args.dataset_path
         self.walk_length = args.walk_length
@@ -178,7 +177,7 @@ class GraphTransformerTrainer:
         self.min_lr = args.min_lr
         self.num_epochs = args.num_epochs
         self.num_classes = args.num_classes
-        
+
         # Setup checkpoint directory
         self.checkpoint_dir = args.checkpoint_dir
         if self.checkpoint_dir is not None:
@@ -187,15 +186,15 @@ class GraphTransformerTrainer:
                 print(f"Created checkpoint directory: {self.checkpoint_dir}")
         else:
             print("No checkpoint directory specified. Models will not be saved.")
-        
+
         # Initialize wandb
         self.setup_wandb(args)
-        
+
         # Setup datasets, model, optimizer and scheduler
         self.setup_datasets()
         self.setup_model()
         self.setup_optimizer()
-        
+
     def setup_wandb(self, args: argparse.Namespace) -> None:
         """Initialize wandb for logging.
         
@@ -205,7 +204,7 @@ class GraphTransformerTrainer:
         if not args.use_wandb:
             self.use_wandb = False
             return
-            
+
         self.use_wandb = True
         wandb.init(
             project=args.wandb_project,
@@ -230,9 +229,9 @@ class GraphTransformerTrainer:
                 "seed": args.seed,
             }
         )
-        
+
         print(f"Wandb initialized. Project: {args.wandb_project}, Run: {args.wandb_name}")
-    
+
     def setup_datasets(self) -> None:
         """Setup datasets and dataloaders."""
 
@@ -250,14 +249,14 @@ class GraphTransformerTrainer:
         self.test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size_eval)
 
         self.test_loader_batch_one = DataLoader(self.test_dataset, batch_size=1)
-    
+
     def setup_model(self) -> None:
         """Setup the model architecture."""
         attn_kwargs = {'dropout': self.attn_dropout}
         self.model = GPS(
-            channels=self.channels, 
-            pe_dim=self.pe_dim, 
-            num_layers=self.num_layers, 
+            channels=self.channels,
+            pe_dim=self.pe_dim,
+            num_layers=self.num_layers,
             attn_type=self.args.attn_type,
             attn_kwargs=attn_kwargs,
             heads=self.attn_heads,
@@ -265,28 +264,28 @@ class GraphTransformerTrainer:
             dropout=self.model_dropout,
             walk_length=self.walk_length
         ).to(self.device)
-        
+
         # Print model architecture summary
         num_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print(f"Model parameters: {num_params:,}")
-    
+
     def setup_optimizer(self) -> None:
         """Setup optimizer and learning rate scheduler."""
         self.optimizer = torch.optim.Adam(
-            self.model.parameters(), 
-            lr=self.lr, 
+            self.model.parameters(),
+            lr=self.lr,
             weight_decay=self.weight_decay
         )
         self.scheduler = ReduceLROnPlateau(
-            self.optimizer, 
-            mode='min', 
-            factor=0.5, 
+            self.optimizer,
+            mode='min',
+            factor=0.5,
             patience=self.patience,
             min_lr=self.min_lr
         )
         print(f"Optimizer: Adam with LR={self.lr}, weight_decay={self.weight_decay}")
         print(f"Scheduler: ReduceLROnPlateau with patience={self.patience}, min_lr={self.min_lr}")
-    
+
     def preprocess_batch(self, batch_data) -> tuple:
         """Preprocess the batch data from MISDataset.
         
@@ -298,35 +297,35 @@ class GraphTransformerTrainer:
         """
         # Unpack batch data
         indices, graph_data, point_indicator = batch_data
-        
+
         # Current MISDataset format puts node labels in x
         node_labels = graph_data.x
-        
+
         # Create dummy node features (one-hot encoding of node indices)
         batch_size = len(indices)
         num_nodes_total = node_labels.size(0)
-        
+
         # Create dummy features as one-hot vectors
         node_features = torch.zeros((num_nodes_total, self.num_classes), device=self.device)
         node_features[:, 0] = 1.0  # All ones in the first feature
-        
+
         # Create batch assignment vector
         batch_idx = torch.zeros(num_nodes_total, dtype=torch.long, device=self.device)
         start_idx = 0
         for i, num_nodes in enumerate(point_indicator):
             batch_idx[start_idx:start_idx + num_nodes] = i
             start_idx += num_nodes
-                
+
         # Create random walk positional encodings
         # In practice, we would use a proper transform
         # This is a placeholder that creates random values
         pe = torch.randn((num_nodes_total, self.walk_length), device=self.device)
-        
+
         # Create dummy edge features (just ones)
         edge_attr = torch.ones((graph_data.edge_index.size(1), 1), device=self.device)
-        
+
         return node_features, pe, graph_data.edge_index, batch_idx, edge_attr, node_labels
-        
+
     def train_epoch(self) -> float:
         """Run a single training epoch.
         
@@ -337,41 +336,41 @@ class GraphTransformerTrainer:
 
         total_loss = 0
         num_nodes = 0
-        
+
         # Create a tqdm progress bar
         pbar = tqdm(
-            self.train_loader, 
-            desc=f"Training", 
+            self.train_loader,
+            desc="Training",
             leave=True,
             ncols=100,
             unit="batch",
             bar_format="{l_bar}{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
         )
-        
+
         for batch_idx, batch_data in enumerate(pbar):
             # Move data to device
             indices, graph_data, point_indicator = batch_data
             graph_data = graph_data.to(self.device)
             point_indicator = point_indicator.to(self.device)
-            
+
             # Preprocess batch
             node_features, pe, edge_index, batch_idx, edge_attr, node_labels = self.preprocess_batch((indices, graph_data, point_indicator))
-            
+
             self.optimizer.zero_grad()
             self.model.redraw_projection.redraw_projections()
-            
+
             # Forward pass
             logits = self.model(node_features, pe, edge_index, batch_idx, edge_attr)
-            
+
             # CrossEntropyLoss for node classification
             loss = F.cross_entropy(logits, node_labels)
-            
+
             loss.backward()
             batch_loss = loss.item()
             total_loss += batch_loss * node_labels.size(0)
             num_nodes += node_labels.size(0)
             self.optimizer.step()
-            
+
             # Update progress bar with current loss and average loss
             if num_nodes > 0:
                 avg_loss = total_loss / num_nodes
@@ -380,7 +379,7 @@ class GraphTransformerTrainer:
                     'avg_loss': f'{avg_loss:.4f}',
                     'nodes': num_nodes
                 })
-            
+
         return total_loss / num_nodes if num_nodes > 0 else 0.0
 
     @torch.no_grad()
@@ -398,41 +397,41 @@ class GraphTransformerTrainer:
         total_loss = 0
         correct = 0
         total_nodes = 0
-        
+
         # Create a progress bar for evaluation
         desc = "Validating" if loader == self.val_loader else "Testing"
         pbar = tqdm(
-            loader, 
+            loader,
             desc=desc,
             leave=False,
             ncols=100,
             unit="batch",
             bar_format="{l_bar}{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
         )
-        
+
         for batch_data in pbar:
             # Move data to device
             indices, graph_data, point_indicator = batch_data
             graph_data = graph_data.to(self.device)
             point_indicator = point_indicator.to(self.device)
-            
+
             # Preprocess batch
             node_features, pe, edge_index, batch_idx, edge_attr, node_labels = self.preprocess_batch((indices, graph_data, point_indicator))
-            
+
             # Forward pass
             logits = self.model(node_features, pe, edge_index, batch_idx, edge_attr)
-            
+
             # Compute loss
             loss = F.cross_entropy(logits, node_labels)
             batch_loss = loss.item()
             total_loss += batch_loss * node_labels.size(0)
-            
+
             # Compute accuracy
             pred = logits.argmax(dim=1)
             batch_correct = (pred == node_labels).sum().item()
             correct += batch_correct
             total_nodes += node_labels.size(0)
-            
+
             # Update progress bar
             if total_nodes > 0:
                 avg_loss = total_loss / total_nodes
@@ -442,9 +441,9 @@ class GraphTransformerTrainer:
                     'avg_loss': f'{avg_loss:.4f}',
                     'acc': f'{accuracy:.4f}'
                 })
-            
+
         return total_loss / total_nodes, correct / total_nodes
-    
+
     @torch.no_grad()
     def evaluate_mis_size(self, loader: DataLoader) -> float:
         """Evaluate the average MIS size on a given dataloader using actual MIS construction.
@@ -456,45 +455,45 @@ class GraphTransformerTrainer:
             Average MIS size across all graphs
         """
         self.model.eval()
-        
+
         total_mis_size = 0
         num_graphs = 0
-        
+
         # Create a progress bar for MIS evaluation
         pbar = tqdm(
-            loader, 
+            loader,
             desc="Evaluating MIS",
             leave=False,
             ncols=100,
             unit="graph",
             bar_format="{l_bar}{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
         )
-        
+
         for batch_data in pbar:
             # Move data to device
             indices, graph_data, point_indicator = batch_data
             graph_data = graph_data.to(self.device)
             point_indicator = point_indicator.to(self.device)
-            
+
             # Preprocess batch
             node_features, pe, edge_index, batch_idx, edge_attr, node_labels = self.preprocess_batch((indices, graph_data, point_indicator))
-            
+
             # Forward pass to get node scores
             logits = self.model(node_features, pe, edge_index, batch_idx, edge_attr)
-            
+
             # Get node scores (probability of being in MIS)
             node_scores = F.softmax(logits, dim=1)[:, 1].cpu()  # Probability of class 1 (in MIS)
-            
+
             # Create MIS instance
             mis_instance = MISInstance.create_from_batch_sample(batch_data, "cpu")
-            
+
             # Get feasible MIS solution
             mis_solution = mis_instance.get_feasible_from_individual(node_scores)
             mis_size = mis_solution.sum().item()
-            
+
             total_mis_size += mis_size
             num_graphs += 1
-            
+
             # Update progress bar
             if num_graphs > 0:
                 avg_mis_size = total_mis_size / num_graphs
@@ -502,10 +501,10 @@ class GraphTransformerTrainer:
                     'current_mis': f'{mis_size:.2f}',
                     'avg_mis': f'{avg_mis_size:.2f}'
                 })
-        
+
         return total_mis_size / num_graphs if num_graphs > 0 else 0.0
-    
-    def save_checkpoint(self, epoch: int, val_acc: float, test_acc: float, 
+
+    def save_checkpoint(self, epoch: int, val_acc: float, test_acc: float,
                     mis_size: Optional[float] = None, is_best: bool = False) -> None:
         """Save model checkpoint.
         
@@ -521,7 +520,7 @@ class GraphTransformerTrainer:
             if is_best:
                 print(f"New best model at epoch {epoch} with MIS size: {mis_size:.4f}, but not saving (checkpoint_dir is None)")
             return
-            
+
         # Create a checkpoint dictionary
         checkpoint = {
             'epoch': epoch,
@@ -544,19 +543,19 @@ class GraphTransformerTrainer:
                 'walk_length': self.walk_length
             }
         }
-        
+
         # Save regular checkpoint
         run_name = self.args.wandb_name if self.args.wandb_name else "model"
         checkpoint_path = os.path.join(self.checkpoint_dir, f"{run_name}_checkpoint_epoch{epoch}.pt")
         torch.save(checkpoint, checkpoint_path)
         print(f"Saved checkpoint to {checkpoint_path}")
-        
+
         # Save best model separately
         if is_best:
             best_model_path = os.path.join(self.checkpoint_dir, f"{run_name}_best_model.pt")
             torch.save(checkpoint, best_model_path)
             print(f"Saved best model to {best_model_path}")
-            
+
     def load_checkpoint(self, checkpoint_path: str) -> dict:
         """Load a model checkpoint.
         
@@ -569,11 +568,11 @@ class GraphTransformerTrainer:
         # Check if file exists
         if not os.path.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
-            
+
         # Load checkpoint
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         print(f"Loaded checkpoint from {checkpoint_path} (epoch {checkpoint['epoch']})")
-        
+
         # Recreate model with the same configuration
         config = checkpoint['config']
         attn_kwargs = {'dropout': config['attn_dropout']}
@@ -590,42 +589,42 @@ class GraphTransformerTrainer:
         ).to(self.device)
 
         self.model = torch.compile(self.model)
-        
+
         # Load model weights
         self.model.load_state_dict(checkpoint['model_state_dict'])
-        
+
         # Load optimizer and scheduler if they exist
         if 'optimizer_state_dict' in checkpoint and self.optimizer is not None:
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            
+
         if 'scheduler_state_dict' in checkpoint and self.scheduler is not None:
             self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-            
+
         return checkpoint
-        
+
     def train(self) -> None:
         """Train the model for the specified number of epochs."""
         best_val_acc = 0.0
         best_test_acc = 0.0
         best_epoch = 0
         best_mis_size = 0.0
-        
+
         print(f"\n{'='*80}\nStarting training for {self.num_epochs} epochs...\n{'='*80}")
-        
+
         # Evaluate MIS size at epoch 0
         avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
         best_mis_size = avg_mis_size  # Set initial MIS size as best
         print(f'Epoch 0: Average MIS size on test set: {avg_mis_size:.4f}')
-        
+
         # Log initial metrics
         if self.use_wandb:
             wandb.log({
                 "epoch": 0,
                 "avg_mis_size": avg_mis_size,
             })
-        
+
         total_training_time = 0.0
-        
+
         # Create epoch progress bar
         epoch_pbar = tqdm(
             range(1, self.num_epochs + 1),
@@ -635,27 +634,27 @@ class GraphTransformerTrainer:
             ncols=100,
             bar_format="{l_bar}{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
         )
-        
+
         for epoch in epoch_pbar:
             # Start timing the epoch
             epoch_start_time = time.time()
-            
+
             train_loss = self.train_epoch()
             val_loss, val_acc = self.evaluate(self.val_loader)
             test_loss, test_acc = self.evaluate(self.test_loader)
-            
+
             # Calculate epoch duration
             epoch_duration = time.time() - epoch_start_time
             total_training_time += epoch_duration
-            
+
             # Check if this is the best model in terms of validation accuracy
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
                 best_test_acc = test_acc
-            
+
             # Evaluate MIS size every epoch (since this is our primary metric)
             avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
-            
+
             # Check if this is the best model in terms of MIS size
             is_best_mis = avg_mis_size > best_mis_size
             if is_best_mis:
@@ -666,19 +665,19 @@ class GraphTransformerTrainer:
                     print(f'✅ New best model at epoch {epoch} with MIS size: {avg_mis_size:.4f}, val_acc: {val_acc:.4f}, test_acc: {test_acc:.4f}')
                 else:
                     print(f'✅ New best model at epoch {epoch} with MIS size: {avg_mis_size:.4f}, val_acc: {val_acc:.4f}, test_acc: {test_acc:.4f} (not saving)')
-                
+
                 # Try to save the best model based on MIS size (will be skipped if checkpoint_dir is None)
                 self.save_checkpoint(epoch, val_acc, test_acc, avg_mis_size, is_best=True)
-            
+
             # Save regular checkpoint every 10 epochs (will be skipped if checkpoint_dir is None)
             if epoch % 10 == 0:
                 self.save_checkpoint(epoch, val_acc, test_acc, avg_mis_size)
-                
+
             self.scheduler.step(val_loss)
-            
+
             # Get current learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
-            
+
             # Update epoch progress bar
             epoch_pbar.set_postfix({
                 'train_loss': f'{train_loss:.4f}',
@@ -687,7 +686,7 @@ class GraphTransformerTrainer:
                 'LR': f'{current_lr:.6f}',
                 'time': f'{epoch_duration:.2f}s'
             })
-            
+
             # Log more detailed metrics to console every 10 epochs
             if epoch % 10 == 0 or epoch == 1 or is_best_mis:
                 print(f"\nEpoch: {epoch:02d}/{self.num_epochs}, Loss: {train_loss:.4f}, "
@@ -695,7 +694,7 @@ class GraphTransformerTrainer:
                       f"Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}, "
                       f"MIS size: {avg_mis_size:.4f}, LR: {current_lr:.6f}, "
                       f"Time: {epoch_duration:.2f}s\n")
-            
+
             # Log metrics to wandb
             if self.use_wandb:
                 wandb.log({
@@ -710,7 +709,7 @@ class GraphTransformerTrainer:
                     "epoch_duration": epoch_duration,
                     "total_training_time": total_training_time,
                 })
-                  
+
         # Print final statistics
         avg_epoch_time = total_training_time / self.num_epochs
         print(f"\n{'='*80}")
@@ -719,11 +718,11 @@ class GraphTransformerTrainer:
               f"corresponding test accuracy: {best_test_acc:.4f}")
         print(f"Total training time: {total_training_time:.2f}s, Average epoch time: {avg_epoch_time:.2f}s")
         print(f"{'='*80}\n")
-        
+
         # Final MIS size evaluation (using current model, not best model)
         avg_mis_size = self.evaluate_mis_size(self.test_loader_batch_one)
         print(f'Final average MIS size on test set: {avg_mis_size:.4f}')
-        
+
         # Log final metrics
         if self.use_wandb:
             wandb.log({
@@ -746,7 +745,7 @@ def parse_args() -> argparse.Namespace:
         Parsed arguments
     """
     parser = argparse.ArgumentParser(description='Graph Transformer for Node Classification on MIS Dataset')
-    
+
     # Dataset parameters
     parser.add_argument('--dataset_path', type=str, default='./data/mis/er_700_800',
                         help='Path to dataset')
@@ -754,9 +753,9 @@ def parse_args() -> argparse.Namespace:
                         help='Length of random walks for positional encoding')
     parser.add_argument('--num_classes', type=int, default=2,
                         help='Number of node classes')
-    
+
     # Model parameters
-    parser.add_argument('--attn_type', type=str, default='performer', 
+    parser.add_argument('--attn_type', type=str, default='performer',
                         choices=['transformer', 'performer'],
                         help='Type of attention to use')
     parser.add_argument('--channels', type=int, default=64,
@@ -771,7 +770,7 @@ def parse_args() -> argparse.Namespace:
                         help='Dropout rate in the model')
     parser.add_argument('--attn_dropout', type=float, default=0.5,
                         help='Dropout rate in attention')
-    
+
     # Training parameters
     parser.add_argument('--num_epochs', type=int, default=100,
                         help='Number of epochs to train')
@@ -787,13 +786,13 @@ def parse_args() -> argparse.Namespace:
                         help='Patience for learning rate scheduler')
     parser.add_argument('--min_lr', type=float, default=0.00001,
                         help='Minimum learning rate')
-    
+
     # Checkpoint parameters
     parser.add_argument('--checkpoint_dir', type=str, default=None,
                         help='Directory to save model checkpoints. If None, no checkpoints are saved.')
     parser.add_argument('--resume_checkpoint', type=str, default=None,
                         help='Path to checkpoint to resume training from')
-    
+
     # Wandb parameters
     parser.add_argument('--use_wandb', action='store_true',
                         help='Whether to use wandb for logging')
@@ -801,26 +800,26 @@ def parse_args() -> argparse.Namespace:
                         help='Wandb project name')
     parser.add_argument('--wandb_name', type=str, default=None,
                         help='Wandb run name')
-    
+
     # Misc
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed')
-    
+
     return parser.parse_args()
 
 
 def main() -> None:
     """Main function to run the training process."""
     args = parse_args()
-    
+
     # Set random seed for reproducibility
     torch.manual_seed(args.seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(args.seed)
-    
+
     # Create trainer
     trainer = GraphTransformerTrainer(args)
-    
+
     # Resume from checkpoint if specified
     if args.resume_checkpoint:
         try:
@@ -829,7 +828,7 @@ def main() -> None:
         except Exception as e:
             print(f"Error loading checkpoint: {e}")
             print("Starting training from scratch instead.")
-    
+
     # Train the model
     trainer.train()
 

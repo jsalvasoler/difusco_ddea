@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -109,16 +110,31 @@ class LogFigures(Logger):
         self.gt_cost = gt_cost
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.tmp_population_file = tmp_population_file
+        self.start_time = time.time()
+
+    def save_run_results(self, table_name: str) -> None:
+        logger_table_name = self.table_saver.table_name
+        df = pd.read_csv(logger_table_name)
+        df = df[df["timestamp"] == self.timestamp]
+        try:
+            current = pd.read_csv(table_name)
+            df = pd.concat([current, df])
+        except FileNotFoundError:
+            pass
+        os.makedirs(os.path.dirname(table_name), exist_ok=True)
+        df.to_csv(table_name, index=False)
 
     def _log(self, status: dict) -> None:
         data = {k: status[k] for k in self.keys_to_log}
         data["instance_id"] = self.instance_id
         data["gt_cost"] = self.gt_cost
         data["timestamp"] = self.timestamp
+        data["runtime"] = time.time() - self.start_time
 
         with open(self.tmp_population_file) as f:
             pop_str = f.readlines()[-1].strip()
             solution_strs = pop_str.split(" | ")
+            data["solutions_str"] = solution_strs
             data["unique_solutions"] = len(set(solution_strs))
 
         self.table_saver.put(data)

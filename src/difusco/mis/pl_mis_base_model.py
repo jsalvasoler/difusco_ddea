@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-import time
 import torch.utils.data
 from problems.mis.mis_evaluation import mis_decode_np
 from scipy.sparse import coo_matrix
@@ -275,7 +275,9 @@ class MISModelBase(COMetaModel):
         n_times = 0
         snapshots = []
         for _ in range(self.args.sequential_sampling):
-            if time.time() - start_time > self.args.time_limit_inf_s:
+            assert self.args.time_limit_inf_s is not None, "Time limit must be set"
+            assert self.args.time_limit_inf_s > 0, "Time limit must be greater than 0"
+            if self.args.time_limit_inf_s is not None and time.time() - start_time > self.args.time_limit_inf_s:
                 break
             predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device, features)
             predict_labels = predict_labels.cpu().detach().numpy()

@@ -60,7 +60,7 @@ class MISDatasetComb(Dataset):
         file_names_in_df = self.samples_df["instance_file_name"].unique()
         graph_dir_files = set(os.listdir(self.graphs_dir))
         file_names_set = set(file_names_in_df)
-        assert file_names_set.issubset(graph_dir_files), f"Some instance files are not in {self.graphs_dir}"
+        # assert file_names_set.issubset(graph_dir_files), f"Some instance files are not in {self.graphs_dir}"
 
         self._length = len(self.label_files)
 

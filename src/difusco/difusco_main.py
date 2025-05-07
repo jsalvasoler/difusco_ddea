@@ -4,7 +4,6 @@ import os
 from argparse import Namespace
 
 import torch
-import wandb
 from pyinstrument import Profiler
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -13,6 +12,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_info
 
+import wandb
 from difusco.arg_parser import parse_args
 from difusco.mis.pl_high_degree_model import HighDegreeSelection
 from difusco.mis.pl_mis_model import MISModel
