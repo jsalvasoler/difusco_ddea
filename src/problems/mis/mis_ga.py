@@ -439,10 +439,9 @@ class TempSaver(CopyingOperator):
 
 
 DEFAULT_PARAMETERS = {
-    "replace_with_best_unique": False,
     "elite_ratio": 0.05,
     "tournament_size": 2,
-    "selection_method": "tournament",  # Can be "tournament", "tournament_unique", or "best_unique"
+    "selection_method": "tournament",  # Can be "tournament", "roulette", or "best_unique"
 }
 
 
@@ -452,11 +451,9 @@ class MISGA(GeneticAlgorithm):
         self._elite_ratio = kwargs.pop("elite_ratio", DEFAULT_PARAMETERS["elite_ratio"])
         self._tournament_size = kwargs.pop("tournament_size", DEFAULT_PARAMETERS["tournament_size"])
         self._selection_method = kwargs.pop("selection_method", DEFAULT_PARAMETERS["selection_method"])
+        print(f"selection_method: {self._selection_method}")
         super().__init__(*args, **kwargs)
         self._temp_saver = TempSaver(self._problem, self._tmp_dir / "population.txt")
-        self._replace_with_best_unique = kwargs.pop(
-            "replace_with_best_unique", DEFAULT_PARAMETERS["replace_with_best_unique"]
-        )
 
     def get_recombination_saved_results(self) -> pd.DataFrame | None:
         try:
