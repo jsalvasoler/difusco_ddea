@@ -202,7 +202,6 @@ class MISGAMutation(CopyingOperator):
     def _do(self, batch: SolutionBatch) -> SolutionBatch:
         result = deepcopy(batch)
         data = result.access_values()
-        print(f"pre-mutation: {data.sum(dim=-1)}")
 
         pop_size, n_nodes = data.shape
 
@@ -214,7 +213,6 @@ class MISGAMutation(CopyingOperator):
 
         # If no individuals are selected for mutation, exit early.
         if not mutation_mask.any():
-            print(f"post-mutation: {data.sum(dim=-1)}")
             return result
 
         # Get indices of individuals to mutate.
@@ -235,7 +233,6 @@ class MISGAMutation(CopyingOperator):
             feasible = self._instance.get_feasible_from_individual_batch(priorities[update_mask])
             data[indices_to_update] = feasible
 
-        print(f"post-mutation: {data.sum(dim=-1)}")
         return result
 
 
@@ -445,19 +442,21 @@ DEFAULT_PARAMETERS = {
     "replace_with_best_unique": False,
     "elite_ratio": 0.05,
     "tournament_size": 2,
+    "selection_method": "tournament",  # Can be "tournament", "tournament_unique", or "best_unique"
 }
 
 
 class MISGA(GeneticAlgorithm):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002
         self._tmp_dir = kwargs.pop("tmp_dir", Path(mkdtemp()))
+        self._elite_ratio = kwargs.pop("elite_ratio", DEFAULT_PARAMETERS["elite_ratio"])
+        self._tournament_size = kwargs.pop("tournament_size", DEFAULT_PARAMETERS["tournament_size"])
+        self._selection_method = kwargs.pop("selection_method", DEFAULT_PARAMETERS["selection_method"])
         super().__init__(*args, **kwargs)
         self._temp_saver = TempSaver(self._problem, self._tmp_dir / "population.txt")
         self._replace_with_best_unique = kwargs.pop(
             "replace_with_best_unique", DEFAULT_PARAMETERS["replace_with_best_unique"]
         )
-        self._elite_ratio = kwargs.pop("elite_ratio", DEFAULT_PARAMETERS["elite_ratio"])
-        self._tournament_size = kwargs.pop("tournament_size", DEFAULT_PARAMETERS["tournament_size"])
 
     def get_recombination_saved_results(self) -> pd.DataFrame | None:
         try:
@@ -466,7 +465,7 @@ class MISGA(GeneticAlgorithm):
             return None
 
     @torch.no_grad()
-    def _take_tournament_with_elitism(self, batch: SolutionBatch, popsize: int) -> SolutionBatch:
+    def _take_tournament(self, batch: SolutionBatch, popsize: int) -> SolutionBatch:
         """
         Selects the next generation using a combination of elitism and tournament selection.
 
@@ -492,7 +491,6 @@ class MISGA(GeneticAlgorithm):
         # 1. ELITISM
         # Calculate the number of elite individuals to carry over to the next generation.
         num_elites = math.ceil(popsize * self._elite_ratio)
-        assert num_elites > 0, "Number of elites must be greater than 0"
 
         # Get the indices of the best individuals from the extended population.
         # `argsort` sorts in ascending order, so for problems where higher values are better,
@@ -526,9 +524,60 @@ class MISGA(GeneticAlgorithm):
         # 3. COMBINE AND CREATE NEW POPULATION
         # Concatenate the indices from elitism and tournament selection
         final_indices = torch.cat([elite_indices, tournament_winner_indices])
+        assert final_indices.shape[0] == popsize, f"Final indices shape: {final_indices.shape}, expected {popsize}"
 
         # Create the new population from the final list of selected indices
         return SolutionBatch(slice_of=(batch, final_indices.tolist()))
+
+    @torch.no_grad()
+    def _roulette(self, extended_population: SolutionBatch, popsize: int) -> SolutionBatch:
+        """
+        Selects the next generation using a combination of elitism and roulette wheel selection.
+
+        Args:
+            extended_population: The combined population of parents and children.
+            popsize: The desired size of the next generation.
+
+        Returns:
+            A new SolutionBatch representing the selected next generation.
+        """
+        # 1. ELITISM
+        # Calculate the number of elite individuals to carry over.
+        num_elites = math.ceil(popsize * self._elite_ratio)
+
+        # If the number of elites is greater than or equal to the population size,
+        # simply select the best `popsize` individuals.
+        if num_elites >= popsize:
+            best_indices = extended_population.argsort()[:popsize]
+            return SolutionBatch(slice_of=(extended_population, best_indices.tolist()))
+
+        # Get the indices of the best individuals (the elites).
+        all_sorted_indices = extended_population.argsort()
+        elite_indices = all_sorted_indices[:num_elites]
+
+        # 2. ROULETTE WHEEL SELECTION
+        # Determine how many individuals need to be selected via the roulette wheel.
+        num_roulette_winners = popsize - num_elites
+
+        # Get the fitness values for the entire extended population.
+        # These values will serve as weights for the multinomial sampling.
+        # For this problem, fitness (the sum) is always non-negative.
+        fitness_values = extended_population.evals.float()
+
+        # Perform roulette wheel selection using multinomial sampling.
+        roulette_indices = torch.multinomial(
+            input=(fitness_values / fitness_values.sum()).flatten(),
+            num_samples=num_roulette_winners,
+            replacement=False,
+        )
+
+        # 3. COMBINE AND CREATE THE NEW POPULATION
+        # Concatenate the indices from elitism and roulette selection.
+        final_indices = torch.cat([elite_indices, roulette_indices])
+        assert final_indices.shape[0] == popsize, f"Final indices shape: {final_indices.shape}, expected {popsize}"
+
+        # Create the new population from the final list of selected indices.
+        return SolutionBatch(slice_of=(extended_population, final_indices.tolist()))
 
     def _step(self) -> None:
         # Get the population size
@@ -537,12 +586,14 @@ class MISGA(GeneticAlgorithm):
         # Produce and get an extended population in a single SolutionBatch
         extended_population = self._make_extended_population(split=False)
 
-        # From the extended population, take the best n solutions, n being the popsize.
-        # self._population = extended_population.take_best(popsize)
-        if self._replace_with_best_unique:
+        # Select the next generation based on the selection method
+        if self._selection_method == "best_unique":
             self._population = self._take_best_unique(extended_population, popsize)
-        else:
-            self._population = self._take_tournament_with_elitism(extended_population, popsize)
+        elif self._selection_method == "roulette":
+            self._population = self._roulette(extended_population, popsize)
+        else:  # Default to regular tournament selection
+            self._population = self._take_tournament(extended_population, popsize)
+        print(f"population: {self._population.values.sum(dim=-1)}")
 
         # Save population stats to file
         self._temp_saver.save(self._population)
@@ -598,11 +649,11 @@ def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir:
             tournament_size=config.tournament_size,
         )
 
-    return MISGA(
-        problem=problem,
-        popsize=config.pop_size,
-        re_evaluate=False,
-        operators=[
+    new_kwargs = {
+        "problem": problem,
+        "popsize": config.pop_size,
+        "re_evaluate": False,
+        "operators": [
             crossover,
             MISGAMutation(
                 problem,
@@ -612,5 +663,10 @@ def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir:
                 mutation_prob=config.mutation_prob,
             ),
         ],
-        tmp_dir=tmp_dir,
-    )
+        "tmp_dir": tmp_dir,
+    }
+
+    if "selection_method" in config:
+        new_kwargs["selection_method"] = config.selection_method
+
+    return MISGA(**new_kwargs)

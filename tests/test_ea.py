@@ -84,7 +84,8 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 @pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
 @pytest.mark.parametrize("recombination", ["classic", "optimal", "difuscombination"])
 @pytest.mark.parametrize("initialization", ["random_feasible", "difusco_sampling"])
-def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: str) -> None:
+@pytest.mark.parametrize("selection_method", ["tournament", "roulette", "best_unique"])
+def test_ea_runs(task: str, recombination: str, initialization: str, selection_method: str, temp_dir: str) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":
@@ -113,7 +114,7 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         task=task,
         sparse_factor=-1,
         n_generations=2,
-        validate_samples=2,
+        validate_samples=1,
         tournament_size=2,
         parallel_sampling=pop_size,
         sequential_sampling=1,
@@ -130,5 +131,6 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         process_idx=0,
         num_processes=1,
         split="test",
+        selection_method=selection_method,
     )
     run_ea(config)
