@@ -124,5 +124,6 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         save_results=False,
         process_idx=0,
         num_processes=1,
+        split="test",
     )
     run_ea(config)

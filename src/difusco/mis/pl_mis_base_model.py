@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-import time
 import torch.utils.data
 from problems.mis.mis_evaluation import mis_decode_np
 from scipy.sparse import coo_matrix
@@ -291,7 +291,7 @@ class MISModelBase(COMetaModel):
         solved_costs = [solved_solution.sum() for solved_solution in solved_solutions]
 
         for i in range(n_times):
-            to_log = max(solved_costs[:(i + 1) * self.args.parallel_sampling])
+            to_log = max(solved_costs[: (i + 1) * self.args.parallel_sampling])
             self.log(f"{split}/step_{i}/best_cost", to_log)
             self.log(f"{split}/step_{i}/time", snapshots[i])
 

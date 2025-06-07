@@ -51,7 +51,9 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
     ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
-    ea_settings.add_argument("--save_recombination_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False)
+    ea_settings.add_argument(
+        "--save_recombination_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False
+    )
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
@@ -249,11 +251,11 @@ class EvolutionaryAlgorithm(Experiment):
 
                 # Append to the CSV file without reading it first
                 df.to_csv(table_name, mode="a", header=not file_exists, index=False)
-        
+
         if self.config.save_results:
             table_name = self._get_results_table_name()
             custom_logger.save_run_results(table_name=table_name)
-            
+
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
 
     def _get_results_table_name(self) -> str:

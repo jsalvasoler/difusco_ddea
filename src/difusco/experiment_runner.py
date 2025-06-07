@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 import torch
+
 import wandb
 
 if TYPE_CHECKING:
