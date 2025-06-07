@@ -293,7 +293,7 @@ class MISModelBase(COMetaModel):
         solved_costs = [solved_solution.sum() for solved_solution in solved_solutions]
 
         for i in range(n_times):
-            to_log = max(solved_costs[:(i + 1) * self.args.parallel_sampling])
+            to_log = max(solved_costs[: (i + 1) * self.args.parallel_sampling])
             self.log(f"{split}/step_{i}/best_cost", to_log)
             self.log(f"{split}/step_{i}/time", snapshots[i])
 

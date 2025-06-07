@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import warnings
 from copy import deepcopy
@@ -440,17 +441,94 @@ class TempSaver(CopyingOperator):
             f.write(self._get_population_string(batch) + "\n")  # Added newline for better readability
 
 
+DEFAULT_PARAMETERS = {
+    "replace_with_best_unique": False,
+    "elite_ratio": 0.05,
+    "tournament_size": 2,
+}
+
+
 class MISGA(GeneticAlgorithm):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002
         self._tmp_dir = kwargs.pop("tmp_dir", Path(mkdtemp()))
         super().__init__(*args, **kwargs)
         self._temp_saver = TempSaver(self._problem, self._tmp_dir / "population.txt")
+        self._replace_with_best_unique = kwargs.pop(
+            "replace_with_best_unique", DEFAULT_PARAMETERS["replace_with_best_unique"]
+        )
+        self._elite_ratio = kwargs.pop("elite_ratio", DEFAULT_PARAMETERS["elite_ratio"])
+        self._tournament_size = kwargs.pop("tournament_size", DEFAULT_PARAMETERS["tournament_size"])
 
     def get_recombination_saved_results(self) -> pd.DataFrame | None:
         try:
             return self._operators[0].table_saver.get()
         except AttributeError:
             return None
+
+    @torch.no_grad()
+    def _take_tournament_with_elitism(self, batch: SolutionBatch, popsize: int) -> SolutionBatch:
+        """
+        Selects the next generation using a combination of elitism and tournament selection.
+
+        This method first preserves a small percentage of the best-performing ("elite")
+        solutions from the combined parent-child population. The remainder of the
+        new population is then filled by individuals who win a series of stochastic
+        "tournaments".
+
+        This balanced approach ensures that the best solutions are not lost, while
+        the tournament provides selection pressure that is less greedy than pure
+        truncation, helping to maintain genetic diversity and prevent premature
+        convergence.
+
+        Args:
+            batch: The combined population of parents and children.
+            popsize: The desired size of the next generation.
+
+        Returns:
+            A new SolutionBatch representing the selected next generation.
+        """
+        device = batch.device
+
+        # 1. ELITISM
+        # Calculate the number of elite individuals to carry over to the next generation.
+        num_elites = math.ceil(popsize * self._elite_ratio)
+        assert num_elites > 0, "Number of elites must be greater than 0"
+
+        # Get the indices of the best individuals from the extended population.
+        # `argsort` sorts in ascending order, so for problems where higher values are better,
+        # we would need to adjust. Assuming `argsort` correctly identifies the best solutions
+        # as is conventional in evotorch utilities.
+        all_sorted_indices = batch.argsort()
+        elite_indices = all_sorted_indices[:num_elites]
+
+        # 2. TOURNAMENT SELECTION
+        # Calculate how many individuals we need to select via tournament.
+        num_tournament_winners = popsize - num_elites
+
+        # For single-objective, rank solutions from -0.5 (worst) to 0.5 (best).
+        ranks = batch.utility(ranking_method="centered")
+
+        # Create random tournaments. Each row is a tournament, and each column is a participant's index.
+        tournament_indices = self._problem.make_randint(
+            (num_tournament_winners, self._tournament_size), n=len(batch), device=device
+        )
+
+        # Get the ranks of the competitors for each tournament
+        tournament_ranks = ranks[tournament_indices]
+
+        # For each tournament (row), find the index of the competitor with the maximum rank.
+        winner_indices_in_tournament = torch.argmax(tournament_ranks, dim=-1)
+
+        # Get the indices of the winning solutions from the original batch
+        tournament_rows = torch.arange(0, num_tournament_winners, device=device)
+        tournament_winner_indices = tournament_indices[tournament_rows, winner_indices_in_tournament]
+
+        # 3. COMBINE AND CREATE NEW POPULATION
+        # Concatenate the indices from elitism and tournament selection
+        final_indices = torch.cat([elite_indices, tournament_winner_indices])
+
+        # Create the new population from the final list of selected indices
+        return SolutionBatch(slice_of=(batch, final_indices.tolist()))
 
     def _step(self) -> None:
         # Get the population size
@@ -461,7 +539,10 @@ class MISGA(GeneticAlgorithm):
 
         # From the extended population, take the best n solutions, n being the popsize.
         # self._population = extended_population.take_best(popsize)
-        self._population = self._take_best_unique(extended_population, popsize)
+        if self._replace_with_best_unique:
+            self._population = self._take_best_unique(extended_population, popsize)
+        else:
+            self._population = self._take_tournament_with_elitism(extended_population, popsize)
 
         # Save population stats to file
         self._temp_saver.save(self._population)

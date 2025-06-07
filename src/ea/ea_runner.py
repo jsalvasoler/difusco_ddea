@@ -51,7 +51,9 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
     ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
-    ea_settings.add_argument("--save_recombination_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False)
+    ea_settings.add_argument(
+        "--save_recombination_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False
+    )
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
