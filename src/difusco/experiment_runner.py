@@ -164,6 +164,7 @@ class ExperimentRunner:
         final_results = self.experiment.get_final_results(results)
         if self.config.save_results or not is_validation_run:
             table_name = self.experiment.get_table_name()
+            print(f"Saving results to {table_name}")
             table_saver = TableSaver(table_name=table_name)
             final_results["wandb_id"] = wandb.run.id if wandb.run is not None else None
             table_saver.put(final_results)
