@@ -56,12 +56,6 @@ class MISDatasetComb(Dataset):
         self.samples_df = pd.read_csv(self.samples_file)
         self.samples_df = self.samples_df.sort_values(by="instance_file_name")
 
-        # check that unique instance_file_name is a subset of graph files
-        file_names_in_df = self.samples_df["instance_file_name"].unique()
-        graph_dir_files = set(os.listdir(self.graphs_dir))
-        file_names_set = set(file_names_in_df)
-        # assert file_names_set.issubset(graph_dir_files), f"Some instance files are not in {self.graphs_dir}"
-
         self._length = len(self.label_files)
 
         print(f'Loaded "{self.labels_dir}" with {self._length} examples in {time.time() - start_time:.2f}s')

@@ -85,7 +85,7 @@ We can run the evolutionary algorithm by running the `src/cli_tools/bash_scripts
 
 We do this by running the evolutionary algorithm with the optimal recombination, and storing the results. 
 
-This is done by running the `src/cli_tools/bash_scripts/evo.sh` script with the `--save_results` argument set to `True`. Be sure to adjust other arguments to match your dataset and experimental configuration.
+This is done by running the `src/cli_tools/bash_scripts/evo.sh` script with the `--save_recombination_results` argument set to `True`.
 
 Finally, we need to aggregate the results in order to generate the train and test sets for the diffusion recombination model. This is done by running the following command, which should be customized with your specific paths and parameters:
 
