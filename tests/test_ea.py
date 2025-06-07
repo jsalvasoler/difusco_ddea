@@ -82,7 +82,7 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 
 
 @pytest.mark.parametrize("task", ["mis"])  # tsp unsupported currently
-@pytest.mark.parametrize("recombination", ["classic", "optimal"])
+@pytest.mark.parametrize("recombination", ["classic", "optimal", "difuscombination"])
 @pytest.mark.parametrize("initialization", ["random_feasible", "difusco_sampling"])
 def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: str) -> None:
     if task == "tsp":
@@ -94,6 +94,7 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         raise ValueError(error_msg)
     from config.configs.mis_inference import config as mis_config
 
+    pop_size = 4
     config = mis_config.update(
         logs_path=str(temp_dir),
         config_name=f"{task}_inference",
@@ -103,7 +104,10 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         test_split=data_path,
         test_split_label_dir=None,
         data_path=".",
-        pop_size=2,
+        test_samples_file="data/difuscombination/mis/er_700_800/test",
+        test_labels_dir="data/difuscombination/mis/er_700_800/test_labels",
+        test_graphs_dir="data/mis/er_700_800/test",
+        pop_size=pop_size,
         device="cpu",
         max_two_opt_it=1,
         task=task,
@@ -111,7 +115,7 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         n_generations=2,
         validate_samples=2,
         tournament_size=2,
-        parallel_sampling=2,
+        parallel_sampling=pop_size,
         sequential_sampling=1,
         mutation_prob=0.25,
         models_path="models",
@@ -119,6 +123,7 @@ def test_ea_runs(task: str, recombination: str, initialization: str, temp_dir: s
         opt_recomb_time_limit=3,
         preserve_optimal_recombination=False,
         ckpt_path="mis/mis_er_50_100_gaussian.ckpt",
+        ckpt_path_difuscombination="difuscombination/mis_er_700_800_gaussian.ckpt",
         profiler=False,
         cache_dir="cache/mis/er_700_800/test",
         save_results=False,
