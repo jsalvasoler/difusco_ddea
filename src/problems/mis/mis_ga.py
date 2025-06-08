@@ -441,7 +441,7 @@ class TempSaver(CopyingOperator):
 DEFAULT_PARAMETERS = {
     "elite_ratio": 0.05,
     "tournament_size": 2,
-    "selection_method": "tournament",  # Can be "tournament", "roulette", or "best_unique"
+    "selection_method": "best_unique",  # Can be "tournament", "roulette", or "best_unique"
 }
 
 
@@ -588,8 +588,10 @@ class MISGA(GeneticAlgorithm):
             self._population = self._take_best_unique(extended_population, popsize)
         elif self._selection_method == "roulette":
             self._population = self._roulette(extended_population, popsize)
-        else:  # Default to regular tournament selection
+        elif self._selection_method == "tournament":
             self._population = self._take_tournament(extended_population, popsize)
+        else:
+            raise ValueError(f"Invalid selection method: {self._selection_method}")
         print(f"population: {self._population.values.sum(dim=-1)}")
 
         # Save population stats to file
