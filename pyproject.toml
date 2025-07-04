@@ -129,4 +129,4 @@ ignore = [
 ]
 
 [tool.ruff]
-exclude = ["src/mis_benchmark_framework/**", "src/graph_transformers/graph_transformer.py"]
+exclude = ["src/mis_benchmark_framework/**"]
