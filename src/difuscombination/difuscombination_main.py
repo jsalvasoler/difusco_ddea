@@ -3,7 +3,6 @@
 import os
 
 import torch
-import wandb
 from config.myconfig import Config
 from pyinstrument import Profiler
 from pytorch_lightning import Trainer
@@ -13,6 +12,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.utilities import rank_zero_info
 
+import wandb
 from difuscombination.pl_difuscombination_mis_model import DifusCombinationMISModel
 
 

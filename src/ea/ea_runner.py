@@ -51,7 +51,9 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--initialization", type=str, default="random_feasible")
     ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
-    ea_settings.add_argument("--save_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False)
+    ea_settings.add_argument(
+        "--save_recombination_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False
+    )
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
@@ -204,15 +206,13 @@ class EvolutionaryAlgorithm(Experiment):
         ea = ea_factory(self.config, instance, sample=sample, tmp_dir=tmp_dir)
 
         table_name = self._get_logger_table_name(instance_id=sample[0].item())
-        if self.config.validate_samples:
-            # only log ga for a particular instance if validate_samples is not None
-            custom_logger = LogFigures(
-                table_name=table_name,
-                instance_id=sample[0].item(),
-                gt_cost=instance.get_gt_cost(),
-                tmp_population_file=tmp_dir / "population.txt",
-                searcher=ea,
-            )
+        custom_logger = LogFigures(
+            table_name=table_name,
+            instance_id=sample[0].item(),
+            gt_cost=instance.get_gt_cost(),
+            tmp_population_file=tmp_dir / "population.txt",
+            searcher=ea,
+        )
         _ = StdOutLogger(searcher=ea, interval=10, after_first_step=True)
 
         start_time = timeit.default_timer()
@@ -233,7 +233,7 @@ class EvolutionaryAlgorithm(Experiment):
 
         results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": end_time - start_time}
 
-        if self.config.save_results:
+        if self.config.save_recombination_results:
             df = ea.get_recombination_saved_results()
             if df is not None:
                 # Process the dataframe
@@ -252,7 +252,16 @@ class EvolutionaryAlgorithm(Experiment):
                 # Append to the CSV file without reading it first
                 df.to_csv(table_name, mode="a", header=not file_exists, index=False)
 
+        if self.config.save_results:
+            table_name = self._get_results_table_name()
+            custom_logger.save_run_results(table_name=table_name)
+
         return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
+
+    def _get_results_table_name(self) -> str:
+        directory = os.path.join(self.config.results_path, "ea_results")
+        os.makedirs(directory, exist_ok=True)
+        return os.path.join(directory, self.config.wandb_logger_name, f"pop_logs_{self.config.process_idx}.csv")
 
     def _get_logger_table_name(self, instance_id: int) -> str:
         """Path will be logs_path/ea_logs/wandb_logger_name/id_timestamp.csv"""

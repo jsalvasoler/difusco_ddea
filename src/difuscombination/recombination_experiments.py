@@ -6,13 +6,13 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 import torch
-import wandb
 from config.myconfig import Config
 from ea.ea_runner import ea_factory
 from evotorch.operators import CrossOver
 from problems.mis.mis_instance import create_mis_instance
 from torch_geometric.loader import DataLoader
 
+import wandb
 from difusco.experiment_runner import Experiment, ExperimentRunner
 from difusco.sampler import DifuscoSampler
 from difuscombination.dataset import MISDatasetComb

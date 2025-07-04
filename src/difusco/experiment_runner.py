@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 import torch
+
 import wandb
 
 if TYPE_CHECKING:
@@ -49,6 +50,8 @@ class ExperimentRunner:
 
         if "save_results" not in self.config:
             self.config.save_results = False
+        if "save_recombination_results" not in self.config:
+            self.config.save_recombination_results = False
 
     def _validate_config(self) -> None:
         """Validate that the config has all required fields.
@@ -63,7 +66,8 @@ class ExperimentRunner:
             "wandb_logger_name",  # Used for wandb
             "wandb_entity",  # Used for wandb
             "logs_path",  # Used for wandb
-            "save_results",
+            "save_results",  # Used for wandb
+            "save_recombination_results",  # Used for wandb
         ]
 
         for field in required_fields:
@@ -123,7 +127,6 @@ class ExperimentRunner:
         assert self.config.num_processes > 0, "Number of processes must be greater than 0"
 
         for i, sample in tqdm(enumerate(dataloader)):
-            print("hello bin hier")
             if is_validation_run and i >= self.config.validate_samples:
                 break
 
@@ -161,6 +164,7 @@ class ExperimentRunner:
         final_results = self.experiment.get_final_results(results)
         if self.config.save_results or not is_validation_run:
             table_name = self.experiment.get_table_name()
+            print(f"Saving results to {table_name}")
             table_saver = TableSaver(table_name=table_name)
             final_results["wandb_id"] = wandb.run.id if wandb.run is not None else None
             table_saver.put(final_results)

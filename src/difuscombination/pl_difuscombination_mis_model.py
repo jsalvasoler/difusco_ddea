@@ -17,22 +17,34 @@ class DifusCombinationMISModel(MISModelBase):
     def __init__(self, config: Config | None = None) -> None:
         super().__init__(param_args=config)
 
-        self.train_dataset = MISDatasetComb(
-            samples_file=os.path.join(config.data_path, config.training_samples_file),
-            graphs_dir=os.path.join(config.data_path, config.training_graphs_dir),
-            labels_dir=os.path.join(config.data_path, config.training_labels_dir),
+        self.train_dataset = (
+            MISDatasetComb(
+                samples_file=os.path.join(config.data_path, config.training_samples_file),
+                graphs_dir=os.path.join(config.data_path, config.training_graphs_dir),
+                labels_dir=os.path.join(config.data_path, config.training_labels_dir),
+            )
+            if config.training_samples_file is not None
+            else None
         )
 
-        self.test_dataset = MISDatasetComb(
-            samples_file=os.path.join(config.data_path, config.test_samples_file),
-            graphs_dir=os.path.join(config.data_path, config.test_graphs_dir),
-            labels_dir=os.path.join(config.data_path, config.test_labels_dir),
+        self.test_dataset = (
+            MISDatasetComb(
+                samples_file=os.path.join(config.data_path, config.test_samples_file),
+                graphs_dir=os.path.join(config.data_path, config.test_graphs_dir),
+                labels_dir=os.path.join(config.data_path, config.test_labels_dir),
+            )
+            if config.test_samples_file is not None
+            else None
         )
 
-        self.validation_dataset = MISDatasetComb(
-            samples_file=os.path.join(config.data_path, config.validation_samples_file),
-            graphs_dir=os.path.join(config.data_path, config.validation_graphs_dir),
-            labels_dir=os.path.join(config.data_path, config.validation_labels_dir),
+        self.validation_dataset = (
+            MISDatasetComb(
+                samples_file=os.path.join(config.data_path, config.validation_samples_file),
+                graphs_dir=os.path.join(config.data_path, config.validation_graphs_dir),
+                labels_dir=os.path.join(config.data_path, config.validation_labels_dir),
+            )
+            if config.validation_samples_file is not None
+            else None
         )
 
         self.config = config

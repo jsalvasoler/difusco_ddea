@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -270,22 +271,39 @@ class MISModelBase(COMetaModel):
         node_labels, edge_index, adj_mat, features = self.process_batch(batch)
 
         stacked_predict_labels = []
+        start_time = time.time()
+        n_times = 0
+        snapshots = []
         for _ in range(self.args.sequential_sampling):
+            assert self.args.time_limit_inf_s is not None, "Time limit must be set"
+            assert self.args.time_limit_inf_s > 0, "Time limit must be greater than 0"
+            if self.args.time_limit_inf_s is not None and time.time() - start_time > self.args.time_limit_inf_s:
+                break
             predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device, features)
             predict_labels = predict_labels.cpu().detach().numpy()
             stacked_predict_labels.append(predict_labels)
+            snapshots.append(time.time() - start_time)
+            n_times += 1
 
         predict_labels = np.concatenate(stacked_predict_labels, axis=0)
-        all_sampling = self.args.sequential_sampling * self.args.parallel_sampling
+        all_sampling = self.args.parallel_sampling * n_times
 
         splitted_predict_labels = np.split(predict_labels, all_sampling)
         solved_solutions = [mis_decode_np(predict_labels, adj_mat) for predict_labels in splitted_predict_labels]
         solved_costs = [solved_solution.sum() for solved_solution in solved_solutions]
+
+        for i in range(n_times):
+            to_log = max(solved_costs[: (i + 1) * self.args.parallel_sampling])
+            self.log(f"{split}/step_{i}/best_cost", to_log)
+            self.log(f"{split}/step_{i}/time", snapshots[i])
+
         best_solved_cost = np.max(solved_costs)
 
         gt_cost = node_labels.cpu().numpy().sum()
         metrics = {
             f"{split}/gt_cost": gt_cost,
+            f"{split}/inf_runtime": time.time() - start_time,
+            f"{split}/n_generated_samples": len(stacked_predict_labels),
         }
 
         for k, v in metrics.items():
