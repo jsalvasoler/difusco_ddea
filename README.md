@@ -110,9 +110,80 @@ We now guide you through the main workflows of the project.
 
 Assume we want to test or train a simple Difusco model on a set of high-quality labels. In this case, take a look at the `src/cli_tools/scripts/train.sh` script. It is a bash script that runs the `hatch run cli difusco run-difusco` command with the appropriate arguments. You will need to modify parameters such as dataset paths, model configuration, batch size, and learning rate to match your specific requirements.
 
+Example usage:
+```bash
+# Modify parameters in train.sh first:
+# - dataset_name: Dataset to use (e.g., er_700_800)
+# - diffusion_type: Type of diffusion model (e.g., gaussian)
+# - Uncomment either --do_train or --do_test based on your needs
+
+./src/cli_tools/bash_scripts/train.sh
+```
+
+Key parameters in the script:
+```bash
+# Core parameters
+--task "mis"                         # Problem type (mis, tsp)
+--diffusion_type "gaussian"          # Type of diffusion model
+--do_train                           # Enable training mode
+--do_test                            # Enable testing mode
+--learning_rate 0.0002               # Learning rate for training
+--weight_decay 0.0001                # Weight decay for optimizer
+--batch_size 4                       # Batch size for training
+--num_epochs 50                      # Number of training epochs
+
+# Data paths
+--data_path "/path/to/data"          # Base data directory
+--training_split "mis/er_700_800/train"  # Training data directory
+--validation_split "mis/er_700_800/test" # Validation data directory
+--test_split "mis/er_700_800/test"       # Test data directory
+
+# Model configuration
+--inference_schedule "cosine"        # Diffusion schedule
+--inference_diffusion_steps 50       # Number of diffusion steps
+--parallel_sampling 8                # Number of parallel samples
+--ckpt_path "mis/mis_er_700_800_gaussian.ckpt" # Model checkpoint path
+```
+
 ### 2. Run the evolutionary algorithm
 
-We can run the evolutionary algorithm by running the `src/cli_tools/bash_scripts/evo.sh` script. It is a bash script that runs the `hatch run cli ea run-ea` command with the appropriate arguments. For the full DEA, a Difusco and a diffusion recombination model need to be specified through the `--cktp_path` and `--ckpt_path_difuscombination` arguments, respectively. You should modify evolutionary parameters like population size, number of generations, mutation rates, and model paths according to your specific experimental setup.
+We can run the evolutionary algorithm by running the `src/cli_tools/bash_scripts/evo.sh` script. It is a bash script that runs the `hatch run cli ea run-ea` command with the appropriate arguments. For the full DEA, a Difusco and a diffusion recombination model need to be specified through the `--cktp_path` and `--ckpt_path_difuscombination` arguments, respectively.
+
+Example usage:
+```bash
+# Run the evolutionary algorithm with required parameters
+./src/cli_tools/bash_scripts/evo.sh er_700_800 difusco tournament 50 0 1 24
+
+# Parameters:
+# $1: dataset name (e.g., er_700_800)
+# $2: initialization method (e.g., difusco, random)
+# $3: recombination method (e.g., tournament, optimal, difusco)
+# $4: number of generations (e.g., 50)
+# $5: process index for parallel runs (e.g., 0)
+# $6: total number of processes (e.g., 1)
+# $7: population size (optional, default=24)
+```
+
+Key parameters in the script:
+```bash
+# Evolutionary algorithm parameters
+--task "mis"                          # Problem type (mis, tsp)
+--algo "ga"                           # Algorithm type
+--pop_size 24                         # Population size
+--n_generations 50                    # Number of generations
+--initialization difusco              # Initialization method (random, difusco)
+--recombination tournament            # Recombination method (crossover, tournament, optimal, difusco)
+--selection_method "tournament_unique" # Selection method
+
+# Model paths and configuration
+--ckpt_path "mis/mis_er_700_800_gaussian.ckpt" # Difusco model path
+--ckpt_path_difuscombination "difuscombination/mis_er_700_800_gaussian_new.ckpt" # Recombination model
+--inference_diffusion_steps 50        # Number of diffusion steps
+
+# Data paths
+--data_path "/path/to/data"           # Base data directory
+--test_split "mis/er_700_800/test"    # Test data directory
+```
 
 ### 3. Generate a train or test set for the diffusion recombination model
 
@@ -120,20 +191,61 @@ We do this by running the evolutionary algorithm with the optimal recombination,
 
 This is done by running the `src/cli_tools/bash_scripts/evo.sh` script with the `--save_recombination_results` argument set to `True`.
 
+Example usage:
+```bash
+# First, run the evolutionary algorithm with optimal recombination and save results
+./src/cli_tools/bash_scripts/evo.sh er_700_800 difusco optimal 10 0 1 24 --save_recombination_results True
+
+```
+
 Finally, we need to aggregate the results in order to generate the train and test sets for the diffusion recombination model. This is done by running the following command, which should be customized with your specific paths and parameters:
 
 ```bash
-python src/data/build_difuscombination_dataset.py
- --which er_700_800 # which dataset to use (replace with your target dataset)
- --split train # train or test
- --data_dir data # where to save the final dataset (adjust to your data directory)
- --raw_data_dir data # containing the results of the evolutionary algorithm (adjust to your results directory)
- --n_select 20 # number of random examples to select for each instance (adjust as needed)
+python src/data/build_difuscombination_dataset.py \
+ --which er_700_800 \            # which dataset to use (e.g., er_700_800)
+ --split train \                 # split type (train or test)
+ --data_dir data \               # where to save the final dataset
+ --raw_data_dir data \           # directory containing the results of the evolutionary algorithm
+ --n_select 20                   # number of random examples to select for each instance
 ```
 
 ### 4. Train or test a diffusion recombination model
 
-We provide the script `src/cli_tools/bash_scripts/train_difuscombination.sh` to train or test a diffusion recombination model. It is a bash script that runs the `hatch run cli difuscombination run-difuscombination` command with the appropriate arguments. It works very similarly to the basic train / test script for Difusco. You will need to modify parameters such as dataset paths, model configuration, training hyperparameters, and output directories to match your specific requirements.
+We provide the script `src/cli_tools/bash_scripts/train_difuscombination.sh` to train or test a diffusion recombination model. It is a bash script that runs the `hatch run cli difuscombination run-difuscombination` command with the appropriate arguments.
+
+Example usage:
+```bash
+# Modify parameters in train_difuscombination.sh first:
+# - dataset: Dataset to use (e.g., er_50_100, er_300_400, er_700_800)
+# - batch_size: Batch size for training
+# - num_epochs: Number of training epochs
+
+./src/cli_tools/bash_scripts/train_difuscombination.sh
+```
+
+Key parameters in the script:
+```bash
+# Core parameters
+--task "mis"                        # Problem type (mis, tsp)
+--diffusion_type "gaussian"         # Type of diffusion model
+--do_train                          # Enable training mode
+--do_test                           # Enable testing mode
+--learning_rate 0.0002              # Learning rate for training
+--weight_decay 0.0001               # Weight decay for optimizer
+--batch_size 32                     # Batch size for training
+--num_epochs 50                     # Number of training epochs
+
+# Data paths
+--data_path "data"                  # Base data directory
+--training_graphs_dir "mis/er_50_100/train"      # Training graphs directory
+--training_samples_file "difuscombination/mis/er_50_100/train"  # Training samples
+--test_graphs_dir "mis/er_50_100/test"           # Test graphs directory
+--test_samples_file "difuscombination/mis/er_50_100/test"       # Test samples
+
+# Model configuration
+--inference_schedule "cosine"       # Diffusion schedule
+--inference_diffusion_steps 50      # Number of diffusion steps
+```
 
 ## Testing
 
