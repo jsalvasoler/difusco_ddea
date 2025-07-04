@@ -63,7 +63,9 @@ class MISModelBase(COMetaModel):
 
         return node_labels, edge_index, adj_mat, features
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor, **kwargs) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor, **kwargs
+    ) -> torch.Tensor:
         """We pass kwargs since difuscombination needs extra arguments."""
         return self.model(x, t, edge_index=edge_index, **kwargs)
 
@@ -79,7 +81,9 @@ class MISModelBase(COMetaModel):
         node_labels_onehot = one_hot(node_labels.long(), num_classes=2).float()
         node_labels_onehot = node_labels_onehot.unsqueeze(1).unsqueeze(1)
 
-        t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(int)
+        t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(
+            int
+        )
         t = torch.from_numpy(t).long()
         t = t.repeat_interleave(point_indicator.reshape(-1).cpu(), dim=0).numpy()
 
@@ -134,7 +138,9 @@ class MISModelBase(COMetaModel):
         node_labels = node_labels * (1.0 + 0.05 * torch.rand_like(node_labels))
         node_labels = node_labels.unsqueeze(1).unsqueeze(1)
 
-        t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(int)
+        t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(
+            int
+        )
         t = torch.from_numpy(t).long()
         t = t.repeat_interleave(point_indicator.reshape(-1).cpu(), dim=0).numpy()
         xt, epsilon = self.diffusion.sample(node_labels, t)
@@ -174,7 +180,9 @@ class MISModelBase(COMetaModel):
                 xt.float().to(device),
                 t.float().to(device),
                 features=features.float().to(device) if features is not None else None,
-                edge_index=edge_index.long().to(device) if edge_index is not None else None,
+                edge_index=edge_index.long().to(device)
+                if edge_index is not None
+                else None,
             )
             x0_pred_prob = x0_pred.reshape((1, xt.shape[0], -1, 2)).softmax(dim=-1)
             return self.categorical_posterior(target_t, t, x0_pred_prob, xt)
@@ -194,7 +202,9 @@ class MISModelBase(COMetaModel):
                 xt.float().to(device),
                 t.float().to(device),
                 features=features.float().to(device) if features is not None else None,
-                edge_index=edge_index.long().to(device) if edge_index is not None else None,
+                edge_index=edge_index.long().to(device)
+                if edge_index is not None
+                else None,
             )
             pred = pred.squeeze(1)
             return self.gaussian_posterior(target_t, t, pred, xt)
@@ -214,7 +224,9 @@ class MISModelBase(COMetaModel):
         where num_nodes is the number of nodes in the graph. Otherwise, the output has shape (num_nodes,).
         """
         if self.args.parallel_sampling > 1:
-            xt = torch.randn((self.args.parallel_sampling, n_nodes), device=device, dtype=torch.float)
+            xt = torch.randn(
+                (self.args.parallel_sampling, n_nodes), device=device, dtype=torch.float
+            )
         else:
             xt = torch.randn(n_nodes, device=device, dtype=torch.float)
 
@@ -232,7 +244,9 @@ class MISModelBase(COMetaModel):
 
         steps = self.args.inference_diffusion_steps
         time_schedule = InferenceSchedule(
-            inference_schedule=self.args.inference_schedule, T=self.diffusion.T, inference_T=steps
+            inference_schedule=self.args.inference_schedule,
+            T=self.diffusion.T,
+            inference_T=steps,
         )
 
         # Diffusion iterations
@@ -242,9 +256,13 @@ class MISModelBase(COMetaModel):
             t2 = np.array([t2]).astype(int)
 
             if self.diffusion_type == "gaussian":
-                xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2, features=features)
+                xt = self.gaussian_denoise_step(
+                    xt, t1, device, edge_index, target_t=t2, features=features
+                )
             else:
-                xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2, features=features)
+                xt = self.categorical_denoise_step(
+                    xt, t1, device, edge_index, target_t=t2, features=features
+                )
 
         if self.diffusion_type == "gaussian":  # noqa: SIM108
             predict_labels = xt.float() * 0.5 + 0.5
@@ -277,9 +295,14 @@ class MISModelBase(COMetaModel):
         for _ in range(self.args.sequential_sampling):
             assert self.args.time_limit_inf_s is not None, "Time limit must be set"
             assert self.args.time_limit_inf_s > 0, "Time limit must be greater than 0"
-            if self.args.time_limit_inf_s is not None and time.time() - start_time > self.args.time_limit_inf_s:
+            if (
+                self.args.time_limit_inf_s is not None
+                and time.time() - start_time > self.args.time_limit_inf_s
+            ):
                 break
-            predict_labels = self.diffusion_sample(node_labels.shape[0], edge_index, device, features)
+            predict_labels = self.diffusion_sample(
+                node_labels.shape[0], edge_index, device, features
+            )
             predict_labels = predict_labels.cpu().detach().numpy()
             stacked_predict_labels.append(predict_labels)
             snapshots.append(time.time() - start_time)
@@ -289,7 +312,10 @@ class MISModelBase(COMetaModel):
         all_sampling = self.args.parallel_sampling * n_times
 
         splitted_predict_labels = np.split(predict_labels, all_sampling)
-        solved_solutions = [mis_decode_np(predict_labels, adj_mat) for predict_labels in splitted_predict_labels]
+        solved_solutions = [
+            mis_decode_np(predict_labels, adj_mat)
+            for predict_labels in splitted_predict_labels
+        ]
         solved_costs = [solved_solution.sum() for solved_solution in solved_solutions]
 
         for i in range(n_times):
@@ -308,7 +334,13 @@ class MISModelBase(COMetaModel):
 
         for k, v in metrics.items():
             self.log(k, v, on_epoch=True, sync_dist=True)
-        self.log(f"{split}/solved_cost", best_solved_cost, prog_bar=True, on_epoch=True, sync_dist=True)
+        self.log(
+            f"{split}/solved_cost",
+            best_solved_cost,
+            prog_bar=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         self.test_outputs.append(metrics)
 

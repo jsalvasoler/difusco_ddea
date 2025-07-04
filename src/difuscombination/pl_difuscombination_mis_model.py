@@ -19,7 +19,9 @@ class DifusCombinationMISModel(MISModelBase):
 
         self.train_dataset = (
             MISDatasetComb(
-                samples_file=os.path.join(config.data_path, config.training_samples_file),
+                samples_file=os.path.join(
+                    config.data_path, config.training_samples_file
+                ),
                 graphs_dir=os.path.join(config.data_path, config.training_graphs_dir),
                 labels_dir=os.path.join(config.data_path, config.training_labels_dir),
             )
@@ -39,7 +41,9 @@ class DifusCombinationMISModel(MISModelBase):
 
         self.validation_dataset = (
             MISDatasetComb(
-                samples_file=os.path.join(config.data_path, config.validation_samples_file),
+                samples_file=os.path.join(
+                    config.data_path, config.validation_samples_file
+                ),
                 graphs_dir=os.path.join(config.data_path, config.validation_graphs_dir),
                 labels_dir=os.path.join(config.data_path, config.validation_labels_dir),
             )

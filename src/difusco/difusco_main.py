@@ -49,7 +49,9 @@ def difusco(args: Namespace) -> None:
         save_dir=args.logs_path,
         id=args.resume_id or wandb_id,
     )
-    rank_zero_info(f"Logging to {wandb_logger.save_dir}/{wandb_logger.name}/{wandb_logger.version}")
+    rank_zero_info(
+        f"Logging to {wandb_logger.save_dir}/{wandb_logger.name}/{wandb_logger.version}"
+    )
 
     checkpoint_callback = ModelCheckpoint(
         monitor=monitor,
@@ -76,9 +78,11 @@ def difusco(args: Namespace) -> None:
         precision=16 if args.fp16 else 32,
     )
 
-    rank_zero_info(f"{'-' * 100}\n" f"{model.model!s}\n" f"{'-' * 100}\n")
+    rank_zero_info(f"{'-' * 100}\n{model.model!s}\n{'-' * 100}\n")
 
-    ckpt_path = os.path.join(args.models_path, args.ckpt_path) if args.ckpt_path else None
+    ckpt_path = (
+        os.path.join(args.models_path, args.ckpt_path) if args.ckpt_path else None
+    )
 
     if args.do_train:
         if args.resume_weight_only:

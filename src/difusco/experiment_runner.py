@@ -123,8 +123,12 @@ class ExperimentRunner:
         ctx = mp.get_context("spawn")
 
         # validate process_idx and num_processes
-        assert 0 <= self.config.process_idx < self.config.num_processes, "Invalid process index"
-        assert self.config.num_processes > 0, "Number of processes must be greater than 0"
+        assert 0 <= self.config.process_idx < self.config.num_processes, (
+            "Invalid process index"
+        )
+        assert self.config.num_processes > 0, (
+            "Number of processes must be greater than 0"
+        )
 
         for i, sample in tqdm(enumerate(dataloader)):
             if is_validation_run and i >= self.config.validate_samples:
@@ -133,7 +137,9 @@ class ExperimentRunner:
             if i % self.config.num_processes != self.config.process_idx:
                 continue
 
-            print(f"process_idx {self.config.process_idx} processing sample {i} of {len(dataloader)}")
+            print(
+                f"process_idx {self.config.process_idx} processing sample {i} of {len(dataloader)}"
+            )
 
             queue = ctx.Queue()
             process = ctx.Process(target=self.process_iteration, args=(sample, queue))

@@ -19,7 +19,9 @@ def mis_decode_np(predictions: np.ndarray, adj_matrix: sp.csr_matrix) -> np.ndar
     return (solution == 1).astype(int)
 
 
-def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> torch.Tensor:
+def mis_decode_torch(
+    predictions: torch.Tensor, adj_matrix: torch.Tensor
+) -> torch.Tensor:
     """
     Decode the labels to the MIS using PyTorch tensors.
 
@@ -32,7 +34,9 @@ def mis_decode_torch(predictions: torch.Tensor, adj_matrix: torch.Tensor) -> tor
     """
 
     # Initialize solution tensor on the same device as predictions.
-    solution = torch.zeros_like(predictions, dtype=torch.int, device=predictions.device).clone()
+    solution = torch.zeros_like(
+        predictions, dtype=torch.int, device=predictions.device
+    ).clone()
 
     # Get sorted indices of predictions in descending order.
     sorted_predict_labels = torch.argsort(-predictions)
@@ -127,14 +131,18 @@ def mis_decode_torch_batched(
         current_valid_nodes = current_nodes[valid]  # Shape: [num_valid]
 
         # 2. Get neighbors for these nodes (with padding)
-        neighbors = neighbors_padded[current_valid_nodes]  # Shape: [num_valid, max_degree]
+        neighbors = neighbors_padded[
+            current_valid_nodes
+        ]  # Shape: [num_valid, max_degree]
 
         # 3. Create mask for valid neighbors (ignore -1 padding)
         mask = neighbors != -1
 
         # 4. Compute indices to invalidate
         # - Repeat batch indices for each valid neighbor
-        batch_indices = torch.repeat_interleave(valid_batch, degrees[current_valid_nodes])
+        batch_indices = torch.repeat_interleave(
+            valid_batch, degrees[current_valid_nodes]
+        )
         # - Flatten and filter neighbor indices
         neighbor_indices = neighbors[mask]
 

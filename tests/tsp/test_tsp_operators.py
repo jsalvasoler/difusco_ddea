@@ -66,7 +66,10 @@ def test_batched_two_opt_torch(input_type: str) -> None:
         for perm in permutations(range(1, 4)):
             # compute cost
             tour = [0, *list(perm)]
-            cost = sum(dist[tour[i], tour[i + 1]] for i in range(len(tour) - 1)) + dist[tour[-1], tour[0]]
+            cost = (
+                sum(dist[tour[i], tour[i + 1]] for i in range(len(tour) - 1))
+                + dist[tour[-1], tour[0]]
+            )
             if cost < min_cost:
                 min_cost = cost
                 min_tour = tour
@@ -78,13 +81,17 @@ def test_batched_two_opt_torch(input_type: str) -> None:
     print(min_tour)
     print(f"Cost: {min_cost}")
 
-    batched_tours = np.array([[0, 1, 2, 3, 0], [3, 2, 1, 0, 3], [0, 1, 3, 2, 0], [0, 2, 3, 1, 0]], dtype=int)
+    batched_tours = np.array(
+        [[0, 1, 2, 3, 0], [3, 2, 1, 0, 3], [0, 1, 3, 2, 0], [0, 2, 3, 1, 0]], dtype=int
+    )
 
     if input_type == "torch":
         coords = torch.from_numpy(coords)
         batched_tours = torch.from_numpy(batched_tours)
 
-    solved_tours, iterations = batched_two_opt_torch(coords, batched_tours, max_iterations=1000)
+    solved_tours, iterations = batched_two_opt_torch(
+        coords, batched_tours, max_iterations=1000
+    )
     print("\nSolved Tours:")
     print(solved_tours)
     print(f"Total 2-opt iterations: {iterations}")
@@ -100,7 +107,9 @@ def test_batched_two_opt_torch(input_type: str) -> None:
     for tour in solved_tours:
         edges = np.array([tour[i : i + 2] for i in range(len(tour) - 1)])
         edges += edges[:, ::-1]
-        assert sorted(edges.tolist()) == sorted(edges_min_cost.tolist()), f"{edges} != {edges_min_cost}"
+        assert sorted(edges.tolist()) == sorted(edges_min_cost.tolist()), (
+            f"{edges} != {edges_min_cost}"
+        )
 
 
 def test_build_edge_lists(parent_tensors: dict) -> None:
@@ -177,7 +186,9 @@ def test_edge_recombination_small_example() -> None:
     instance = TSPInstance(
         points=torch.rand(9, 2),
         edge_index=None,  # dense graph
-        gt_tour=torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 0]),  # irrelevant for the example
+        gt_tour=torch.tensor(
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 0]
+        ),  # irrelevant for the example
     )
 
     A = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 0])
@@ -209,7 +220,9 @@ def test_edge_recombination_small_example() -> None:
     edge_lists_np = edge_lists.numpy()[0]
     # check that sorted and unduplicated lists are equal
     for i in range(edge_lists_np.shape[0]):
-        assert sorted(set(edge_lists_np[i])) == sorted(expected_edge_lists[i]), f"Edge list {i} does not match"
+        assert sorted(set(edge_lists_np[i])) == sorted(expected_edge_lists[i]), (
+            f"Edge list {i} does not match"
+        )
 
     # We start from same node as parent1, which is 0
     visited = torch.zeros(1, 9, dtype=torch.bool)

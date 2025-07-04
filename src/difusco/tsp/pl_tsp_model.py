@@ -55,7 +55,13 @@ class TSPModel(COMetaModel):
             else None
         )
 
-    def forward(self, x: torch.Tensor, adj: torch.Tensor, t: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        adj: torch.Tensor,
+        t: torch.Tensor,
+        edge_index: torch.Tensor,
+    ) -> torch.Tensor:
         return self.model(x, t, adj, edge_index)
 
     def categorical_training_step(self, batch: tuple, batch_idx: int) -> torch.Tensor:  # noqa: ARG002
@@ -76,7 +82,9 @@ class TSPModel(COMetaModel):
             t = np.random.randint(1, self.diffusion.T + 1, points.shape[0]).astype(int)
         else:
             _, graph_data, point_indicator, edge_indicator, _ = batch
-            t = np.random.randint(1, self.diffusion.T + 1, point_indicator.shape[0]).astype(int)
+            t = np.random.randint(
+                1, self.diffusion.T + 1, point_indicator.shape[0]
+            ).astype(int)
             route_edge_flags = graph_data.edge_attr
             points = graph_data.x
             edge_index = graph_data.edge_index
@@ -120,7 +128,9 @@ class TSPModel(COMetaModel):
     def gaussian_training_step(self, batch: tuple, batch_idx: int) -> torch.Tensor:  # noqa: ARG002
         if self.sparse:
             # TODO: Implement Gaussian diffusion with sparse graphs
-            error_msg = "DIFUSCO with sparse graphs are not supported for Gaussian diffusion"
+            error_msg = (
+                "DIFUSCO with sparse graphs are not supported for Gaussian diffusion"
+            )
             raise ValueError(error_msg)
         _, points, adj_matrix, _ = batch
 
@@ -172,9 +182,13 @@ class TSPModel(COMetaModel):
             )
 
             if not self.sparse:
-                x0_pred_prob = x0_pred.permute((0, 2, 3, 1)).contiguous().softmax(dim=-1)
+                x0_pred_prob = (
+                    x0_pred.permute((0, 2, 3, 1)).contiguous().softmax(dim=-1)
+                )
             else:
-                x0_pred_prob = x0_pred.reshape((1, points.shape[0], -1, 2)).softmax(dim=-1)
+                x0_pred_prob = x0_pred.reshape((1, points.shape[0], -1, 2)).softmax(
+                    dim=-1
+                )
 
             return self.categorical_posterior(target_t, t, x0_pred_prob, xt)
 
@@ -221,7 +235,15 @@ class TSPModel(COMetaModel):
         np_points = points.cpu().numpy()
         np_gt_tour = gt_tour.cpu().numpy().reshape(-1)
         np_edge_index = edge_index.cpu().numpy()
-        return real_batch_idx, edge_index, np_edge_index, points, adj_matrix, np_points, np_gt_tour
+        return (
+            real_batch_idx,
+            edge_index,
+            np_edge_index,
+            points,
+            adj_matrix,
+            np_points,
+            np_gt_tour,
+        )
 
     def process_batch(self, batch: tuple) -> tuple:
         if not self.sparse:
@@ -243,7 +265,9 @@ class TSPModel(COMetaModel):
         if not self.sparse:
             xt_shape = (self.args.parallel_sampling, points.shape[1], points.shape[1])
         else:
-            sparse_dim = points.shape[0] // self.args.parallel_sampling * self.args.sparse_factor
+            sparse_dim = (
+                points.shape[0] // self.args.parallel_sampling * self.args.sparse_factor
+            )
             xt_shape = (self.args.parallel_sampling, sparse_dim)
 
         xt = torch.randn(*xt_shape, device=device, dtype=torch.float)
@@ -270,9 +294,13 @@ class TSPModel(COMetaModel):
             t2 = np.array([t2]).astype(int)
 
             if self.diffusion_type == "gaussian":
-                xt = self.gaussian_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
+                xt = self.gaussian_denoise_step(
+                    points, xt, t1, device, edge_index, target_t=t2
+                )
             else:
-                xt = self.categorical_denoise_step(points, xt, t1, device, edge_index, target_t=t2)
+                xt = self.categorical_denoise_step(
+                    points, xt, t1, device, edge_index, target_t=t2
+                )
 
         if self.diffusion_type == "gaussian":
             adj_mat = xt.cpu().detach().numpy() * 0.5 + 0.5
@@ -289,14 +317,24 @@ class TSPModel(COMetaModel):
     ) -> None:
         device = batch[-1].device
 
-        real_batch_idx, edge_index, np_edge_index, points, adj_matrix, np_points, np_gt_tour = self.process_batch(batch)
+        (
+            real_batch_idx,
+            edge_index,
+            np_edge_index,
+            points,
+            adj_matrix,
+            np_points,
+            np_gt_tour,
+        ) = self.process_batch(batch)
 
         if self.args.parallel_sampling > 1:
             if not self.sparse:
                 points = points.repeat(self.args.parallel_sampling, 1, 1)
             else:
                 points = points.repeat(self.args.parallel_sampling, 1)
-                edge_index = self.duplicate_edge_index(edge_index, np_points.shape[0], device)
+                edge_index = self.duplicate_edge_index(
+                    edge_index, np_points.shape[0], device
+                )
 
         stacked_tours = []
         for _ in range(self.args.sequential_sampling):
@@ -329,7 +367,9 @@ class TSPModel(COMetaModel):
         gt_cost = tsp_solver.evaluate(np_gt_tour)
 
         total_sampling = self.args.parallel_sampling * self.args.sequential_sampling
-        all_solved_costs = [tsp_solver.evaluate(solved_tours[i]) for i in range(total_sampling)]
+        all_solved_costs = [
+            tsp_solver.evaluate(solved_tours[i]) for i in range(total_sampling)
+        ]
         best_solved_cost = np.min(all_solved_costs)
 
         metrics = {
@@ -339,27 +379,45 @@ class TSPModel(COMetaModel):
         }
         for k, v in metrics.items():
             self.log(k, v, on_epoch=True, sync_dist=True)
-        self.log(f"{split}/solved_cost", best_solved_cost, prog_bar=True, on_epoch=True, sync_dist=True)
+        self.log(
+            f"{split}/solved_cost",
+            best_solved_cost,
+            prog_bar=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         self.test_outputs.append(metrics)
 
     def run_save_numpy_heatmap(
-        self, adj_mat: torch.Tensor, np_points: np.ndarray, real_batch_idx: torch.Tensor, split: Literal["val", "test"]
+        self,
+        adj_mat: torch.Tensor,
+        np_points: np.ndarray,
+        real_batch_idx: torch.Tensor,
+        split: Literal["val", "test"],
     ) -> None:
         if self.args.parallel_sampling > 1 or self.args.sequential_sampling > 1:
             msg = "Save numpy heatmap only support single sampling"
             raise NotImplementedError(msg)
 
         heatmap_path = os.path.join(
-            self.logger.save_dir, self.args.wandb_logger_name, self.logger.version, "numpy_heatmap"
+            self.logger.save_dir,
+            self.args.wandb_logger_name,
+            self.logger.version,
+            "numpy_heatmap",
         )
 
         rank_zero_info(f"Saving heatmap to {heatmap_path}")
         os.makedirs(heatmap_path, exist_ok=True)
 
         real_batch_idx = real_batch_idx.cpu().numpy().reshape(-1)[0]
-        np.save(os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat)
-        np.save(os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"), np_points)
+        np.save(
+            os.path.join(heatmap_path, f"{split}-heatmap-{real_batch_idx}.npy"), adj_mat
+        )
+        np.save(
+            os.path.join(heatmap_path, f"{split}-points-{real_batch_idx}.npy"),
+            np_points,
+        )
 
     def validation_step(self, batch: tuple, batch_idx: int) -> dict:
         return self.test_step(batch, batch_idx, split="val")

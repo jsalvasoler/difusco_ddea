@@ -28,7 +28,14 @@ def test_gurobi_optimal_solve() -> None:
 
 # Tests for direct use of maximum_weighted_independent_set
 @pytest.mark.parametrize(
-    "param_type", ["starting_solution", "fix_selection", "fix_unselection", "local_branching", "desired_cost"]
+    "param_type",
+    [
+        "starting_solution",
+        "fix_selection",
+        "fix_unselection",
+        "local_branching",
+        "desired_cost",
+    ],
 )
 def test_direct_mwis_parameters(param_type: str) -> None:
     """Test maximum_weighted_independent_set directly with different parameters."""
@@ -67,13 +74,17 @@ def test_direct_mwis_parameters(param_type: str) -> None:
         fix_unselection = np.setdiff1d(all_nodes, union)
         if len(fix_unselection) == 0:
             # If all nodes are in the union, just pick some nodes not in solution_1
-            fix_unselection = np.setdiff1d(all_nodes, solution_1)[: min(5, instance.n_nodes - len(solution_1))]
+            fix_unselection = np.setdiff1d(all_nodes, solution_1)[
+                : min(5, instance.n_nodes - len(solution_1))
+            ]
         params["fix_unselection"] = fix_unselection
 
     elif param_type == "local_branching":
         # Test with local branching
         k_factor = 1.5
-        n_diff = len(np.setdiff1d(solution_1, solution_2)) + len(np.setdiff1d(solution_2, solution_1))
+        n_diff = len(np.setdiff1d(solution_1, solution_2)) + len(
+            np.setdiff1d(solution_2, solution_1)
+        )
         k = int(n_diff * k_factor)
         local_branching = LocalBranching(k=k, sol_1=solution_1, sol_2=solution_2)
         params["local_branching"] = local_branching
@@ -94,8 +105,12 @@ def test_direct_mwis_parameters(param_type: str) -> None:
 
     # Check that result is not None and has expected properties
     assert result is not None, f"MWIS solver failed with {param_type} parameter"
-    assert hasattr(result, "x"), "Result should have an 'x' attribute with the solution nodes"
-    assert hasattr(result, "f"), "Result should have an 'f' attribute with the objective value"
+    assert hasattr(result, "x"), (
+        "Result should have an 'x' attribute with the solution nodes"
+    )
+    assert hasattr(result, "f"), (
+        "Result should have an 'f' attribute with the objective value"
+    )
 
     # Additional assertions based on parameter type
     if param_type == "fix_selection" and "fix_selection" in params:
@@ -110,9 +125,9 @@ def test_direct_mwis_parameters(param_type: str) -> None:
 
     if param_type == "desired_cost" and "desired_cost" in params:
         # The solution size should match the desired cost
-        assert (
-            abs(result.f - params["desired_cost"]) < 1e-6
-        ), f"Solution cost {result.f} doesn't match desired cost {params['desired_cost']}"
+        assert abs(result.f - params["desired_cost"]) < 1e-6, (
+            f"Solution cost {result.f} doesn't match desired cost {params['desired_cost']}"
+        )
 
     if param_type == "local_branching" and "local_branching" in params:
         # hamming(x, solution_1) + hamming(x, solution_2) <= k
@@ -144,7 +159,9 @@ def is_independent_set(instance: MISInstance, solution: np.ndarray) -> bool:
     return True
 
 
-def hamming_distance(solution_1: np.ndarray, solution_2: np.ndarray, n_nodes: int) -> int:
+def hamming_distance(
+    solution_1: np.ndarray, solution_2: np.ndarray, n_nodes: int
+) -> int:
     """Calculate the Hamming distance between two solutions."""
     # Convert to binary arrays
     binary_1 = np.zeros(n_nodes)

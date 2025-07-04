@@ -9,7 +9,9 @@ import torch
 from torch.optim.lr_scheduler import LambdaLR
 
 
-def get_schedule_fn(scheduler: str, num_training_steps: int) -> Callable[[torch.optim.Optimizer], LambdaLR]:
+def get_schedule_fn(
+    scheduler: str, num_training_steps: int
+) -> Callable[[torch.optim.Optimizer], LambdaLR]:
     """
     Returns a callable scheduler_fn(optimizer).
     """
@@ -31,7 +33,9 @@ def get_schedule_fn(scheduler: str, num_training_steps: int) -> Callable[[torch.
     return scheduler_fn
 
 
-def get_one_cycle(optimizer: torch.optim.Optimizer, num_training_steps: int) -> LambdaLR:
+def get_one_cycle(
+    optimizer: torch.optim.Optimizer, num_training_steps: int
+) -> LambdaLR:
     """
     Simple single-cycle scheduler. Not including paper/fastai three-phase things or asymmetry.
     """

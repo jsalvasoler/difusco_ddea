@@ -52,7 +52,11 @@ class TSPGAProblem(Problem):
             shape = (self.instance.n * self.config.sparse_factor,)
 
         for i in range(values.shape[0]):
-            random_heatmap = np.ones(shape, dtype=np.float32) if i == 0 else np.random.rand(*shape).astype(np.float32)
+            random_heatmap = (
+                np.ones(shape, dtype=np.float32)
+                if i == 0
+                else np.random.rand(*shape).astype(np.float32)
+            )
             values[i] = self.instance.get_tour_from_adjacency_np_heatmap(random_heatmap)
 
     def _fill_difusco_sampling(self, values: torch.Tensor) -> None:
@@ -61,18 +65,26 @@ class TSPGAProblem(Problem):
         """
         sampler = DifuscoSampler(self.config)
         popsize = self.config.pop_size
-        assert popsize == values.shape[0], "Population size must match the number of solutions"
+        assert popsize == values.shape[0], (
+            "Population size must match the number of solutions"
+        )
 
         assert (
             self.config.parallel_sampling * self.config.sequential_sampling == popsize
         ), "Population size must match the number of solutions"
-        heatmaps = sampler.sample_tsp(batch=None, edge_index=self.instance.edge_index, points=self.instance.points)
+        heatmaps = sampler.sample_tsp(
+            batch=None, edge_index=self.instance.edge_index, points=self.instance.points
+        )
         for i in range(popsize):
-            values[i] = self.instance.get_tour_from_adjacency_np_heatmap(heatmaps[i].cpu().numpy())
+            values[i] = self.instance.get_tour_from_adjacency_np_heatmap(
+                heatmaps[i].cpu().numpy()
+            )
 
 
 class TSPTwoOptMutation(CopyingOperator):
-    def __init__(self, problem: TSPGAProblem, instance: TSPInstance, max_iterations: int = 5) -> None:
+    def __init__(
+        self, problem: TSPGAProblem, instance: TSPInstance, max_iterations: int = 5
+    ) -> None:
         super().__init__(problem)
         self._instance = instance
         self._max_iterations = max_iterations
@@ -81,17 +93,23 @@ class TSPTwoOptMutation(CopyingOperator):
     def _do(self, batch: SolutionBatch) -> SolutionBatch:
         result = deepcopy(batch)
         data = result.access_values()
-        data[:] = self._instance.two_opt_mutation(data, max_iterations=self._max_iterations)
+        data[:] = self._instance.two_opt_mutation(
+            data, max_iterations=self._max_iterations
+        )
         return result
 
 
 class TSPGACrossover(CrossOver):
-    def __init__(self, problem: Problem, instance: TSPInstance, tournament_size: int = 4) -> None:
+    def __init__(
+        self, problem: Problem, instance: TSPInstance, tournament_size: int = 4
+    ) -> None:
         super().__init__(problem, tournament_size=tournament_size)
         self._instance = instance
 
     @no_grad()
-    def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+    def _do_cross_over(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> SolutionBatch:
         """
         Parents are two solutions of shape (batch_size, n_nodes).
 
@@ -109,7 +127,9 @@ class TSPGACrossover(CrossOver):
         return self._make_children_batch(children)
 
 
-def create_tsp_ga(instance: TSPInstance, config: Config, **kwargs: dict) -> GeneticAlgorithm:  # noqa: ARG001
+def create_tsp_ga(
+    instance: TSPInstance, config: Config, **kwargs: dict
+) -> GeneticAlgorithm:  # noqa: ARG001
     problem = TSPGAProblem(instance, config)
 
     return GeneticAlgorithm(

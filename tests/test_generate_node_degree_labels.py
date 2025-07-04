@@ -56,7 +56,9 @@ def test_generate_labels_on_examples(setup_and_teardown: Generator) -> None:
             assert {line.strip() for line in lines}.issubset({"0", "1"})
 
 
-def test_generate_labels_on_ten_and_test_mis_dataset(setup_and_teardown_2: Generator) -> None:
+def test_generate_labels_on_ten_and_test_mis_dataset(
+    setup_and_teardown_2: Generator,
+) -> None:
     opts = setup_and_teardown_2
 
     generate_node_degree_labels(opts)

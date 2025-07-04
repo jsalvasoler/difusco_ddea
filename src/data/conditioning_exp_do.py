@@ -108,7 +108,9 @@ def run_experiment_for_sample(
 
     # Create MIS instance
     instance = create_mis_instance(sample, device="cpu")
-    print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
+    print(
+        f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1] // 2} edges"
+    )
 
     # Create pairs of solutions for batch processing
     solution_pairs = []
@@ -133,10 +135,14 @@ def run_experiment_for_sample(
     num_pairings = parents_1.shape[0]
 
     features = torch.stack([parents_1, parents_2], dim=2)
-    assert features.shape == (num_pairings, instance.n_nodes, 2), "Incorrect features shape"
+    assert features.shape == (num_pairings, instance.n_nodes, 2), (
+        "Incorrect features shape"
+    )
     # we need to reshape the features to (num_pairings * n_nodes, 2)
     features = features.reshape(num_pairings * instance.n_nodes, 2)
-    assert features.shape == (num_pairings * instance.n_nodes, 2), "Incorrect features shape"
+    assert features.shape == (num_pairings * instance.n_nodes, 2), (
+        "Incorrect features shape"
+    )
 
     # make a batch with the sample
     batch = duplicate_batch(num_pairings, sample)
@@ -146,7 +152,9 @@ def run_experiment_for_sample(
         num_pairings,
         2,
         instance.n_nodes,
-    ), f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
+    ), (
+        f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
+    )
 
     # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
     heatmaps_child1 = heatmaps.select(1, 0)
@@ -158,10 +166,16 @@ def run_experiment_for_sample(
     children_costs = children.sum(dim=1)
     print(f"children costs: {children_costs}")
 
-    results = {"label_cost": instance.get_gt_cost(), "parent_costs": [], "child_costs": []}
+    results = {
+        "label_cost": instance.get_gt_cost(),
+        "parent_costs": [],
+        "child_costs": [],
+    }
     for i in range(num_pairings):
         results["parent_costs"].append((int(costs_1[i].item()), int(costs_2[i].item())))
-        results["child_costs"].append((int(children_costs[2 * i].item()), int(children_costs[2 * i + 1].item())))
+        results["child_costs"].append(
+            (int(children_costs[2 * i].item()), int(children_costs[2 * i + 1].item()))
+        )
 
     print(results)
     return results
@@ -220,7 +234,9 @@ def condition_difusco_with_solutions(config: Config) -> None:
         sample_file_name = mis_dataset.get_file_name_from_sample_idx(i)
         print(f"\nProcessing sample {i}: {sample_file_name}")
 
-        results = run_experiment_for_sample(sample, sampler, solutions_dict, sample_file_name)
+        results = run_experiment_for_sample(
+            sample, sampler, solutions_dict, sample_file_name
+        )
         if results:
             row = {
                 "sample_file_name": sample_file_name,

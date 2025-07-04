@@ -3,7 +3,9 @@ from argparse import ArgumentParser, Namespace
 
 
 def get_arg_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Train a Pytorch-Lightning diffusion model graph COP dataset.")
+    parser = ArgumentParser(
+        description="Train a Pytorch-Lightning diffusion model graph COP dataset."
+    )
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--data_path", type=str, required=True)
     parser.add_argument("--models_path", type=str, default=None)
@@ -47,7 +49,9 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--project_name", type=str, default="difusco")
     parser.add_argument("--wandb_entity", type=str, default=None)
     parser.add_argument("--wandb_logger_name", type=str, default=None)
-    parser.add_argument("--resume_id", type=str, default=None, help="Resume training on wandb.")
+    parser.add_argument(
+        "--resume_id", type=str, default=None, help="Resume training on wandb."
+    )
     parser.add_argument("--ckpt_path", type=str, default=None)
     parser.add_argument("--resume_weight_only", action="store_true")
 
@@ -82,8 +86,12 @@ def validate_args(args: Namespace) -> None:
         full_path = os.path.join(args.data_path, getattr(args, split))
         assert os.path.exists(full_path), f"Path {getattr(args, split)} does not exist."
 
-    assert isinstance(args.parallel_sampling, int), "parallel_sampling must be an integer"
-    assert args.parallel_sampling >= 0, "parallel_sampling must be greater than or equal to 0"
+    assert isinstance(args.parallel_sampling, int), (
+        "parallel_sampling must be an integer"
+    )
+    assert args.parallel_sampling >= 0, (
+        "parallel_sampling must be greater than or equal to 0"
+    )
 
     assert args.project_name == "difusco", "Project name must be of the form difusco."
 
@@ -92,32 +100,42 @@ def validate_args(args: Namespace) -> None:
         assert args.wandb_logger_name.startswith(f"{args.task}_")
 
     if args.ckpt_path:
-        assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), f"Path {args.ckpt_path} does not exist."
+        assert os.path.exists(os.path.join(args.models_path, args.ckpt_path)), (
+            f"Path {args.ckpt_path} does not exist."
+        )
 
         if "categorical" in args.ckpt_path:
-            assert args.diffusion_type == "categorical", "diffusion_type must be categorical"
+            assert args.diffusion_type == "categorical", (
+                "diffusion_type must be categorical"
+            )
         elif "gaussian" in args.ckpt_path:
             assert args.diffusion_type == "gaussian", "diffusion_type must be gaussian"
 
     if args.task == "high_degree_selection":
-        assert args.parallel_sampling == 1, "Parallel sampling must be 1 for high degree selection."
+        assert args.parallel_sampling == 1, (
+            "Parallel sampling must be 1 for high degree selection."
+        )
 
     # Heuristic evaluation
     if args.heuristic_eval:
-        assert not any(
-            x for x in [args.do_train, args.do_test, args.do_valid_only]
-        ), "To run heuristic evaluation, set do_train, do_test, and do_valid_only to False."
+        assert not any(x for x in [args.do_train, args.do_test, args.do_valid_only]), (
+            "To run heuristic evaluation, set do_train, do_test, and do_valid_only to False."
+        )
 
         assert args.test_split, "Must provide test split for heuristic evaluation."
-        assert not any(
-            x for x in [args.train_split, args.validation_split]
-        ), "Do not provide training or validation split for heuristic evaluation."
+        assert not any(x for x in [args.train_split, args.validation_split]), (
+            "Do not provide training or validation split for heuristic evaluation."
+        )
 
         assert args.results_path, "Must provide results path for heuristic evaluation."
         valid_strategies = ["construction", "construction+2opt"]
-        assert args.strategy in valid_strategies, f"Heuristic evaluation strategy must be in {valid_strategies}."
+        assert args.strategy in valid_strategies, (
+            f"Heuristic evaluation strategy must be in {valid_strategies}."
+        )
         if args.strategy == "construction+2opt":
-            assert args.two_opt_iterations > 0, "Number of 2-opt iterations must be greater than 0."
+            assert args.two_opt_iterations > 0, (
+                "Number of 2-opt iterations must be greater than 0."
+            )
 
 
 def parse_args() -> Namespace:

@@ -52,7 +52,9 @@ def get_arg_parser() -> ArgumentParser:
 
     recombination_settings = parser.add_argument_group("recombination_settings")
     recombination_settings.add_argument("--ckpt_path_difusco", type=str, default=None)
-    recombination_settings.add_argument("--ckpt_path_difuscombination", type=str, default=None)
+    recombination_settings.add_argument(
+        "--ckpt_path_difuscombination", type=str, default=None
+    )
 
     dev = parser.add_argument_group("dev")
     dev.add_argument("--profiler", action="store_true", default=False)
@@ -98,13 +100,16 @@ class RecombinationExperiment(Experiment):
         # Validate models exist
         assert os.path.exists(self.config.models_path), "models_path does not exist"
         for model_type in ["difusco", "difuscombination"]:
-            path = os.path.join(self.config.models_path, self.config[f"ckpt_path_{model_type}"])
+            path = os.path.join(
+                self.config.models_path, self.config[f"ckpt_path_{model_type}"]
+            )
             assert os.path.exists(path), f"{path} does not exist"
 
         # warning if device is not cuda
         if self.config.device != "cuda":
             warnings.warn(
-                f"WARNING: device is not cuda, using {self.config.device}. " "Performance will be degraded.",
+                f"WARNING: device is not cuda, using {self.config.device}. "
+                "Performance will be degraded.",
                 stacklevel=2,
             )
 
@@ -193,7 +198,9 @@ class RecombinationExperiment(Experiment):
         # 2.
         # generate random noise of size (n_nodes, 2) between 0 and 1
         random_noise_parents = torch.rand(n_nodes, 2)
-        heatmaps = self.sampler_difuscombination.sample(sample, features=random_noise_parents)
+        heatmaps = self.sampler_difuscombination.sample(
+            sample, features=random_noise_parents
+        )
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 2, solutions)
 
@@ -201,12 +208,22 @@ class RecombinationExperiment(Experiment):
         # generate feasible parents using the construction heuristic
         feasible_parents = torch.empty(n_nodes, 2, device=self.config.device)
         feasible_parents[:, 0] = (
-            instance.get_feasible_from_individual(random_noise_parents[:, 0].to(self.config.device)).clone().detach()
+            instance.get_feasible_from_individual(
+                random_noise_parents[:, 0].to(self.config.device)
+            )
+            .clone()
+            .detach()
         )
         feasible_parents[:, 1] = (
-            instance.get_feasible_from_individual(random_noise_parents[:, 1].to(self.config.device)).clone().detach()
+            instance.get_feasible_from_individual(
+                random_noise_parents[:, 1].to(self.config.device)
+            )
+            .clone()
+            .detach()
         )
-        heatmaps = self.sampler_difuscombination.sample(sample, features=feasible_parents)
+        heatmaps = self.sampler_difuscombination.sample(
+            sample, features=feasible_parents
+        )
         solutions = from_heatmaps_to_solution(heatmaps)
         update_results(results, 3, solutions)
 
@@ -219,7 +236,9 @@ class RecombinationExperiment(Experiment):
         ga = ea_factory(self.config, instance, sample=sample)
         crossover = ga._operators[0]  # noqa: SLF001
         assert isinstance(crossover, CrossOver)
-        children = crossover._do_cross_over(parents[:, 0].unsqueeze(0), parents[:, 1].unsqueeze(0))  # noqa: SLF001
+        children = crossover._do_cross_over(
+            parents[:, 0].unsqueeze(0), parents[:, 1].unsqueeze(0)
+        )  # noqa: SLF001
         solutions = children.values.float()
         update_results(results, 5, solutions)
 
@@ -227,7 +246,9 @@ class RecombinationExperiment(Experiment):
 
     def get_dataloader(self) -> DataLoader:
         dataset = MISDatasetComb(
-            samples_file=os.path.join(self.config.data_path, self.config.test_samples_file),
+            samples_file=os.path.join(
+                self.config.data_path, self.config.test_samples_file
+            ),
             graphs_dir=os.path.join(self.config.data_path, self.config.test_graphs_dir),
             labels_dir=os.path.join(self.config.data_path, self.config.test_labels_dir),
         )
@@ -236,7 +257,10 @@ class RecombinationExperiment(Experiment):
     def get_final_results(self, results: list[dict]) -> dict:
         # results is a list of dicts, each with the same keys
         # we want to compute the mean of each key
-        final = {f"final_{key}": np.mean([result[key] for result in results]) for key in results[0]}
+        final = {
+            f"final_{key}": np.mean([result[key] for result in results])
+            for key in results[0]
+        }
         if wandb.run is not None:
             wandb.log(final)
 

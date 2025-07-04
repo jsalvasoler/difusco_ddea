@@ -11,15 +11,23 @@ if TYPE_CHECKING:
     from problems.tsp.tsp_instance import TSPInstance
 
 
-def get_feasible_solutions(heatmaps: torch.Tensor, instance: TSPInstance) -> torch.Tensor:
+def get_feasible_solutions(
+    heatmaps: torch.Tensor, instance: TSPInstance
+) -> torch.Tensor:
     solutions = None
     for i in range(heatmaps.shape[0]):
-        solution = instance.get_tour_from_adjacency_np_heatmap(heatmaps[i].cpu().numpy()).unsqueeze(0)
-        solutions = solution if solutions is None else torch.vstack((solutions, solution))
+        solution = instance.get_tour_from_adjacency_np_heatmap(
+            heatmaps[i].cpu().numpy()
+        ).unsqueeze(0)
+        solutions = (
+            solution if solutions is None else torch.vstack((solutions, solution))
+        )
     return solutions
 
 
-def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, config: Config) -> dict:
+def metrics_on_tsp_heatmaps(
+    heatmaps: torch.Tensor, instance: TSPInstance, config: Config
+) -> dict:
     """Calculate metrics on TSP heatmaps including edge selection frequencies.
 
     Args:
@@ -30,13 +38,21 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     Returns:
         Dictionary containing metrics including costs, gaps and edge selection frequencies
     """
-    assert heatmaps.shape[0] == config.pop_size, f"Heatmaps shape: {heatmaps.shape}, config.pop_size: {config.pop_size}"
+    assert heatmaps.shape[0] == config.pop_size, (
+        f"Heatmaps shape: {heatmaps.shape}, config.pop_size: {config.pop_size}"
+    )
     if config.sparse_factor <= 0:
-        assert heatmaps.shape[1] == instance.n, f"Heatmaps shape: {heatmaps.shape}x{instance.n}x{instance.n}"
-        assert heatmaps.shape[2] == instance.n, f"Heatmaps shape: {heatmaps.shape}x{instance.n}x{instance.n}"
+        assert heatmaps.shape[1] == instance.n, (
+            f"Heatmaps shape: {heatmaps.shape}x{instance.n}x{instance.n}"
+        )
+        assert heatmaps.shape[2] == instance.n, (
+            f"Heatmaps shape: {heatmaps.shape}x{instance.n}x{instance.n}"
+        )
     else:
         n_edges = instance.n * config.sparse_factor
-        assert heatmaps.shape[1] == n_edges, f"Heatmaps shape: {heatmaps.shape}x{n_edges}"
+        assert heatmaps.shape[1] == n_edges, (
+            f"Heatmaps shape: {heatmaps.shape}x{n_edges}"
+        )
 
     start_time = timeit.default_timer()
     solutions = get_feasible_solutions(heatmaps, instance)
@@ -63,16 +79,24 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
             sparse_heatmap = heatmaps[i].cpu().numpy()
             heatmap = (
                 scipy.sparse.coo_matrix(
-                    (sparse_heatmap, (instance.np_edge_index[0], instance.np_edge_index[1])),
+                    (
+                        sparse_heatmap,
+                        (instance.np_edge_index[0], instance.np_edge_index[1]),
+                    ),
                 ).toarray()
                 + scipy.sparse.coo_matrix(
-                    (sparse_heatmap, (instance.np_edge_index[1], instance.np_edge_index[0])),
+                    (
+                        sparse_heatmap,
+                        (instance.np_edge_index[1], instance.np_edge_index[0]),
+                    ),
                 ).toarray()
             )
             heatmap = torch.tensor(heatmap, device=heatmaps.device)
             assert heatmap.shape == (instance.n, instance.n)
             new_heatmaps = (
-                heatmap.unsqueeze(0) if new_heatmaps is None else torch.vstack((new_heatmaps, heatmap.unsqueeze(0)))
+                heatmap.unsqueeze(0)
+                if new_heatmaps is None
+                else torch.vstack((new_heatmaps, heatmap.unsqueeze(0)))
             )
 
         heatmaps = new_heatmaps
@@ -89,7 +113,9 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     idx_to = solutions[:, 1:]  # All nodes except first
 
     # Create batch indices for scatter operation
-    batch_idx = torch.arange(solutions.shape[0]).unsqueeze(1).expand(-1, solutions.shape[1] - 1)
+    batch_idx = (
+        torch.arange(solutions.shape[0]).unsqueeze(1).expand(-1, solutions.shape[1] - 1)
+    )
 
     # Set 1s for edges in the tours
     adj_matrices[batch_idx, idx_from, idx_to] = 1
@@ -102,7 +128,9 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     entropies = torch.zeros_like(frequencies)
     valid = (frequencies > 0) & (frequencies < 1)
     f_valid = frequencies[valid]
-    entropies[valid] = -f_valid * torch.log(f_valid) - (1 - f_valid) * torch.log(1 - f_valid)
+    entropies[valid] = -f_valid * torch.log(f_valid) - (1 - f_valid) * torch.log(
+        1 - f_valid
+    )
     instance_results["total_entropy_heatmaps"] = entropies.mean()
 
     # Calculate edge selection frequencies on heatmaps
@@ -111,7 +139,9 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     entropies = torch.zeros_like(frequencies)
     valid = (frequencies > 0) & (frequencies < 1)
     f_valid = frequencies[valid]
-    entropies[valid] = -f_valid * torch.log(f_valid) - (1 - f_valid) * torch.log(1 - f_valid)
+    entropies[valid] = -f_valid * torch.log(f_valid) - (1 - f_valid) * torch.log(
+        1 - f_valid
+    )
     instance_results["total_entropy_solutions"] = entropies.mean()
 
     # Calculate avg diff to solution
@@ -151,4 +181,6 @@ def metrics_on_tsp_heatmaps(heatmaps: torch.Tensor, instance: TSPInstance, confi
     instance_results["avg_hamming_dist_pairs"] = upper_triangle.sum() / n_pairs
 
     # Make sure that values are numerical and not tensors
-    return {k: v.item() if torch.is_tensor(v) else v for k, v in instance_results.items()}
+    return {
+        k: v.item() if torch.is_tensor(v) else v for k, v in instance_results.items()
+    }

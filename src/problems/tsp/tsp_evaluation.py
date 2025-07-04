@@ -32,7 +32,9 @@ def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, in
         newc = np.array([[cca[0], ccb[0]]])
         m, M = min(ca, cb), max(ca, cb)
         real_adj_mat[a, b] = 1
-        components = np.concatenate([components[:m], components[m + 1 : M], components[M + 1 :], newc], 0)
+        components = np.concatenate(
+            [components[:m], components[m + 1 : M], components[M + 1 :], newc], 0
+        )
         if len(components) == 1:
             break
     real_adj_mat[components[0, 1], components[0, 0]] = 1
@@ -43,14 +45,20 @@ def numpy_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, in
 def cython_merge(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        adj_matrix, merge_iterations = merge_cython(points.astype("double"), adj_mat.astype("double"))
+        adj_matrix, merge_iterations = merge_cython(
+            points.astype("double"), adj_mat.astype("double")
+        )
         return np.asarray(adj_matrix), merge_iterations
 
 
-def cython_merge_get_tour(points: np.ndarray, adj_mat: np.ndarray) -> tuple[np.ndarray, int]:
+def cython_merge_get_tour(
+    points: np.ndarray, adj_mat: np.ndarray
+) -> tuple[np.ndarray, int]:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        tour, merge_iterations = merge_cython_get_tour(points.astype("double"), adj_mat.astype("double"))
+        tour, merge_iterations = merge_cython_get_tour(
+            points.astype("double"), adj_mat.astype("double")
+        )
         return np.asarray(tour), merge_iterations
 
 
@@ -99,7 +107,8 @@ def merge_tours(
             )
     else:
         results = [
-            cython_merge(_np_points, _adj_mat) for _np_points, _adj_mat in zip(splitted_points, splitted_adj_mat)
+            cython_merge(_np_points, _adj_mat)
+            for _np_points, _adj_mat in zip(splitted_points, splitted_adj_mat)
         ]
 
     splitted_real_adj_mat, splitted_merge_iterations = zip(*results)

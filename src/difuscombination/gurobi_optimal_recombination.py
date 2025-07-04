@@ -10,7 +10,11 @@ import numpy as np
 from config.configs.mis_inference import config as mis_instance_config
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import MISInstance
-from problems.mis.solve_optimal_recombination import solve_constrained_mis, solve_local_branching_mis, solve_wmis
+from problems.mis.solve_optimal_recombination import (
+    solve_constrained_mis,
+    solve_local_branching_mis,
+    solve_wmis,
+)
 from torch_geometric.loader import DataLoader
 
 from difusco.sampler import DifuscoSampler
@@ -45,7 +49,10 @@ def prepare_config(dataset: str, base_path: str) -> Config:
 
 def get_dataloader(config: Config) -> DataLoader:
     data_file = Path(config.data_path)
-    dataset = MISDataset(data_dir=data_file / config.test_split, data_label_dir=data_file / config.test_split_label_dir)
+    dataset = MISDataset(
+        data_dir=data_file / config.test_split,
+        data_label_dir=data_file / config.test_split_label_dir,
+    )
     return DataLoader(dataset, batch_size=1, shuffle=False)
 
 
@@ -54,7 +61,9 @@ def from_torch_to_numpy_indices(solution: torch.Tensor) -> np.array:
 
 
 def run_experiment(
-    recombination: Literal["solve_wmis", "solve_constrained_mis", "solve_local_branching_mis"],
+    recombination: Literal[
+        "solve_wmis", "solve_constrained_mis", "solve_local_branching_mis"
+    ],
     n_samples: int,
     dataset: str,
     pop_size: int = 16,
@@ -102,14 +111,28 @@ def run_experiment(
             kwargs["display_interval"] = 20
 
             if recombination == "solve_wmis":
-                solve_result = solve_wmis(instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs)
+                solve_result = solve_wmis(
+                    instance,
+                    solution_1_np,
+                    solution_2_np,
+                    time_limit=time_limit,
+                    **kwargs,
+                )
             elif recombination == "solve_constrained_mis":
                 solve_result = solve_constrained_mis(
-                    instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs
+                    instance,
+                    solution_1_np,
+                    solution_2_np,
+                    time_limit=time_limit,
+                    **kwargs,
                 )
             elif recombination == "solve_local_branching_mis":
                 solve_result = solve_local_branching_mis(
-                    instance, solution_1_np, solution_2_np, time_limit=time_limit, **kwargs
+                    instance,
+                    solution_1_np,
+                    solution_2_np,
+                    time_limit=time_limit,
+                    **kwargs,
                 )
             else:
                 raise ValueError(f"Invalid recombination type: {recombination}")
@@ -144,17 +167,22 @@ def run_experiment(
         # 3. percentage of times that we could improve
 
         children_best = max([result["children_obj"] for result in instance_results])
-        children_avg = sum([result["children_obj"] for result in instance_results]) / len(instance_results)
+        children_avg = sum(
+            [result["children_obj"] for result in instance_results]
+        ) / len(instance_results)
         generation_improvement = (children_best - best_cost) / best_cost
         avg_generation_improvement = (children_avg - best_cost) / best_cost
-        ratio_improved = sum([result["improved"] for result in instance_results]) / len(instance_results)
+        ratio_improved = sum([result["improved"] for result in instance_results]) / len(
+            instance_results
+        )
 
         instance_result = {
             "generation_improvement": generation_improvement,
             "avg_generation_improvement": avg_generation_improvement,
             "ratio_improved": ratio_improved,
             "improved": generation_improvement > 0,
-            "runtime_avg": sum([result["runtime"] for result in instance_results]) / len(instance_results),
+            "runtime_avg": sum([result["runtime"] for result in instance_results])
+            / len(instance_results),
             "runtime_std": np.std([result["runtime"] for result in instance_results]),
         }
 
@@ -164,9 +192,15 @@ def run_experiment(
 
     # finally average the results
 
-    avg_generation_improvement = sum([result["generation_improvement"] for result in results]) / len(results)
-    avg_avg_generation_improvement = sum([result["avg_generation_improvement"] for result in results]) / len(results)
-    avg_ratio_improved = sum([result["ratio_improved"] for result in results]) / len(results)
+    avg_generation_improvement = sum(
+        [result["generation_improvement"] for result in results]
+    ) / len(results)
+    avg_avg_generation_improvement = sum(
+        [result["avg_generation_improvement"] for result in results]
+    ) / len(results)
+    avg_ratio_improved = sum([result["ratio_improved"] for result in results]) / len(
+        results
+    )
 
     final_result = {
         "population_size": pop_size,
@@ -178,7 +212,8 @@ def run_experiment(
         "total_improved": sum([result["improved"] for result in results]),
         "total_unimproved": sum([not result["improved"] for result in results]),
         "avg_improved": sum([result["improved"] for result in results]) / len(results),
-        "avg_runtime_avg": sum([result["runtime_avg"] for result in results]) / len(results),
+        "avg_runtime_avg": sum([result["runtime_avg"] for result in results])
+        / len(results),
         "avg_runtime_std": np.std([result["runtime_std"] for result in results]),
         "num_samples": len(results),
     }
@@ -193,15 +228,23 @@ def run_experiment(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base_path", type=str, default=".", help="Base directory path")
+    parser.add_argument(
+        "--base_path", type=str, default=".", help="Base directory path"
+    )
     parser.add_argument("--recombination", type=str, default=None)
     parser.add_argument("--n_samples", type=int, default=10)
     parser.add_argument("--pop_size", type=int, default=16)
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--lambda_penalty", type=float, default=0.5)  # for solve_mwis
-    parser.add_argument("--fix_selection", type=lambda x: x.lower() == "true", default=True)
-    parser.add_argument("--fix_unselection", type=lambda x: x.lower() == "true", default=True)
-    parser.add_argument("--k_factor", type=float, default=1.5)  # for solve_local_branching_mis
+    parser.add_argument(
+        "--fix_selection", type=lambda x: x.lower() == "true", default=True
+    )
+    parser.add_argument(
+        "--fix_unselection", type=lambda x: x.lower() == "true", default=True
+    )
+    parser.add_argument(
+        "--k_factor", type=float, default=1.5
+    )  # for solve_local_branching_mis
     parser.add_argument("--time_limit", type=int, default=15)
     return parser.parse_args()
 

@@ -5,7 +5,10 @@ from config.configs.mis_inference import config as mis_inference_config
 from config.configs.tsp_inference import config as tsp_inference_config
 from config.myconfig import Config
 
-from difusco.difusco_initialization_experiments import DifuscoInitializationExperiment, main_init_experiments
+from difusco.difusco_initialization_experiments import (
+    DifuscoInitializationExperiment,
+    main_init_experiments,
+)
 
 
 @pytest.fixture
@@ -136,5 +139,7 @@ def test_tsp500_sparse_initialization_experiments() -> None:
 def test_get_results() -> None:
     config = Config(hey="hey", ho="ho")
     results = {"a": 1, "b": 2}
-    final_results = DifuscoInitializationExperiment._add_config_and_timestamp(results, config)  # noqa: SLF001
+    final_results = DifuscoInitializationExperiment._add_config_and_timestamp(
+        results, config
+    )  # noqa: SLF001
     assert set(final_results.keys()) == {"hey", "ho", "a", "b", "timestamp"}

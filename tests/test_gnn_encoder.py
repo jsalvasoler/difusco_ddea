@@ -19,7 +19,10 @@ CUDA_SKIP_REASON = "CUDA not available, skipping test that requires GPU"
 @pytest.fixture
 def mis_sample() -> tuple[torch.Tensor, GraphData, torch.Tensor]:
     # load er_50_100
-    dataset = MISDataset(data_dir="data/mis/er_50_100/test", data_label_dir="data/mis/er_50_100/test_labels")
+    dataset = MISDataset(
+        data_dir="data/mis/er_50_100/test",
+        data_label_dir="data/mis/er_50_100/test_labels",
+    )
     # Get a sample
     return dataset.__getitem__(0)
 
@@ -77,12 +80,16 @@ def test_gnn_encoder_mis_inference(
     output = gnn_model(x, timesteps, edge_index=edge_index)
 
     # Basic shape checks
-    assert output.shape[0] == x.shape[0], "Output should have same number of nodes as input"
+    assert output.shape[0] == x.shape[0], (
+        "Output should have same number of nodes as input"
+    )
     assert output.shape[1] == 1, "Output should have 1 channel for Gaussian diffusion"
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
-def test_gnn_encoder_difuscombination_mis(mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor]) -> None:
+def test_gnn_encoder_difuscombination_mis(
+    mis_sample: tuple[torch.Tensor, GraphData, torch.Tensor],
+) -> None:
     from config.configs.mis_inference import config as mis_inf_config
 
     config = mis_inf_config.update(

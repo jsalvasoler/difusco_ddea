@@ -14,7 +14,12 @@ from config.myconfig import Config
 from difuscombination.dataset import MISDatasetComb
 from evotorch.operators import CrossOver
 from problems.mis.mis_dataset import MISDataset
-from problems.mis.mis_ga import MISGACrossover, MISGAMutation, MISGaProblem, create_mis_ga
+from problems.mis.mis_ga import (
+    MISGACrossover,
+    MISGAMutation,
+    MISGaProblem,
+    create_mis_ga,
+)
 from problems.mis.mis_instance import MISInstance, MISInstanceBase, create_mis_instance
 from scipy.sparse import csr_matrix
 from torch_geometric.loader import DataLoader
@@ -106,7 +111,9 @@ def test_mis_degrees(square_instance: MISInstance) -> None:
     assert torch.equal(degrees, instance.degrees)
 
 
-def assert_valid_initialized_population(values: torch.Tensor, instance: MISInstanceBase) -> None:
+def assert_valid_initialized_population(
+    values: torch.Tensor, instance: MISInstanceBase
+) -> None:
     assert values.shape[1] == instance.n_nodes
 
     # Check that the sum of every row is equal to instance.evaluate_solution
@@ -128,10 +135,15 @@ def test_mis_ga_fill_random_feasible() -> None:
     assert_valid_initialized_population(values, instance)
 
     # Check that the first solution is the deterministic construction heuristic using degrees as priorities
-    assert (values[0] == instance.get_feasible_from_individual(-instance.get_degrees())).all()
+    assert (
+        values[0] == instance.get_feasible_from_individual(-instance.get_degrees())
+    ).all()
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 def test_mis_ga_fill_difusco() -> None:
     instance, sample = read_mis_instance(device="cuda")
 
@@ -160,7 +172,9 @@ def test_mis_ga_fill_difusco() -> None:
     config = mis_inference_config.update(config)
     problem = MISGaProblem(instance, config=config, sample=sample)
 
-    values = torch.zeros(pop_size, instance.n_nodes, dtype=torch.bool, device=config.device)
+    values = torch.zeros(
+        pop_size, instance.n_nodes, dtype=torch.bool, device=config.device
+    )
     problem._fill(values)
 
     assert_valid_initialized_population(values, instance)
@@ -245,7 +259,9 @@ def test_mis_ga_crossovers(recombination_config: Config) -> None:
 
     assert children.values.shape == (config.pop_size, instance.n_nodes)
     for i in range(config.pop_size):
-        assert children.values[i].sum() == instance.evaluate_individual(children.values[i].clone().int())
+        assert children.values[i].sum() == instance.evaluate_individual(
+            children.values[i].clone().int()
+        )
 
 
 def test_mis_ga_recombination_in_ga(recombination_config: Config) -> None:
@@ -303,11 +319,15 @@ def test_mis_ga_one_generation(recombination_config: Config) -> None:
     assert evals.max().item() == ga.status["pop_best_eval"]
 
 
-def test_mis_save_optimal_recombination_results(recombination_config: Config, tmp_path: Path) -> None:
+def test_mis_save_optimal_recombination_results(
+    recombination_config: Config, tmp_path: Path
+) -> None:
     if recombination_config.recombination != "optimal":
         return
 
-    config = common_config.update(recombination_config).update(deselect_prob=0, mutation_prob=0.25)
+    config = common_config.update(recombination_config).update(
+        deselect_prob=0, mutation_prob=0.25
+    )
 
     dataset = MISDatasetComb(
         samples_file=os.path.join("data", config.test_samples_file),
@@ -361,7 +381,9 @@ def test_mis_ga_mutation(square_instance: MISInstanceBase) -> None:
         children = mutation._do(ga.population)
 
     assert children.values.shape == (2, instance.n_nodes)
-    assert torch.equal(children.values[0], torch.tensor([0, 1, 0, 1]))  # Mutated to opposite
+    assert torch.equal(
+        children.values[0], torch.tensor([0, 1, 0, 1])
+    )  # Mutated to opposite
     assert torch.equal(children.values[1], ga.population.values[1])  # No mutation
 
 
@@ -419,7 +441,9 @@ def test_mis_ga_mutation_preserve_optimal_recombination() -> None:
     # set the first half of the population to all false solutions
     n_pairs = config.pop_size // 2
     data = ga.population.access_values()
-    data[:n_pairs] = torch.zeros(n_pairs, instance.n_nodes, dtype=torch.bool, device=config.device)
+    data[:n_pairs] = torch.zeros(
+        n_pairs, instance.n_nodes, dtype=torch.bool, device=config.device
+    )
 
     assert (ga.population.values[:n_pairs].sum(dim=-1) == 0).all()
     assert (ga.population.values[n_pairs:].sum(dim=-1) > 0).all()

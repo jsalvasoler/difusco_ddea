@@ -15,7 +15,12 @@ def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Build the difuscombination dataset")
 
-    parser.add_argument("--which", type=str, default="er_700_800", help="Dataset identifier (e.g., 'er_700_800')")
+    parser.add_argument(
+        "--which",
+        type=str,
+        default="er_700_800",
+        help="Dataset identifier (e.g., 'er_700_800')",
+    )
     parser.add_argument(
         "--split",
         type=str,
@@ -23,18 +28,31 @@ def parse_args() -> argparse.Namespace:
         choices=["train", "test", "val"],
         help="Dataset split (train, test, or val)",
     )
-    parser.add_argument("--data_dir", type=str, default="data", help="Root data directory")
+    parser.add_argument(
+        "--data_dir", type=str, default="data", help="Root data directory"
+    )
     parser.add_argument(
         "--raw_data_dir",
         type=str,
-        default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data"),
+        default=os.path.join(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
+            "data",
+        ),
         help="Path to raw data directory",
     )
     parser.add_argument(
-        "--n_select", type=int, default=20, help="Number of random examples to select for each instance"
+        "--n_select",
+        type=int,
+        default=20,
+        help="Number of random examples to select for each instance",
     )
     parser.add_argument(
-        "--timestamp", type=str, default=None, help="Optional timestamp for output file (default: current time)"
+        "--timestamp",
+        type=str,
+        default=None,
+        help="Optional timestamp for output file (default: current time)",
     )
 
     return parser.parse_args()
@@ -43,7 +61,11 @@ def parse_args() -> argparse.Namespace:
 def merge_table_files(source_dir: str) -> pd.DataFrame:
     """Merge all table_*.csv files in the source directory."""
     # Get all files starting with table_ and ending with .csv
-    files = [f for f in os.listdir(source_dir) if f.startswith("table_") and f.endswith(".csv")]
+    files = [
+        f
+        for f in os.listdir(source_dir)
+        if f.startswith("table_") and f.endswith(".csv")
+    ]
 
     df_list = []
     for f in tqdm(files, desc="Merging tables"):
@@ -89,11 +111,17 @@ def process_merged_table(df: pd.DataFrame, output_dir: str) -> pd.DataFrame:
     df["parent_1_len"] = df["parent_1"].str.count(",")
     df["parent_2_len"] = df["parent_2"].str.count(",")
 
-    df["parent_1_sorted"] = np.where(df["parent_1_len"] > df["parent_2_len"], df["parent_2"], df["parent_1"])
-    df["parent_2_sorted"] = np.where(df["parent_1_len"] > df["parent_2_len"], df["parent_1"], df["parent_2"])
+    df["parent_1_sorted"] = np.where(
+        df["parent_1_len"] > df["parent_2_len"], df["parent_2"], df["parent_1"]
+    )
+    df["parent_2_sorted"] = np.where(
+        df["parent_1_len"] > df["parent_2_len"], df["parent_1"], df["parent_2"]
+    )
 
     # Remove duplicates again
-    df = df[["parent_1_sorted", "parent_2_sorted", "children", "instance_id"]].drop_duplicates()
+    df = df[
+        ["parent_1_sorted", "parent_2_sorted", "children", "instance_id"]
+    ].drop_duplicates()
 
     # Remove cases in which parent_1_sorted = children, or parent_2_sorted = children
     df = df[df["parent_1_sorted"] != df["children"]]
@@ -131,12 +159,18 @@ def select_examples(df: pd.DataFrame, output_dir: str, n_select: int) -> pd.Data
 
 
 def build_dataset(
-    df: pd.DataFrame, output_dir: str, source_dir: str, which: str, split: str, timestamp: str | None = None
+    df: pd.DataFrame,
+    output_dir: str,
+    source_dir: str,
+    which: str,
+    split: str,
+    timestamp: str | None = None,
 ) -> None:
     """Build the final dataset CSV and corresponding label files."""
     # Initialize MISDataset
     mis_dataset = MISDataset(
-        data_dir=f"{source_dir}/mis/{which}/{split}", data_label_dir=f"{source_dir}/mis/{which}/{split}_labels"
+        data_dir=f"{source_dir}/mis/{which}/{split}",
+        data_label_dir=f"{source_dir}/mis/{which}/{split}_labels",
     )
 
     # Set up output paths
@@ -202,8 +236,12 @@ def main() -> None:
     args = parse_args()
 
     # Set up paths
-    source_dir = os.path.join(args.raw_data_dir, f"difuscombination/{args.which}/{args.split}")
-    output_dir = os.path.join(args.data_dir, f"difuscombination/mis/{args.which}/{args.split}")
+    source_dir = os.path.join(
+        args.raw_data_dir, f"difuscombination/{args.which}/{args.split}"
+    )
+    output_dir = os.path.join(
+        args.data_dir, f"difuscombination/mis/{args.which}/{args.split}"
+    )
     os.makedirs(output_dir, exist_ok=True)
 
     # Step 1: Merge table files

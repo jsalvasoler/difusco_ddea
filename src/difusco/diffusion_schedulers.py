@@ -23,8 +23,12 @@ class GaussianDiffusion:
             self.beta = np.linspace(b0, bT, T)
         elif schedule == "cosine":
             # Generate an extra alpha for bT
-            self.alphabar = self.__cos_noise(np.arange(0, T + 1, 1)) / self.__cos_noise(0)
-            self.beta = np.clip(1 - (self.alphabar[1:] / self.alphabar[:-1]), None, 0.999)
+            self.alphabar = self.__cos_noise(np.arange(0, T + 1, 1)) / self.__cos_noise(
+                0
+            )
+            self.beta = np.clip(
+                1 - (self.alphabar[1:] / self.alphabar[:-1]), None, 0.999
+            )
 
         self.betabar = np.cumprod(self.beta)
         self.alpha = np.concatenate((np.array([1.0]), 1 - self.beta))
@@ -60,8 +64,12 @@ class CategoricalDiffusion:
             self.beta = np.linspace(b0, bT, T)
         elif schedule == "cosine":
             # Generate an extra alpha for bT
-            self.alphabar = self.__cos_noise(np.arange(0, T + 1, 1)) / self.__cos_noise(0)
-            self.beta = np.clip(1 - (self.alphabar[1:] / self.alphabar[:-1]), None, 0.999)
+            self.alphabar = self.__cos_noise(np.arange(0, T + 1, 1)) / self.__cos_noise(
+                0
+            )
+            self.beta = np.clip(
+                1 - (self.alphabar[1:] / self.alphabar[:-1]), None, 0.999
+            )
 
         beta = self.beta.reshape((-1, 1, 1))
         eye = np.eye(2).reshape((1, 2, 2))
@@ -86,7 +94,9 @@ class CategoricalDiffusion:
 
 
 class InferenceSchedule:
-    def __init__(self, inference_schedule: str = "linear", T: int = 1000, inference_T: int = 1000) -> None:
+    def __init__(
+        self, inference_schedule: str = "linear", T: int = 1000, inference_T: int = 1000
+    ) -> None:
         self.inference_schedule = inference_schedule
         self.T = T
         self.inference_T = inference_T
@@ -103,10 +113,14 @@ class InferenceSchedule:
             return t1, t2
 
         if self.inference_schedule == "cosine":
-            t1 = self.T - int(np.sin((float(i) / self.inference_T) * np.pi / 2) * self.T)
+            t1 = self.T - int(
+                np.sin((float(i) / self.inference_T) * np.pi / 2) * self.T
+            )
             t1 = np.clip(t1, 1, self.T)
 
-            t2 = self.T - int(np.sin((float(i + 1) / self.inference_T) * np.pi / 2) * self.T)
+            t2 = self.T - int(
+                np.sin((float(i + 1) / self.inference_T) * np.pi / 2) * self.T
+            )
             t2 = np.clip(t2, 0, self.T - 1)
             return t1, t2
 

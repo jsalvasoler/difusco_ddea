@@ -56,7 +56,9 @@ def get_arg_parser() -> ArgumentParser:
     parser.add_argument("--project_name", type=str, default="difusco")
     parser.add_argument("--wandb_entity", type=str, default=None)
     parser.add_argument("--wandb_logger_name", type=str, default=None)
-    parser.add_argument("--resume_id", type=str, default=None, help="Resume training on wandb.")
+    parser.add_argument(
+        "--resume_id", type=str, default=None, help="Resume training on wandb."
+    )
     parser.add_argument("--ckpt_path", type=str, default=None)
     parser.add_argument("--resume_weight_only", action="store_true")
 
@@ -80,8 +82,12 @@ def validate_config(config: Config) -> None:
     if config.do_test or config.do_train or config.do_valid_only:
         assert all(x for x in [config.data_path, config.models_path, config.logs_path])
 
-    assert isinstance(config.parallel_sampling, int), "parallel_sampling must be an integer"
-    assert config.parallel_sampling >= 0, "parallel_sampling must be greater than or equal to 0"
+    assert isinstance(config.parallel_sampling, int), (
+        "parallel_sampling must be an integer"
+    )
+    assert config.parallel_sampling >= 0, (
+        "parallel_sampling must be greater than or equal to 0"
+    )
 
     assert config.project_name == "difusco", "Project name must be of the form difusco."
 
@@ -90,11 +96,15 @@ def validate_config(config: Config) -> None:
         assert config.wandb_logger_name.startswith(f"{config.task}_")
 
     if config.ckpt_path:
-        assert os.path.exists(
-            os.path.join(config.models_path, config.ckpt_path)
-        ), f"Path {config.ckpt_path} does not exist."
+        assert os.path.exists(os.path.join(config.models_path, config.ckpt_path)), (
+            f"Path {config.ckpt_path} does not exist."
+        )
 
         if "categorical" in config.ckpt_path:
-            assert config.diffusion_type == "categorical", "diffusion_type must be categorical"
+            assert config.diffusion_type == "categorical", (
+                "diffusion_type must be categorical"
+            )
         elif "gaussian" in config.ckpt_path:
-            assert config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
+            assert config.diffusion_type == "gaussian", (
+                "diffusion_type must be gaussian"
+            )

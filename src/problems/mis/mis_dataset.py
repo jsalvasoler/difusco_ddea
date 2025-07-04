@@ -13,18 +13,28 @@ from torch_geometric.data import Data as GraphData
 
 
 class MISDataset(Dataset):
-    def __init__(self, data_dir: str | os.PathLike, data_label_dir: str | os.PathLike | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: str | os.PathLike,
+        data_label_dir: str | os.PathLike | None = None,
+    ) -> None:
         self.data_dir = data_dir
-        assert os.path.exists(os.path.dirname(self.data_dir)), f"Data file {data_dir} does not exist"
+        assert os.path.exists(os.path.dirname(self.data_dir)), (
+            f"Data file {data_dir} does not exist"
+        )
 
         start_time = time.time()
         self.sample_files = [
-            os.path.join(self.data_dir, f) for f in os.listdir(self.data_dir) if f.endswith(".gpickle")
+            os.path.join(self.data_dir, f)
+            for f in os.listdir(self.data_dir)
+            if f.endswith(".gpickle")
         ]
         self.sample_files.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
         assert len(self.sample_files) > 0, f"No files found in {data_dir}"
         self.data_label_dir = data_label_dir
-        print(f'Loaded "{data_dir}" with {len(self.sample_files)} examples in {time.time() - start_time:.2f}s')
+        print(
+            f'Loaded "{data_dir}" with {len(self.sample_files)} examples in {time.time() - start_time:.2f}s'
+        )
 
     def __len__(self) -> int:
         return len(self.sample_files)
@@ -42,14 +52,16 @@ class MISDataset(Dataset):
             else:
                 node_labels = np.zeros(num_nodes, dtype=np.int64)
         else:
-            base_label_file = os.path.basename(self.sample_files[idx]).replace(".gpickle", "_unweighted.result")
+            base_label_file = os.path.basename(self.sample_files[idx]).replace(
+                ".gpickle", "_unweighted.result"
+            )
             node_label_file = os.path.join(self.data_label_dir, base_label_file)
             with open(node_label_file) as f:
                 node_labels = [int(_) for _ in f.read().splitlines()]
             node_labels = np.array(node_labels, dtype=np.int64)
-            assert (
-                node_labels.shape[0] == num_nodes
-            ), f"Node labels shape mismatch: {node_labels.shape[0]} != {num_nodes}"
+            assert node_labels.shape[0] == num_nodes, (
+                f"Node labels shape mismatch: {node_labels.shape[0]} != {num_nodes}"
+            )
 
         edges = np.array(graph.edges, dtype=np.int64)
         edges = np.concatenate([edges, edges[:, ::-1]], axis=0)
@@ -62,7 +74,9 @@ class MISDataset(Dataset):
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, GraphData, torch.Tensor]:
         num_nodes, node_labels, edge_index = self.get_example(idx)
-        graph_data = GraphData(x=torch.from_numpy(node_labels), edge_index=torch.from_numpy(edge_index))
+        graph_data = GraphData(
+            x=torch.from_numpy(node_labels), edge_index=torch.from_numpy(edge_index)
+        )
 
         point_indicator = np.array([num_nodes], dtype=np.int64)
         return (

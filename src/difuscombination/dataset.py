@@ -19,37 +19,58 @@ One sample is a tuple of (graph, solution_1, solution_2), and its label is the c
 
 class MISDatasetComb(Dataset):
     def __init__(
-        self, samples_file: str | os.PathLike, graphs_dir: str | os.PathLike, labels_dir: str | os.PathLike
+        self,
+        samples_file: str | os.PathLike,
+        graphs_dir: str | os.PathLike,
+        labels_dir: str | os.PathLike,
     ) -> None:
         self.graphs_dir = graphs_dir
-        assert os.path.exists(os.path.dirname(self.graphs_dir)), f"Directory {graphs_dir} does not exist"
+        assert os.path.exists(os.path.dirname(self.graphs_dir)), (
+            f"Directory {graphs_dir} does not exist"
+        )
         self.labels_dir = labels_dir
-        assert os.path.exists(os.path.dirname(self.labels_dir)), f"Directory {labels_dir} does not exist"
+        assert os.path.exists(os.path.dirname(self.labels_dir)), (
+            f"Directory {labels_dir} does not exist"
+        )
 
         self.mis_dataset = MISDataset(data_dir=graphs_dir, data_label_dir=None)
 
         self.samples_file = samples_file
         if str(self.samples_file).endswith(".csv"):
-            assert os.path.exists(self.samples_file), f"File {self.samples_file} does not exist"
+            assert os.path.exists(self.samples_file), (
+                f"File {self.samples_file} does not exist"
+            )
         else:
             # check that is a directory
-            assert os.path.isdir(self.samples_file), f"File {self.samples_file} is not a directory"
+            assert os.path.isdir(self.samples_file), (
+                f"File {self.samples_file} is not a directory"
+            )
             # check that it contains a csv file
-            assert any(
-                f.endswith(".csv") for f in os.listdir(self.samples_file)
-            ), f"No csv file found in {self.samples_file}"
+            assert any(f.endswith(".csv") for f in os.listdir(self.samples_file)), (
+                f"No csv file found in {self.samples_file}"
+            )
             # filter by those starting with difuscombination_samples_
-            samples_files = [f for f in os.listdir(self.samples_file) if f.startswith("difuscombination_samples_")]
+            samples_files = [
+                f
+                for f in os.listdir(self.samples_file)
+                if f.startswith("difuscombination_samples_")
+            ]
             # sort the csv files by timestamp, take the latest one
             samples_files = sorted(samples_files)
             self.samples_file = os.path.join(self.samples_file, samples_files[-1])
-            assert os.path.exists(self.samples_file), f"File {self.samples_file} does not exist"
+            assert os.path.exists(self.samples_file), (
+                f"File {self.samples_file} does not exist"
+            )
             print(f"Using samples file {self.samples_file}")
 
         start_time = time.time()
 
         self.label_files = sorted(
-            [os.path.join(self.labels_dir, f) for f in os.listdir(self.labels_dir) if f.endswith(".txt")]
+            [
+                os.path.join(self.labels_dir, f)
+                for f in os.listdir(self.labels_dir)
+                if f.endswith(".txt")
+            ]
         )
         assert len(self.label_files) > 0, f"No files found in {self.labels_dir}"
 
@@ -58,7 +79,9 @@ class MISDatasetComb(Dataset):
 
         self._length = len(self.label_files)
 
-        print(f'Loaded "{self.labels_dir}" with {self._length} examples in {time.time() - start_time:.2f}s')
+        print(
+            f'Loaded "{self.labels_dir}" with {self._length} examples in {time.time() - start_time:.2f}s'
+        )
 
     def __len__(self) -> int:
         return self._length
@@ -76,7 +99,9 @@ class MISDatasetComb(Dataset):
         split = solution_str.split(" | ")
         return [np.array(list(map(int, s.split(" ")))) for s in split]
 
-    def _get_two_parent_solutions(self, file_name: str) -> tuple[np.ndarray, np.ndarray]:
+    def _get_two_parent_solutions(
+        self, file_name: str
+    ) -> tuple[np.ndarray, np.ndarray]:
         graph_file_name, sols_id_suffix = file_name.split("___")
         graph_file_name = os.path.basename(graph_file_name)
         # we need to get the line in the samples_df that has the same instance_file_name
@@ -102,7 +127,9 @@ class MISDatasetComb(Dataset):
         with open(self.label_files[idx]) as f:
             node_labels = [int(_) for _ in f.read().splitlines()]
         node_labels = np.array(node_labels, dtype=np.int64)
-        assert node_labels.shape[0] == num_nodes, f"Node labels shape mismatch: {node_labels.shape[0]} != {num_nodes}"
+        assert node_labels.shape[0] == num_nodes, (
+            f"Node labels shape mismatch: {node_labels.shape[0]} != {num_nodes}"
+        )
 
         # Ensure all arrays are 2-dimensional
         node_labels = node_labels[:, np.newaxis]
@@ -110,9 +137,15 @@ class MISDatasetComb(Dataset):
         solution_2_mask = solution_2_mask[:, np.newaxis]
 
         # Concatenate along axis=1
-        features = torch.from_numpy(np.concatenate([node_labels, solution_1_mask, solution_2_mask], axis=1)).long()
-        assert features.shape[0] == num_nodes, f"Features shape mismatch: {features.shape[0]} != {num_nodes}"
-        assert features.shape[1] == 3, f"Features shape mismatch: {features.shape[1]} != 3"
+        features = torch.from_numpy(
+            np.concatenate([node_labels, solution_1_mask, solution_2_mask], axis=1)
+        ).long()
+        assert features.shape[0] == num_nodes, (
+            f"Features shape mismatch: {features.shape[0]} != {num_nodes}"
+        )
+        assert features.shape[1] == 3, (
+            f"Features shape mismatch: {features.shape[1]} != 3"
+        )
 
         graph_data = GraphData(x=features, edge_index=torch.from_numpy(edge_index))
 

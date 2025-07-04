@@ -20,11 +20,17 @@ class MISModel(MISModelBase):
         train_label_dir, test_label_dir, validation_label_dir = None, None, None
 
         if self.args.training_split_label_dir is not None:
-            train_label_dir = os.path.join(self.args.data_path, self.args.training_split_label_dir)
+            train_label_dir = os.path.join(
+                self.args.data_path, self.args.training_split_label_dir
+            )
         if self.args.test_split_label_dir is not None:
-            test_label_dir = os.path.join(self.args.data_path, self.args.test_split_label_dir)
+            test_label_dir = os.path.join(
+                self.args.data_path, self.args.test_split_label_dir
+            )
         if self.args.validation_split_label_dir is not None:
-            validation_label_dir = os.path.join(self.args.data_path, self.args.validation_split_label_dir)
+            validation_label_dir = os.path.join(
+                self.args.data_path, self.args.validation_split_label_dir
+            )
 
         self.train_dataset = MISDataset(
             data_dir=os.path.join(self.args.data_path, self.args.training_split),

@@ -30,9 +30,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=1234)
     opts, _ = parser.parse_known_args()
 
-    assert opts.num_samples % opts.batch_size == 0, "Number of samples must be divisible by batch size"
+    assert opts.num_samples % opts.batch_size == 0, (
+        "Number of samples must be divisible by batch size"
+    )
     assert opts.solver in ["concorde", "lkh"], "Unknown solver"
-    assert opts.solver != "lkh" or opts.lkh_path is not None, "LKH path must be provided"
+    assert opts.solver != "lkh" or opts.lkh_path is not None, (
+        "LKH path must be provided"
+    )
 
     return opts
 
@@ -52,10 +56,14 @@ def solve_tsp(nodes_coord: list, opts: argparse.Namespace) -> list:
             type="TSP",
             dimension=len(nodes_coord),
             edge_weight_type="EUC_2D",
-            node_coords={n + 1: nodes_coord[n] * scale for n in range(len(nodes_coord))},
+            node_coords={
+                n + 1: nodes_coord[n] * scale for n in range(len(nodes_coord))
+            },
         )
 
-        solution = lkh.solve(opts.lkh_path, problem=problem, max_trials=opts.lkh_trials, runs=10)
+        solution = lkh.solve(
+            opts.lkh_path, problem=problem, max_trials=opts.lkh_trials, runs=10
+        )
         return [n - 1 for n in solution[0]]
 
     error_message = f"Unknown solver: {opts.solver}"
@@ -80,11 +88,18 @@ def generate_tsp_data(opts: argparse.Namespace) -> None:
             batch_nodes_coord = np.random.random([opts.batch_size, num_nodes, 2])
 
             with Pool(opts.batch_size) as p:
-                tours = p.map(solve_tsp_wrapper, [(batch_nodes_coord[idx], opts) for idx in range(opts.batch_size)])
+                tours = p.map(
+                    solve_tsp_wrapper,
+                    [(batch_nodes_coord[idx], opts) for idx in range(opts.batch_size)],
+                )
 
             for idx, tour in enumerate(tours):
                 if (np.sort(tour) == np.arange(num_nodes)).all():
-                    f.write(" ".join(str(x) + " " + str(y) for x, y in batch_nodes_coord[idx]))
+                    f.write(
+                        " ".join(
+                            str(x) + " " + str(y) for x, y in batch_nodes_coord[idx]
+                        )
+                    )
                     f.write(" " + "output" + " ")
                     f.write(" ".join(str(node_idx + 1) for node_idx in tour))
                     f.write(" " + str(tour[0] + 1) + " ")
@@ -92,7 +107,9 @@ def generate_tsp_data(opts: argparse.Namespace) -> None:
 
         end_time = time.time() - start_time
 
-    print(f"Completed generation of {opts.num_samples} samples of TSP{opts.min_nodes}-{opts.max_nodes}.")
+    print(
+        f"Completed generation of {opts.num_samples} samples of TSP{opts.min_nodes}-{opts.max_nodes}."
+    )
     print(f"Total time: {end_time / 60:.1f}m")
     print(f"Average time: {end_time / opts.num_samples:.1f}s")
 

@@ -19,7 +19,9 @@ def test_mis_dataset_comb_initialization_and_len() -> None:
 def test_mis_dataset_comb_assertion(tmp_path) -> None:  # noqa: ANN001
     # copy the data to a temporary directory
     shutil.copytree("data/mis/er_50_100/test", tmp_path / "graphs")
-    shutil.copytree("data/difuscombination/mis/er_50_100/test_labels", tmp_path / "labels")
+    shutil.copytree(
+        "data/difuscombination/mis/er_50_100/test_labels", tmp_path / "labels"
+    )
     shutil.copy(
         "data/difuscombination/mis/er_50_100/test/difuscombination_samples_2025-01-30_14-36-45.csv",
         tmp_path / "samples.csv",

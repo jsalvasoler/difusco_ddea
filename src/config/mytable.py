@@ -17,7 +17,9 @@ class TableSaver:
 
     def put(self, row: dict) -> None:
         new_df = pd.DataFrame({col: [val] for col, val in row.items()})
-        row_columns = list(row.keys())  # Get columns from the input row, and their order
+        row_columns = list(
+            row.keys()
+        )  # Get columns from the input row, and their order
 
         # Check if file exists
         file_exists = os.path.exists(self.table_name)
@@ -38,7 +40,10 @@ class TableSaver:
             rewrite_needed = False
             if has_new_columns:
                 rewrite_needed = True
-            elif row_columns_set == existing_columns_set and row_columns != existing_columns:
+            elif (
+                row_columns_set == existing_columns_set
+                and row_columns != existing_columns
+            ):
                 # Only check order if the column sets are identical
                 rewrite_needed = True
 
@@ -46,11 +51,15 @@ class TableSaver:
             target_column_order = existing_columns  # Default to existing order
             if rewrite_needed:
                 # Define the final column order based on the row that triggered the rewrite
-                target_column_order = row_columns + [col for col in existing_columns if col not in row_columns_set]
+                target_column_order = row_columns + [
+                    col for col in existing_columns if col not in row_columns_set
+                ]
 
             # Perform rewrite of existing data structure if needed (BEFORE append)
             if rewrite_needed:
-                print(f"Rewrite needed for {self.table_name} based on columns: {row_columns}")
+                print(
+                    f"Rewrite needed for {self.table_name} based on columns: {row_columns}"
+                )
                 existing_df = pd.read_csv(self.table_name)
                 # Reindex the *existing* DataFrame to the final order
                 existing_df_rewritten = existing_df.reindex(columns=target_column_order)
@@ -59,7 +68,9 @@ class TableSaver:
 
             # Always append the new row efficiently, ensuring columns match target order
             new_df_reordered = new_df.reindex(columns=target_column_order)
-            new_df_reordered.to_csv(self.table_name, mode="a", header=False, index=False)
+            new_df_reordered.to_csv(
+                self.table_name, mode="a", header=False, index=False
+            )
 
     def get(self) -> pd.DataFrame:
         return pd.read_csv(self.table_name)

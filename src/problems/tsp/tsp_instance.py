@@ -5,8 +5,15 @@ from typing import TYPE_CHECKING
 import scipy.sparse
 import torch
 from ea.problem_instance import ProblemInstance
-from problems.tsp.tsp_evaluation import adj_mat_to_tour, cython_merge, evaluate_tsp_route_torch
-from problems.tsp.tsp_operators import batched_two_opt_torch, edge_recombination_crossover
+from problems.tsp.tsp_evaluation import (
+    adj_mat_to_tour,
+    cython_merge,
+    evaluate_tsp_route_torch,
+)
+from problems.tsp.tsp_operators import (
+    batched_two_opt_torch,
+    edge_recombination_crossover,
+)
 
 from difusco.tsp.pl_tsp_model import TSPModel
 
@@ -20,13 +27,20 @@ class TSPInstance(ProblemInstance):
     on the same device as the argument tensors.
     """
 
-    def __init__(self, points: torch.Tensor, edge_index: torch.Tensor | None, gt_tour: torch.Tensor) -> None:
+    def __init__(
+        self,
+        points: torch.Tensor,
+        edge_index: torch.Tensor | None,
+        gt_tour: torch.Tensor,
+    ) -> None:
         self.sparse = edge_index is not None
 
         self.points = points
         self.np_points = points.cpu().numpy()
         self.edge_index = edge_index
-        self.np_edge_index = edge_index.cpu().numpy() if edge_index is not None else None
+        self.np_edge_index = (
+            edge_index.cpu().numpy() if edge_index is not None else None
+        )
         self.device = points.device
         self.n = points.shape[0]
         self.gt_tour = gt_tour
@@ -34,16 +48,22 @@ class TSPInstance(ProblemInstance):
         self.gt_cost = self.evaluate_tsp_route(self.gt_tour)
 
     @staticmethod
-    def create_from_batch_sample(sample: tuple, device: str, sparse_factor: int) -> TSPInstance:
+    def create_from_batch_sample(
+        sample: tuple, device: str, sparse_factor: int
+    ) -> TSPInstance:
         """Create a TSPInstance from a batch sample. The batch must have size 1, i.e. a single sample."""
         check_idx = 3 if sparse_factor > 0 else 1
         assert sample[check_idx].shape[0] == 1, "Batch must have size 1"
 
         if sparse_factor <= 0:
-            _, edge_index, _, points, _, _, gt_tour = TSPModel.process_dense_batch(sample)
+            _, edge_index, _, points, _, _, gt_tour = TSPModel.process_dense_batch(
+                sample
+            )
             points = points[0].to(device)
         else:
-            _, edge_index, _, points, _, _, gt_tour = TSPModel.process_sparse_batch(sample)
+            _, edge_index, _, points, _, _, gt_tour = TSPModel.process_sparse_batch(
+                sample
+            )
             edge_index = edge_index.to(device)
             points = points.to(device)
 
@@ -57,9 +77,13 @@ class TSPInstance(ProblemInstance):
     def evaluate_tsp_route(self, route: torch.Tensor) -> float:
         return evaluate_tsp_route_torch(self.dist_mat, route)
 
-    def two_opt_mutation(self, routes: torch.Tensor, max_iterations: int) -> torch.Tensor:
+    def two_opt_mutation(
+        self, routes: torch.Tensor, max_iterations: int
+    ) -> torch.Tensor:
         """Routes is a tensor of shape (n_solutions, n + 1)"""
-        tours, _ = batched_two_opt_torch(self.points, routes, max_iterations=max_iterations, device=self.device)
+        tours, _ = batched_two_opt_torch(
+            self.points, routes, max_iterations=max_iterations, device=self.device
+        )
         return tours
 
     def get_tour_from_adjacency_np_heatmap(self, heatmap: np.ndarray) -> torch.Tensor:
@@ -86,7 +110,9 @@ class TSPInstance(ProblemInstance):
         tour = adj_mat_to_tour(solved_adj_mat)
         return torch.tensor(tour, device=self.device)
 
-    def edge_recombination_crossover(self, parents1: torch.Tensor, parents2: torch.Tensor) -> torch.Tensor:
+    def edge_recombination_crossover(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> torch.Tensor:
         """
         Edge recombination crossover for a batch of parents.
 

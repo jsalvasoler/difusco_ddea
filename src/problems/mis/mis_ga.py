@@ -15,7 +15,10 @@ from evotorch import Problem, SolutionBatch
 from evotorch.algorithms import GeneticAlgorithm
 from evotorch.decorators import vectorized
 from evotorch.operators import CopyingOperator, CrossOver
-from problems.mis.solve_optimal_recombination import OptimalRecombResults, solve_local_branching_mis
+from problems.mis.solve_optimal_recombination import (
+    OptimalRecombResults,
+    solve_local_branching_mis,
+)
 from torch import no_grad
 from torch_geometric.data import Batch
 
@@ -156,7 +159,9 @@ class MISGaProblem(Problem):
         """
         sampler = self._get_difusco_sampler()
         popsize = self.config.pop_size
-        assert popsize == values.shape[0], "Population size must match the number of solutions"
+        assert popsize == values.shape[0], (
+            "Population size must match the number of solutions"
+        )
         assert (
             self.config.parallel_sampling * self.config.sequential_sampling == popsize
         ), "Population size must match the number of solutions"
@@ -206,7 +211,10 @@ class MISGAMutation(CopyingOperator):
         pop_size, n_nodes = data.shape
 
         # Decide which individuals to mutate
-        mutation_mask = torch.rand(pop_size, device=data.device, dtype=torch.float16) <= self._mutation_prob
+        mutation_mask = (
+            torch.rand(pop_size, device=data.device, dtype=torch.float16)
+            <= self._mutation_prob
+        )
         if self._preserve_optimal_recombination:
             # Skip mutation for the first half of the population
             mutation_mask[: pop_size // 2] = False
@@ -220,7 +228,10 @@ class MISGAMutation(CopyingOperator):
 
         # Generate deselect mask and priorities only for the solutions that are going to be mutated.
         sub_data = data[mutate_indices]
-        deselect_mask = torch.rand(sub_data.shape, device=data.device, dtype=torch.float32) <= self._deselect_prob
+        deselect_mask = (
+            torch.rand(sub_data.shape, device=data.device, dtype=torch.float32)
+            <= self._deselect_prob
+        )
         priorities = torch.rand(sub_data.shape, device=data.device, dtype=torch.float32)
 
         # For nodes that are both deselected and originally selected, set priority to zero.
@@ -230,7 +241,9 @@ class MISGAMutation(CopyingOperator):
         update_mask = deselect_mask.sum(dim=-1) > 0
         if update_mask.any():
             indices_to_update = mutate_indices[update_mask]
-            feasible = self._instance.get_feasible_from_individual_batch(priorities[update_mask])
+            feasible = self._instance.get_feasible_from_individual_batch(
+                priorities[update_mask]
+            )
             data[indices_to_update] = feasible
 
         return result
@@ -247,7 +260,9 @@ class LocalBranchingSolver:
         # Instance-specific cache key prefix (based on instance identity)
         self._instance_id = id(instance)
 
-    def solve(self, solution_1: tuple, solution_2: tuple, time_limit: int = 60, **kwargs) -> OptimalRecombResults:
+    def solve(
+        self, solution_1: tuple, solution_2: tuple, time_limit: int = 60, **kwargs
+    ) -> OptimalRecombResults:
         # Create a cache key that includes the instance ID and all parameters
         k_factor = kwargs.get("k_factor", None)
         cache_key = (self._instance_id, solution_1, solution_2, time_limit, k_factor)
@@ -263,7 +278,11 @@ class LocalBranchingSolver:
 
         # Call the original function
         result = solve_local_branching_mis(
-            self.instance, solution_1_array, solution_2_array, time_limit=time_limit, **kwargs
+            self.instance,
+            solution_1_array,
+            solution_2_array,
+            time_limit=time_limit,
+            **kwargs,
         )
 
         # Store in cache
@@ -298,11 +317,15 @@ class MISGACrossverOptimal(CrossOver):
         self.table_saver = TableSaver(self._tmp_dir / "optimal_recombination.csv")
 
     @torch.no_grad()
-    def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+    def _do_cross_over(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> SolutionBatch:
         return self._do_cross_over_optimal(parents1, parents2)
 
     @no_grad()
-    def _do_cross_over_optimal(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+    def _do_cross_over_optimal(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> SolutionBatch:
         """
         parents1 and parents2 are two solutions of shape (num_pairings, n_nodes).
         """
@@ -333,7 +356,9 @@ class MISGACrossverOptimal(CrossOver):
             self.table_saver.put(save_in_dict)
 
             children_1[i] = torch.tensor(result.children_np_labels, device=device)
-            children_2[i] = parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
+            children_2[i] = (
+                parents1[i].clone() if torch.rand(1) < 0.5 else parents2[i].clone()
+            )
 
         children = torch.cat([children_1, children_2], dim=0)
         return self._make_children_batch(children)
@@ -352,7 +377,9 @@ class MISGACrossover(CrossOver):
         self._mode = mode
 
     @no_grad()
-    def _do_cross_over(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+    def _do_cross_over(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> SolutionBatch:
         if self._mode == "classic":
             return self._do_cross_over_classic(parents1, parents2)
         if self._mode == "difuscombination":
@@ -361,7 +388,9 @@ class MISGACrossover(CrossOver):
         raise ValueError(f"Invalid mode: {self._mode}")
 
     @no_grad()
-    def _do_cross_over_difuscombination(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+    def _do_cross_over_difuscombination(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> SolutionBatch:
         """
         parents1 and parents2 are two solutions of shape (num_pairings, n_nodes).
         DifuscSampling parameters:
@@ -372,16 +401,24 @@ class MISGACrossover(CrossOver):
         num_pairings = parents1.shape[0]
 
         features = torch.stack([parents1, parents2], dim=2)
-        assert features.shape == (num_pairings, self.problem.solution_length, 2), "Incorrect features shape"
+        assert features.shape == (num_pairings, self.problem.solution_length, 2), (
+            "Incorrect features shape"
+        )
         # we need to reshape the features to (num_pairings * n_nodes, 2)
         features = features.reshape(num_pairings * self.problem.solution_length, 2)
-        assert features.shape == (num_pairings * self.problem.solution_length, 2), "Incorrect features shape"
-        heatmaps = self._problem.sampler.sample(self._problem.batch, features=features).to(self.problem.device)
+        assert features.shape == (num_pairings * self.problem.solution_length, 2), (
+            "Incorrect features shape"
+        )
+        heatmaps = self._problem.sampler.sample(
+            self._problem.batch, features=features
+        ).to(self.problem.device)
         assert heatmaps.shape == (
             num_pairings,
             2,
             self.problem.solution_length,
-        ), f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
+        ), (
+            f"Incorrect heatmaps shape: {heatmaps.shape}, expected (num_pairings, 2, solution_length)"
+        )
 
         # split into two children by dropping dimension 1 -> (num_pairings, solution_length)
         heatmaps_child1 = heatmaps.select(1, 0)
@@ -392,7 +429,9 @@ class MISGACrossover(CrossOver):
         return self._make_children_batch(children)
 
     @no_grad()
-    def _do_cross_over_classic(self, parents1: torch.Tensor, parents2: torch.Tensor) -> SolutionBatch:
+    def _do_cross_over_classic(
+        self, parents1: torch.Tensor, parents2: torch.Tensor
+    ) -> SolutionBatch:
         """
         Parents are two solutions of shape (num_pairings, n_nodes).
         """
@@ -403,11 +442,26 @@ class MISGACrossover(CrossOver):
         common_nodes = (parents1 & parents2).bool()  # Element-wise AND
 
         # Random values between 0 and 0.5, 1 if node forced to selection
-        priority1 = torch.rand(num_pairings, self.problem.solution_length, device=device, dtype=torch.float32) * 0.5
+        priority1 = (
+            torch.rand(
+                num_pairings,
+                self.problem.solution_length,
+                device=device,
+                dtype=torch.float32,
+            )
+            * 0.5
+        )
         priority1[common_nodes] = 1
         # Random values between 0.5 and 1, 0 if node penalized for selection
         priority2 = (
-            torch.rand(num_pairings, self.problem.solution_length, device=device, dtype=torch.float32) * 0.5 + 0.5
+            torch.rand(
+                num_pairings,
+                self.problem.solution_length,
+                device=device,
+                dtype=torch.float32,
+            )
+            * 0.5
+            + 0.5
         )
         priority2[common_nodes] = 0
 
@@ -435,7 +489,9 @@ class TempSaver(CopyingOperator):
 
     def save(self, batch: SolutionBatch) -> None:
         with open(self._tmp_file, "a") as f:
-            f.write(self._get_population_string(batch) + "\n")  # Added newline for better readability
+            f.write(
+                self._get_population_string(batch) + "\n"
+            )  # Added newline for better readability
 
 
 DEFAULT_PARAMETERS = {
@@ -449,8 +505,12 @@ class MISGA(GeneticAlgorithm):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002
         self._tmp_dir = kwargs.pop("tmp_dir", Path(mkdtemp()))
         self._elite_ratio = kwargs.pop("elite_ratio", DEFAULT_PARAMETERS["elite_ratio"])
-        self._tournament_size = kwargs.pop("tournament_size", DEFAULT_PARAMETERS["tournament_size"])
-        self._selection_method = kwargs.pop("selection_method", DEFAULT_PARAMETERS["selection_method"])
+        self._tournament_size = kwargs.pop(
+            "tournament_size", DEFAULT_PARAMETERS["tournament_size"]
+        )
+        self._selection_method = kwargs.pop(
+            "selection_method", DEFAULT_PARAMETERS["selection_method"]
+        )
         print(f"selection_method: {self._selection_method}")
         super().__init__(*args, **kwargs)
         self._temp_saver = TempSaver(self._problem, self._tmp_dir / "population.txt")
@@ -516,18 +576,24 @@ class MISGA(GeneticAlgorithm):
 
         # Get the indices of the winning solutions from the original batch
         tournament_rows = torch.arange(0, num_tournament_winners, device=device)
-        tournament_winner_indices = tournament_indices[tournament_rows, winner_indices_in_tournament]
+        tournament_winner_indices = tournament_indices[
+            tournament_rows, winner_indices_in_tournament
+        ]
 
         # 3. COMBINE AND CREATE NEW POPULATION
         # Concatenate the indices from elitism and tournament selection
         final_indices = torch.cat([elite_indices, tournament_winner_indices])
-        assert final_indices.shape[0] == popsize, f"Final indices shape: {final_indices.shape}, expected {popsize}"
+        assert final_indices.shape[0] == popsize, (
+            f"Final indices shape: {final_indices.shape}, expected {popsize}"
+        )
 
         # Create the new population from the final list of selected indices
         return SolutionBatch(slice_of=(batch, final_indices.tolist()))
 
     @torch.no_grad()
-    def _roulette(self, extended_population: SolutionBatch, popsize: int) -> SolutionBatch:
+    def _roulette(
+        self, extended_population: SolutionBatch, popsize: int
+    ) -> SolutionBatch:
         """
         Selects the next generation using a combination of elitism and roulette wheel selection.
 
@@ -571,7 +637,9 @@ class MISGA(GeneticAlgorithm):
         # 3. COMBINE AND CREATE THE NEW POPULATION
         # Concatenate the indices from elitism and roulette selection.
         final_indices = torch.cat([elite_indices, roulette_indices])
-        assert final_indices.shape[0] == popsize, f"Final indices shape: {final_indices.shape}, expected {popsize}"
+        assert final_indices.shape[0] == popsize, (
+            f"Final indices shape: {final_indices.shape}, expected {popsize}"
+        )
 
         # Create the new population from the final list of selected indices.
         return SolutionBatch(slice_of=(extended_population, final_indices.tolist()))
@@ -597,7 +665,9 @@ class MISGA(GeneticAlgorithm):
         # Save population stats to file
         self._temp_saver.save(self._population)
 
-    def _take_best_unique(self, extended_population: SolutionBatch, popsize: int) -> SolutionBatch:
+    def _take_best_unique(
+        self, extended_population: SolutionBatch, popsize: int
+    ) -> SolutionBatch:
         sorted_indices = extended_population.argsort().tolist()
 
         # get unique indices
@@ -605,14 +675,23 @@ class MISGA(GeneticAlgorithm):
         num_unique = unique_indices.shape[0]
 
         # sort unique indices by objective value, i.e., by the sorted_indices.index(idx)
-        unique_indices_sorted = sorted(unique_indices, key=lambda idx: sorted_indices.index(idx))
-        unique_indices_sorted_torch = torch.tensor(unique_indices_sorted, device=extended_population.device)
+        unique_indices_sorted = sorted(
+            unique_indices, key=lambda idx: sorted_indices.index(idx)
+        )
+        unique_indices_sorted_torch = torch.tensor(
+            unique_indices_sorted, device=extended_population.device
+        )
 
         # Repeat indices to match population size
         k = popsize // num_unique
         remainder = popsize % num_unique
 
-        final_indices = torch.cat([unique_indices_sorted_torch.repeat(k), unique_indices_sorted_torch[:remainder]])
+        final_indices = torch.cat(
+            [
+                unique_indices_sorted_torch.repeat(k),
+                unique_indices_sorted_torch[:remainder],
+            ]
+        )
         return SolutionBatch(slice_of=(extended_population, final_indices.tolist()))
 
 
@@ -626,7 +705,12 @@ def get_unique_indices(t: torch.Tensor) -> torch.Tensor:
     return torch.nonzero(unique_mask).squeeze(dim=1)
 
 
-def create_mis_ga(instance: MISInstance, config: Config, sample: tuple, tmp_dir: str | Path | None = None) -> MISGA:
+def create_mis_ga(
+    instance: MISInstance,
+    config: Config,
+    sample: tuple,
+    tmp_dir: str | Path | None = None,
+) -> MISGA:
     if tmp_dir is None:
         tmp_dir = Path(mkdtemp())
 

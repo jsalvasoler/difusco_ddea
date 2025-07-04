@@ -44,12 +44,16 @@ class HighDegreeSelection(MISModel):
             xt = xt.reshape(-1)
 
             if self.args.parallel_sampling > 1:
-                edge_index = self.duplicate_edge_index(edge_index, node_labels.shape[0], device)
+                edge_index = self.duplicate_edge_index(
+                    edge_index, node_labels.shape[0], device
+                )
 
             batch_size = 1
             steps = self.args.inference_diffusion_steps
             time_schedule = InferenceSchedule(
-                inference_schedule=self.args.inference_schedule, T=self.diffusion.T, inference_T=steps
+                inference_schedule=self.args.inference_schedule,
+                T=self.diffusion.T,
+                inference_T=steps,
             )
 
             for i in range(steps):
@@ -58,9 +62,13 @@ class HighDegreeSelection(MISModel):
                 t2 = np.array([t2 for _ in range(batch_size)]).astype(int)
 
                 if self.diffusion_type == "gaussian":
-                    xt = self.gaussian_denoise_step(xt, t1, device, edge_index, target_t=t2)
+                    xt = self.gaussian_denoise_step(
+                        xt, t1, device, edge_index, target_t=t2
+                    )
                 else:
-                    xt = self.categorical_denoise_step(xt, t1, device, edge_index, target_t=t2)
+                    xt = self.categorical_denoise_step(
+                        xt, t1, device, edge_index, target_t=t2
+                    )
 
             if self.diffusion_type == "gaussian":
                 predict_labels = xt.float().cpu().detach().numpy() * 0.5 + 0.5
@@ -70,10 +78,15 @@ class HighDegreeSelection(MISModel):
 
         predict_labels = np.concatenate(stacked_predict_labels, axis=0)
         all_sampling = self.args.sequential_sampling * self.args.parallel_sampling
-        assert self.args.parallel_sampling == 1, "High degree selection does not support parallel sampling"
+        assert self.args.parallel_sampling == 1, (
+            "High degree selection does not support parallel sampling"
+        )
 
         splitted_predict_labels = np.split(predict_labels, all_sampling)
-        solved_solutions = [high_degree_decode_np(predict_labels) for predict_labels in splitted_predict_labels]
+        solved_solutions = [
+            high_degree_decode_np(predict_labels)
+            for predict_labels in splitted_predict_labels
+        ]
         node_labels = node_labels.cpu().numpy()
 
         accuracy = self.compute_accuracy(solved_solutions, node_labels)
@@ -82,10 +95,14 @@ class HighDegreeSelection(MISModel):
             f"{split}/accuracy": accuracy,
         }
         self.test_outputs.append(metrics)
-        self.log(f"{split}/accuracy", accuracy, prog_bar=True, on_epoch=True, sync_dist=True)
+        self.log(
+            f"{split}/accuracy", accuracy, prog_bar=True, on_epoch=True, sync_dist=True
+        )
 
     @staticmethod
-    def compute_accuracy(solved_solutions: np.ndarray, node_labels: np.ndarray) -> float:
+    def compute_accuracy(
+        solved_solutions: np.ndarray, node_labels: np.ndarray
+    ) -> float:
         total_abs_diff = np.zeros_like(solved_solutions[0])
         for solution in solved_solutions:
             total_abs_diff += np.abs(node_labels - solution)

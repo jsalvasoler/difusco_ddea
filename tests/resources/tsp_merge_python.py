@@ -55,7 +55,9 @@ def merge_python(coords: np.ndarray, adj_mat: np.ndarray) -> tuple:
         begin_j = find_begin(route_begin, j)
         end_j = find_end(route_end, j)
 
-        print(f"  - Route roots: begin_i={begin_i}, end_i={end_i}, begin_j={begin_j}, end_j={end_j}")
+        print(
+            f"  - Route roots: begin_i={begin_i}, end_i={end_i}, begin_j={begin_j}, end_j={end_j}"
+        )
 
         # If i and j are already connected in the same component, skip this edge
         if begin_i == begin_j:
@@ -82,19 +84,25 @@ def merge_python(coords: np.ndarray, adj_mat: np.ndarray) -> tuple:
         if i == begin_i and j == end_j:
             route_begin[begin_i] = begin_j
             route_end[end_j] = end_i
-            print(f"  - Merging: route_begin[{begin_i}] = {begin_j}, route_end[{end_j}] = {end_i}")
+            print(
+                f"  - Merging: route_begin[{begin_i}] = {begin_j}, route_end[{end_j}] = {end_i}"
+            )
 
         elif i == end_i and j == begin_j:
             route_begin[begin_j] = begin_i
             route_end[end_i] = end_j
-            print(f"  - Merging: route_begin[{begin_j}] = {begin_i}, route_end[{end_i}] = {end_j}")
+            print(
+                f"  - Merging: route_begin[{begin_j}] = {begin_i}, route_end[{end_i}] = {end_j}"
+            )
 
         elif i == begin_i and j == begin_j:
             route_begin[begin_i] = end_j
             route_begin[begin_j] = end_j
             route_end[end_j] = end_i
             route_end[begin_j] = end_i
-            print(f"  - Merging: updated route beginnings and endings for nodes {i} and {j}")
+            print(
+                f"  - Merging: updated route beginnings and endings for nodes {i} and {j}"
+            )
 
         elif i == end_i and j == end_j:
             route_end[end_i] = begin_j
@@ -102,7 +110,9 @@ def merge_python(coords: np.ndarray, adj_mat: np.ndarray) -> tuple:
             route_begin[end_j] = begin_i
             route_end[end_j] = begin_j
             route_end[begin_j] = begin_j
-            print(f"  - Merging: updated route beginnings and endings for nodes {i} and {j}")
+            print(
+                f"  - Merging: updated route beginnings and endings for nodes {i} and {j}"
+            )
 
         print(f" * Route beginnings: {route_begin}")
         print(f" * Route endings: {route_end}\n")

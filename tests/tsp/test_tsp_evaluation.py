@@ -53,7 +53,9 @@ def test_cython_merge_solves_correctly() -> None:
     coords = np.array([[0, 0], [1, 1], [2, 0], [1, -1]], dtype=float)
     # set random seed for reproducibility
     np.random.seed(0)
-    adj_mat = np.array([[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]], dtype=float)
+    adj_mat = np.array(
+        [[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]], dtype=float
+    )
 
     # add 0.001 everywhere except where there are ones
     adj_mat[adj_mat == 0] = 0.001
@@ -142,7 +144,9 @@ def test_cython_merge_get_tour() -> None:
     coords = np.array([[0, 0], [1, 1], [2, 0], [1, -1]], dtype=float)
     # set random seed for reproducibility
     np.random.seed(0)
-    adj_mat = np.array([[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]], dtype=float)
+    adj_mat = np.array(
+        [[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]], dtype=float
+    )
 
     tour, merge_iterations = cython_merge_get_tour(coords, adj_mat)
     print(tour)

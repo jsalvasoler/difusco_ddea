@@ -38,7 +38,9 @@ def test_mis_test_step(diffusion_type: str) -> None:
     args.inference_diffusion_steps = 2
     args.validation_examples = 1
     args.resume_weight_only = True
-    args.wandb_logger_name = f"{args.task}_diffusion_graph_{args.diffusion_type}_justatest"
+    args.wandb_logger_name = (
+        f"{args.task}_diffusion_graph_{args.diffusion_type}_justatest"
+    )
     args.do_test = True
     args.profiler = True
 
@@ -104,7 +106,10 @@ def test_categorical_training_step(diffusion_type: str) -> None:
     assert isinstance(loss.item(), float)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 @pytest.mark.parametrize("diffusion_type", ["categorical", "gaussian"])
 def test_difuscombination_training_step(diffusion_type: str) -> None:
     from config.configs.mis_inference import config as mis_inf_config
@@ -147,7 +152,10 @@ def test_difuscombination_training_step(diffusion_type: str) -> None:
     assert isinstance(loss.item(), float)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 @pytest.mark.parametrize("diffusion_type", ["categorical", "gaussian"])
 def test_difuscombination_test_step(diffusion_type: str) -> None:
     from config.configs.mis_inference import config as mis_inf_config
@@ -182,7 +190,9 @@ def test_difuscombination_test_step(diffusion_type: str) -> None:
         graphs_dir=os.path.join(config.data_path, graphs_dir),
         labels_dir=os.path.join(config.data_path, labels_dir),
     )
-    dataloader = DataLoader(dataset, batch_size=1)  # testing only allows for batch size of 1
+    dataloader = DataLoader(
+        dataset, batch_size=1
+    )  # testing only allows for batch size of 1
     batch = next(iter(dataloader))
 
     model.test_step(batch, 0, split="test")

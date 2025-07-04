@@ -32,7 +32,9 @@ def normalization(channels: int) -> nn.Module:
     return GroupNorm32(32, channels)
 
 
-def timestep_embedding(timesteps: int, dim: int, max_period: int = 10000) -> torch.Tensor:
+def timestep_embedding(
+    timesteps: int, dim: int, max_period: int = 10000
+) -> torch.Tensor:
     """
     Create sinusoidal timestep embeddings.
 
@@ -43,9 +45,9 @@ def timestep_embedding(timesteps: int, dim: int, max_period: int = 10000) -> tor
     :return: an [N x dim] Tensor of positional embeddings.
     """
     half = dim // 2
-    freqs = torch.exp(-log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half).to(
-        device=timesteps.device
-    )
+    freqs = torch.exp(
+        -log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
+    ).to(device=timesteps.device)
     args = timesteps[:, None].float() * freqs[None]
     embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
     if dim % 2:

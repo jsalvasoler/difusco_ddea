@@ -40,7 +40,9 @@ def difuscombination(config: Config) -> None:
         save_dir=config.logs_path,
         id=config.resume_id or wandb_id,
     )
-    rank_zero_info(f"Logging to {wandb_logger.save_dir}/{wandb_logger.name}/{wandb_logger.version}")
+    rank_zero_info(
+        f"Logging to {wandb_logger.save_dir}/{wandb_logger.name}/{wandb_logger.version}"
+    )
 
     checkpoint_callback = ModelCheckpoint(
         monitor=monitor,
@@ -67,9 +69,11 @@ def difuscombination(config: Config) -> None:
         precision=16 if config.fp16 else 32,
     )
 
-    rank_zero_info(f"{'-' * 100}\n" f"{model.model!s}\n" f"{'-' * 100}\n")
+    rank_zero_info(f"{'-' * 100}\n{model.model!s}\n{'-' * 100}\n")
 
-    ckpt_path = os.path.join(config.models_path, config.ckpt_path) if config.ckpt_path else None
+    ckpt_path = (
+        os.path.join(config.models_path, config.ckpt_path) if config.ckpt_path else None
+    )
 
     if config.do_train:
         if config.resume_weight_only:

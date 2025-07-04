@@ -24,7 +24,10 @@ def generate_tsp_data() -> None:
 
 def generate_node_degree_labels() -> None:
     """Generate MIS degree labels."""
-    from difusco.mis.generate_node_degree_labels import generate_node_degree_labels, parse_arguments
+    from difusco.mis.generate_node_degree_labels import (
+        generate_node_degree_labels,
+        parse_arguments,
+    )
 
     opts = parse_arguments()
     generate_node_degree_labels(opts)
@@ -50,7 +53,10 @@ def run_ea() -> None:
 def run_difusco_initialization_experiments() -> None:
     """Run Difusco initialization experiments."""
 
-    from difusco.difusco_initialization_experiments import main_init_experiments, parse_arguments
+    from difusco.difusco_initialization_experiments import (
+        main_init_experiments,
+        parse_arguments,
+    )
 
     args, extra = parse_arguments()
     config = Config.load_from_args(args, extra)
@@ -67,7 +73,10 @@ def run_difuscombination() -> None:
 
 
 def run_recombination_experiments() -> None:
-    from difuscombination.recombination_experiments import main_recombination_experiments, parse_arguments
+    from difuscombination.recombination_experiments import (
+        main_recombination_experiments,
+        parse_arguments,
+    )
 
     args, extra = parse_arguments()
     config = Config.load_from_args(args, extra)
@@ -102,7 +111,9 @@ def main() -> None:
             print(f" - {group}:")
             for subcommand in subcommands:
                 print(f"     {subcommand}")
-        print("\nFor command-specific info, run 'hatch run cli <group> <subcommand>' --help")
+        print(
+            "\nFor command-specific info, run 'hatch run cli <group> <subcommand>' --help"
+        )
         sys.exit(1)
 
     group = sys.argv[1]

@@ -11,7 +11,10 @@ from difusco.difusco_main import difusco
 from difusco.tsp.pl_tsp_model import TSPGraphDataset, TSPModel
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 def test_categorical_tsp_training_step() -> None:
     example_dataset = "tsp50_example_dataset.txt"
 
@@ -56,7 +59,10 @@ def test_categorical_tsp_training_step() -> None:
     assert isinstance(loss.item(), float)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 def test_tsp_test_step() -> None:
     example_dataset = "tsp50_example_dataset.txt"
 
@@ -110,7 +116,10 @@ def test_tsp_test_step() -> None:
     assert metrics["test/gt_cost"] == gt_tour_length
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 def test_tsp_test_step_saving_heatmaps() -> None:
     example_dataset = "tsp50_example_dataset_two_samples.txt"
 
@@ -134,7 +143,9 @@ def test_tsp_test_step_saving_heatmaps() -> None:
     args.validation_examples = 1
     args.resume_weight_only = True
     args.save_numpy_heatmap = True
-    args.wandb_logger_name = f"{args.task}_diffusion_graph_{args.diffusion_type}_justatest"
+    args.wandb_logger_name = (
+        f"{args.task}_diffusion_graph_{args.diffusion_type}_justatest"
+    )
     args.do_test = True
 
     validate_args(args)
@@ -145,7 +156,9 @@ def test_tsp_test_step_saving_heatmaps() -> None:
     file_wandb = next(file for file in files if file.endswith(".wandb"))
     run_id = file_wandb.split(".")[0].split("-")[-1]
 
-    heatmap_path = os.path.join(args.logs_path, args.wandb_logger_name, run_id, "numpy_heatmap")
+    heatmap_path = os.path.join(
+        args.logs_path, args.wandb_logger_name, run_id, "numpy_heatmap"
+    )
     # check that there is only one val heatmap
     heatmaps = os.listdir(heatmap_path)
     assert len(heatmaps) == 2 * 2 + 2

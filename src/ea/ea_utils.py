@@ -73,7 +73,9 @@ def instance_factory(config: Config, sample: tuple) -> ProblemInstance:
     if config.task == "mis":
         return create_mis_instance(sample, device=config.device)
     if config.task == "tsp":
-        return create_tsp_instance(sample, device=config.device, sparse_factor=config.sparse_factor)
+        return create_tsp_instance(
+            sample, device=config.device, sparse_factor=config.sparse_factor
+        )
     error_msg = f"No instance for task {config.task}."
     raise ValueError(error_msg)
 
@@ -104,7 +106,9 @@ class LogFigures(Logger):
             "median_eval",
             "pop_best_eval",
         ]
-        self.keys_to_plot = [k for k in self.keys_to_log if k != "iter"] + ["unique_solutions"]
+        self.keys_to_plot = [k for k in self.keys_to_log if k != "iter"] + [
+            "unique_solutions"
+        ]
         self.table_saver = TableSaver(table_name=table_name)
         self.instance_id = instance_id
         self.gt_cost = gt_cost
@@ -148,7 +152,9 @@ class LogFigures(Logger):
         fig, ax1 = plt.subplots()
 
         # Plot all metrics except unique_solutions and iter on primary axis
-        keys_to_plot = [k for k in self.keys_to_log if k not in ["iter", "unique_solutions"]]
+        keys_to_plot = [
+            k for k in self.keys_to_log if k not in ["iter", "unique_solutions"]
+        ]
         for key in keys_to_plot:
             ax1.plot(df["iter"], df[key], label=key, linewidth=1.5)
         ax1.set_xlabel("Iterations")

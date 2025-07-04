@@ -46,7 +46,13 @@ def run_tsp_heuristics_main(args: Namespace) -> None:
         points = points.numpy()
 
         # 1. Construction heuristic
-        tours, _ = merge_tours(heatmaps, points, None, sparse_graph=False, parallel_sampling=args.parallel_sampling)
+        tours, _ = merge_tours(
+            heatmaps,
+            points,
+            None,
+            sparse_graph=False,
+            parallel_sampling=args.parallel_sampling,
+        )
 
         evaluator = TSPEvaluator(points)
 
@@ -102,13 +108,19 @@ def write_results(args: Namespace, results: dict) -> None:
         "strategy",
         "runtime",
     ]
-    assert all(key in results for key in required_keys), f"Results dictionary must contain keys {required_keys}."
+    assert all(key in results for key in required_keys), (
+        f"Results dictionary must contain keys {required_keys}."
+    )
 
     filename = "heuristic_results_tsp.csv"
     filepath = os.path.join(args.results_path, filename)
 
     # check if csv with filename
-    df = pd.read_csv(filepath) if os.path.exists(filepath) else pd.DataFrame(columns=required_keys)
+    df = (
+        pd.read_csv(filepath)
+        if os.path.exists(filepath)
+        else pd.DataFrame(columns=required_keys)
+    )
 
     df.loc[len(df)] = [results[key] for key in required_keys]
     df.to_csv(filepath, index=False)

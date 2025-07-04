@@ -24,7 +24,9 @@ def get_lil_csr_matrix(adj_matrix: sp.csr_matrix) -> sp.csr_matrix:
     return adj_matrix_lil.tocsr()
 
 
-def get_starting_solution(instance: MISInstance, solution_1: np.array, solution_2: np.array) -> np.array:
+def get_starting_solution(
+    instance: MISInstance, solution_1: np.array, solution_2: np.array
+) -> np.array:
     starting_indices = solution_1 if len(solution_1) >= len(solution_2) else solution_2
     starting_solution = np.zeros(instance.n_nodes)
     starting_solution[starting_indices] = 1
@@ -45,7 +47,11 @@ class OptimalRecombResults:
 
 
 def process_mwis_result(
-    mwis: MWISResult, instance: MISInstance, solution_1: np.array, solution_2: np.array, start_time: float
+    mwis: MWISResult,
+    instance: MISInstance,
+    solution_1: np.array,
+    solution_2: np.array,
+    start_time: float,
 ) -> OptimalRecombResults:
     print(f"parent obj: {len(solution_1)}, {len(solution_2)}")
     print(f"children obj: {len(mwis.x)}")
@@ -77,7 +83,9 @@ def solve_wmis(
     assert np.all(solution_1 < instance.n_nodes), "solution_1 contains invalid indices"
     assert np.all(solution_2 < instance.n_nodes), "solution_2 contains invalid indices"
 
-    lambda_penalty = 0.05 if kwargs.get("lambda_penalty") is None else kwargs.get("lambda_penalty")
+    lambda_penalty = (
+        0.05 if kwargs.get("lambda_penalty") is None else kwargs.get("lambda_penalty")
+    )
     weights = np.full(instance.n_nodes, 1 - lambda_penalty)
     only_1 = np.setdiff1d(solution_1, solution_2)
     weights[only_1] = 1
@@ -125,14 +133,20 @@ def solve_constrained_mis(
     starting_solution = get_starting_solution(instance, solution_1, solution_2)
     weights = np.ones(instance.n_nodes)
 
-    fix_selection = np.intersect1d(solution_1, solution_2) if kwargs.get("fix_selection") else None
+    fix_selection = (
+        np.intersect1d(solution_1, solution_2) if kwargs.get("fix_selection") else None
+    )
     fix_unselection = (
         np.setdiff1d(np.arange(instance.n_nodes), np.union1d(solution_1, solution_2))
         if kwargs.get("fix_unselection")
         else None
     )
-    print(f"fix_selection: {len(fix_selection) if fix_selection is not None else 'None'}")
-    print(f"fix_unselection: {len(fix_unselection) if fix_unselection is not None else 'None'}")
+    print(
+        f"fix_selection: {len(fix_selection) if fix_selection is not None else 'None'}"
+    )
+    print(
+        f"fix_unselection: {len(fix_unselection) if fix_unselection is not None else 'None'}"
+    )
 
     start_time = time.time()
     mwis = maximum_weighted_independent_set(
@@ -175,9 +189,13 @@ def solve_local_branching_mis(
     weights = np.ones(instance.n_nodes)
 
     k_factor = kwargs.get("k_factor", 1.5)
-    assert k_factor > 1, "k_factor must be greater than 1, otherwise problem is infeasible"
+    assert k_factor > 1, (
+        "k_factor must be greater than 1, otherwise problem is infeasible"
+    )
     # use local branching k equal to k_factor * hamming_distance(solution_1, solution_2)
-    n_diff = len(np.setdiff1d(solution_1, solution_2)) + len(np.setdiff1d(solution_2, solution_1))
+    n_diff = len(np.setdiff1d(solution_1, solution_2)) + len(
+        np.setdiff1d(solution_2, solution_1)
+    )
     k = n_diff * k_factor
 
     local_branching = LocalBranching(k=k, sol_1=solution_1, sol_2=solution_2)
@@ -255,8 +273,12 @@ def maximum_weighted_independent_set(
             model.addConstr(x[fix_unselection] == 0)
         if local_branching is not None:
             # Get indices not in solutions (complement sets)
-            sol_1_unselected = np.setdiff1d(np.arange(num_vertices), local_branching.sol_1)
-            sol_2_unselected = np.setdiff1d(np.arange(num_vertices), local_branching.sol_2)
+            sol_1_unselected = np.setdiff1d(
+                np.arange(num_vertices), local_branching.sol_1
+            )
+            sol_2_unselected = np.setdiff1d(
+                np.arange(num_vertices), local_branching.sol_2
+            )
             hamming_expr = (
                 gp.quicksum(1 - x[i] for i in local_branching.sol_1)
                 + gp.quicksum(x[i] for i in sol_1_unselected)
@@ -288,7 +310,11 @@ def maximum_weighted_independent_set(
             name="no_adjacent_vertices",
         )
         model.optimize()
-        if model.status in {GRB.Status.OPTIMAL, GRB.Status.SOLUTION_LIMIT, GRB.Status.TIME_LIMIT}:
+        if model.status in {
+            GRB.Status.OPTIMAL,
+            GRB.Status.SOLUTION_LIMIT,
+            GRB.Status.TIME_LIMIT,
+        }:
             (mwis,) = np.where(x.X >= 0.5)
             return MWISResult(mwis, sum(weights[mwis]))
         return None

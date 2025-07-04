@@ -51,7 +51,9 @@ def solve_plain_mis(config: Config) -> None:
 
         # Create MIS instance from batch
         instance = create_mis_instance(batch, device="cpu")
-        print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
+        print(
+            f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1] // 2} edges"
+        )
 
         # Get adjacency matrix in proper format for maximum_weighted_independent_set
         adj_matrix = get_lil_csr_matrix(instance.adj_matrix_np)
@@ -81,7 +83,11 @@ def solve_plain_mis(config: Config) -> None:
                 weights,
                 desired_cost=desired_cost,
                 time_limit=15,
-                solver_params={"OutputFlag": 0, "SolutionLimit": 1, "MIPFocus": 1},  # Enable output for debugging
+                solver_params={
+                    "OutputFlag": 0,
+                    "SolutionLimit": 1,
+                    "MIPFocus": 1,
+                },  # Enable output for debugging
             )
 
             runtime = time.time() - start_time
@@ -105,5 +111,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, required=True, help="Dataset name.")
     args = parser.parse_args()
 
-    config = Config(dataset=args.dataset, table_name=f"results/conditioning_experiment_{args.dataset}.csv")
+    config = Config(
+        dataset=args.dataset,
+        table_name=f"results/conditioning_experiment_{args.dataset}.csv",
+    )
     solve_plain_mis(config)

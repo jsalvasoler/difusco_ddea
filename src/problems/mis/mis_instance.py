@@ -33,7 +33,9 @@ class MISInstanceBase(ProblemInstance):
         """Returns a tensor of shape (n_nodes,) with the nodes in the MIS."""
 
     @abstractmethod
-    def get_feasible_from_individual_batch(self, individual: torch.Tensor) -> torch.Tensor:
+    def get_feasible_from_individual_batch(
+        self, individual: torch.Tensor
+    ) -> torch.Tensor:
         """Returns a tensor of shape (batch_size, n_nodes) with the nodes in the MIS."""
 
 
@@ -66,7 +68,11 @@ class MISInstance(MISInstanceBase):
         # TODO: check if we can simplify this
         values = torch.ones(edge_index.shape[1], dtype=torch.float32, device=device)
         adj_matrix_sparse = (
-            torch.sparse_coo_tensor(edge_index, values, (n_nodes, n_nodes), device=device).coalesce().to_sparse_csr()
+            torch.sparse_coo_tensor(
+                edge_index, values, (n_nodes, n_nodes), device=device
+            )
+            .coalesce()
+            .to_sparse_csr()
         )
 
         neighbors_padded, degrees = precompute_neighbors_padded(adj_matrix_sparse)
@@ -91,7 +97,9 @@ class MISInstance(MISInstanceBase):
 
     def evaluate_individual(self, individual: torch.Tensor) -> float:
         """Individual is a random key of shape (n_nodes,), values in [0, 1]."""
-        return mis_decode_torch_batched(individual, self.neighbors_padded, self.degrees).sum()
+        return mis_decode_torch_batched(
+            individual, self.neighbors_padded, self.degrees
+        ).sum()
 
     def evaluate_solution(self, solution: torch.Tensor) -> float:
         """Solution stored as a torch.Tensor of shape (n_nodes,), where 1 indicates a node in the MIS."""
@@ -101,7 +109,9 @@ class MISInstance(MISInstanceBase):
         """Individual is a random key of shape (n_nodes,), values in [0, 1]."""
         return mis_decode_torch_batched(individual, self.neighbors_padded, self.degrees)
 
-    def get_feasible_from_individual_batch(self, individual: torch.Tensor) -> torch.Tensor:
+    def get_feasible_from_individual_batch(
+        self, individual: torch.Tensor
+    ) -> torch.Tensor:
         """Individual is a random key of shape (batch_size, n_nodes), values in [0, 1]."""
         return mis_decode_torch_batched(individual, self.neighbors_padded, self.degrees)
 
@@ -109,9 +119,13 @@ class MISInstance(MISInstanceBase):
         return self.degrees
 
     def __repr__(self) -> str:
-        n_edges = self.edge_index.shape[1] // 2  # Divide by 2 since edges are bidirectional
+        n_edges = (
+            self.edge_index.shape[1] // 2
+        )  # Divide by 2 since edges are bidirectional
         return f"MISInstance(n_nodes={self.n_nodes}, n_edges={n_edges}, device='{self.device}')"
 
 
-def create_mis_instance(sample: tuple, device: Literal["cpu", "cuda"] = "cpu") -> MISInstance:
+def create_mis_instance(
+    sample: tuple, device: Literal["cpu", "cuda"] = "cpu"
+) -> MISInstance:
     return MISInstance.create_from_batch_sample(sample, device)

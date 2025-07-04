@@ -68,12 +68,16 @@ class GNNLayer(nn.Module):
 
         self.norm_h = {
             "layer": nn.LayerNorm(hidden_dim, elementwise_affine=learn_norm),
-            "batch": nn.BatchNorm1d(hidden_dim, affine=learn_norm, track_running_stats=track_norm),
+            "batch": nn.BatchNorm1d(
+                hidden_dim, affine=learn_norm, track_running_stats=track_norm
+            ),
         }.get(self.norm, None)
 
         self.norm_e = {
             "layer": nn.LayerNorm(hidden_dim, elementwise_affine=learn_norm),
-            "batch": nn.BatchNorm1d(hidden_dim, affine=learn_norm, track_running_stats=track_norm),
+            "batch": nn.BatchNorm1d(
+                hidden_dim, affine=learn_norm, track_running_stats=track_norm
+            ),
         }.get(self.norm, None)
 
     def forward(
@@ -113,7 +117,11 @@ class GNNLayer(nn.Module):
         # Linear transformations for node update
         Uh = self.U(h)  # B x V x H
 
-        Vh = self.V(h).unsqueeze(1).expand(-1, num_nodes, -1, -1) if not sparse else self.V(h[edge_index[1]])
+        Vh = (
+            self.V(h).unsqueeze(1).expand(-1, num_nodes, -1, -1)
+            if not sparse
+            else self.V(h[edge_index[1]])
+        )
 
         # Linear transformations for edge update and gating
         Ah = self.A(h)  # B x V x H, source
@@ -122,17 +130,25 @@ class GNNLayer(nn.Module):
 
         # Update edge features and compute edge gates
         # not sparse -> B x V x V x H, sparse -> E x H
-        e = Ah.unsqueeze(1) + Bh.unsqueeze(2) + Ce if not sparse else Ah[edge_index[1]] + Bh[edge_index[0]] + Ce
+        e = (
+            Ah.unsqueeze(1) + Bh.unsqueeze(2) + Ce
+            if not sparse
+            else Ah[edge_index[1]] + Bh[edge_index[0]] + Ce
+        )
 
         gates = torch.sigmoid(e)  # B x V x V x H / E x H
 
         # Update node features
-        h = Uh + self.aggregate(Vh, graph, gates, edge_index=edge_index, sparse=sparse)  # B x V x H
+        h = Uh + self.aggregate(
+            Vh, graph, gates, edge_index=edge_index, sparse=sparse
+        )  # B x V x H
 
         # Normalize node features
         if not sparse:
             h = (
-                self.norm_h(h.view(batch_size * num_nodes, hidden_dim)).view(batch_size, num_nodes, hidden_dim)
+                self.norm_h(h.view(batch_size * num_nodes, hidden_dim)).view(
+                    batch_size, num_nodes, hidden_dim
+                )
                 if self.norm_h
                 else h
             )
@@ -142,9 +158,9 @@ class GNNLayer(nn.Module):
         # Normalize edge features
         if not sparse:
             e = (
-                self.norm_e(e.view(batch_size * num_nodes * num_nodes, hidden_dim)).view(
-                    batch_size, num_nodes, num_nodes, hidden_dim
-                )
+                self.norm_e(
+                    e.view(batch_size * num_nodes * num_nodes, hidden_dim)
+                ).view(batch_size, num_nodes, num_nodes, hidden_dim)
                 if self.norm_e
                 else e
             )
@@ -197,13 +213,18 @@ class GNNLayer(nn.Module):
         # Aggregate neighborhood features
         if not sparse:
             if (mode or self.aggregation) == "mean":
-                return torch.sum(Vh, dim=2) / (torch.sum(graph, dim=2).unsqueeze(-1).type_as(Vh))
+                return torch.sum(Vh, dim=2) / (
+                    torch.sum(graph, dim=2).unsqueeze(-1).type_as(Vh)
+                )
             if (mode or self.aggregation) == "max":
                 return torch.max(Vh, dim=2)[0]
             return torch.sum(Vh, dim=2)
 
         sparseVh = SparseTensor(
-            row=edge_index[0], col=edge_index[1], value=Vh, sparse_sizes=(graph.size(0), graph.size(1))
+            row=edge_index[0],
+            col=edge_index[1],
+            value=Vh,
+            sparse_sizes=(graph.size(0), graph.size(1)),
         )
 
         if (mode or self.aggregation) == "mean":
@@ -222,7 +243,11 @@ class PositionEmbeddingSine(nn.Module):
     """
 
     def __init__(
-        self, num_pos_feats: int = 64, temperature: int = 10000, normalize: bool = False, scale: float | None = None
+        self,
+        num_pos_feats: int = 64,
+        temperature: int = 10000,
+        normalize: bool = False,
+        scale: float | None = None,
     ) -> None:
         super().__init__()
         self.num_pos_feats = num_pos_feats
@@ -244,18 +269,28 @@ class PositionEmbeddingSine(nn.Module):
             x_embed = x_embed * self.scale
 
         dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=x.device)
-        dim_t = self.temperature ** (2.0 * (torch.div(dim_t, 2, rounding_mode="trunc")) / self.num_pos_feats)
+        dim_t = self.temperature ** (
+            2.0 * (torch.div(dim_t, 2, rounding_mode="trunc")) / self.num_pos_feats
+        )
 
         pos_x = x_embed[:, :, None] / dim_t
         pos_y = y_embed[:, :, None] / dim_t
-        pos_x = torch.stack((pos_x[:, :, 0::2].sin(), pos_x[:, :, 1::2].cos()), dim=3).flatten(2)
-        pos_y = torch.stack((pos_y[:, :, 0::2].sin(), pos_y[:, :, 1::2].cos()), dim=3).flatten(2)
+        pos_x = torch.stack(
+            (pos_x[:, :, 0::2].sin(), pos_x[:, :, 1::2].cos()), dim=3
+        ).flatten(2)
+        pos_y = torch.stack(
+            (pos_y[:, :, 0::2].sin(), pos_y[:, :, 1::2].cos()), dim=3
+        ).flatten(2)
         return torch.cat((pos_y, pos_x), dim=2).contiguous()
 
 
 class ScalarEmbeddingSine(nn.Module):
     def __init__(
-        self, num_pos_feats: int = 64, temperature: int = 10000, normalize: bool = False, scale: float | None = None
+        self,
+        num_pos_feats: int = 64,
+        temperature: int = 10000,
+        normalize: bool = False,
+        scale: float | None = None,
     ) -> None:
         super().__init__()
         self.num_pos_feats = num_pos_feats
@@ -271,15 +306,23 @@ class ScalarEmbeddingSine(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x_embed = x
         dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=x.device)
-        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="trunc") / self.num_pos_feats)
+        dim_t = self.temperature ** (
+            2 * torch.div(dim_t, 2, rounding_mode="trunc") / self.num_pos_feats
+        )
 
         pos_x = x_embed[:, :, :, None] / dim_t
-        return torch.stack((pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4).flatten(3)
+        return torch.stack(
+            (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4
+        ).flatten(3)
 
 
 class ScalarEmbeddingSine1D(nn.Module):
     def __init__(
-        self, num_pos_feats: int = 64, temperature: int = 10000, normalize: bool = False, scale: float | None = None
+        self,
+        num_pos_feats: int = 64,
+        temperature: int = 10000,
+        normalize: bool = False,
+        scale: float | None = None,
     ) -> None:
         super().__init__()
         self.num_pos_feats = num_pos_feats
@@ -295,10 +338,14 @@ class ScalarEmbeddingSine1D(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x_embed = x
         dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=x.device)
-        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="trunc") / self.num_pos_feats)
+        dim_t = self.temperature ** (
+            2 * torch.div(dim_t, 2, rounding_mode="trunc") / self.num_pos_feats
+        )
 
         pos_x = x_embed[:, None] / dim_t
-        return torch.stack((pos_x[:, 0::2].sin(), pos_x[:, 1::2].cos()), dim=2).flatten(1)
+        return torch.stack((pos_x[:, 0::2].sin(), pos_x[:, 1::2].cos()), dim=2).flatten(
+            1
+        )
 
 
 def run_sparse_layer(
@@ -309,11 +356,15 @@ def run_sparse_layer(
     edge_index: torch.Tensor,
     add_time_on_edge: bool = True,
 ) -> callable:
-    def custom_forward(*inputs: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, torch.Tensor]:
+    def custom_forward(
+        *inputs: tuple[torch.Tensor, ...],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         x_in = inputs[0]
         e_in = inputs[1]
         time_emb = inputs[2]
-        x, e = layer(x_in, e_in, adj_matrix, mode="direct", edge_index=edge_index, sparse=True)
+        x, e = layer(
+            x_in, e_in, adj_matrix, mode="direct", edge_index=edge_index, sparse=True
+        )
         if add_time_on_edge:
             e = e + time_layer(time_emb)
         else:
@@ -362,11 +413,16 @@ class GNNEncoder(nn.Module):
             nn.Linear(time_embed_dim, time_embed_dim),
         )
         self.out = nn.Sequential(
-            normalization(hidden_dim), nn.ReLU(), nn.Conv2d(hidden_dim, out_channels, kernel_size=1, bias=True)
+            normalization(hidden_dim),
+            nn.ReLU(),
+            nn.Conv2d(hidden_dim, out_channels, kernel_size=1, bias=True),
         )
 
         self.layers = nn.ModuleList(
-            [GNNLayer(hidden_dim, aggregation, norm, learn_norm, track_norm, gated) for _ in range(n_layers)]
+            [
+                GNNLayer(hidden_dim, aggregation, norm, learn_norm, track_norm, gated)
+                for _ in range(n_layers)
+            ]
         )
 
         self.time_embed_layers = nn.ModuleList(
@@ -392,7 +448,11 @@ class GNNEncoder(nn.Module):
         self.use_activation_checkpoint = use_activation_checkpoint
 
     def dense_forward(
-        self, x: torch.Tensor, graph: torch.Tensor, timesteps: torch.Tensor, edge_index: torch.Tensor | None = None
+        self,
+        x: torch.Tensor,
+        graph: torch.Tensor,
+        timesteps: torch.Tensor,
+        edge_index: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -409,7 +469,9 @@ class GNNEncoder(nn.Module):
         time_emb = self.time_embed(timestep_embedding(timesteps, self.hidden_dim))
         graph = torch.ones_like(graph).long()
 
-        for layer, time_layer, out_layer in zip(self.layers, self.time_embed_layers, self.per_layer_out):
+        for layer, time_layer, out_layer in zip(
+            self.layers, self.time_embed_layers, self.per_layer_out
+        ):
             x_in, e_in = x, e
 
             if self.use_activation_checkpoint:
@@ -426,7 +488,11 @@ class GNNEncoder(nn.Module):
         return self.out(e.permute((0, 3, 1, 2)))
 
     def sparse_forward(
-        self, x: torch.Tensor, graph: torch.Tensor, timesteps: torch.Tensor, edge_index: torch.Tensor
+        self,
+        x: torch.Tensor,
+        graph: torch.Tensor,
+        timesteps: torch.Tensor,
+        edge_index: torch.Tensor,
     ) -> torch.Tensor:
         """
         Args:
@@ -460,7 +526,11 @@ class GNNEncoder(nn.Module):
         return self.out(x).reshape(-1, x_shape[0]).permute((1, 0))
 
     def sparse_encoding(
-        self, x: torch.Tensor, e: torch.Tensor, edge_index: torch.Tensor, time_emb: torch.Tensor
+        self,
+        x: torch.Tensor,
+        e: torch.Tensor,
+        edge_index: torch.Tensor,
+        time_emb: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         adj_matrix = SparseTensor(
             row=edge_index[0],
@@ -470,16 +540,22 @@ class GNNEncoder(nn.Module):
         )
         adj_matrix = adj_matrix.to(x.device)
 
-        for layer, time_layer, out_layer in zip(self.layers, self.time_embed_layers, self.per_layer_out):
+        for layer, time_layer, out_layer in zip(
+            self.layers, self.time_embed_layers, self.per_layer_out
+        ):
             x_in, e_in = x, e
 
             if self.use_activation_checkpoint:
                 single_time_emb = time_emb[:1]
 
-                run_sparse_layer_fn = functools.partial(run_sparse_layer, add_time_on_edge=not self.node_feature_only)
+                run_sparse_layer_fn = functools.partial(
+                    run_sparse_layer, add_time_on_edge=not self.node_feature_only
+                )
 
                 out = activation_checkpoint.checkpoint(
-                    run_sparse_layer_fn(layer, time_layer, out_layer, adj_matrix, edge_index),
+                    run_sparse_layer_fn(
+                        layer, time_layer, out_layer, adj_matrix, edge_index
+                    ),
                     x_in,
                     e_in,
                     single_time_emb,
@@ -488,7 +564,14 @@ class GNNEncoder(nn.Module):
                 x = out[0]
                 e = out[1]
             else:
-                x, e = layer(x_in, e_in, adj_matrix, mode="direct", edge_index=edge_index, sparse=True)
+                x, e = layer(
+                    x_in,
+                    e_in,
+                    adj_matrix,
+                    mode="direct",
+                    edge_index=edge_index,
+                    sparse=True,
+                )
                 if not self.node_feature_only:
                     e = e + time_layer(time_emb)
                 else:

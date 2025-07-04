@@ -8,12 +8,15 @@ from config.myconfig import Config
 from config.mytable import TableSaver
 from problems.mis.mis_dataset import MISDataset
 from problems.mis.mis_instance import create_mis_instance
-from problems.mis.solve_optimal_recombination import get_lil_csr_matrix, maximum_weighted_independent_set
-
+from problems.mis.solve_optimal_recombination import (
+    get_lil_csr_matrix,
+    maximum_weighted_independent_set,
+)
 
 
 def solve_datasets(
-    dataset_name: str, time_limit: int = 60,
+    dataset_name: str,
+    time_limit: int = 60,
     instance_id: int | None = None,
     output_dir: str = "results",
 ) -> None:
@@ -41,7 +44,7 @@ def solve_datasets(
         if instance_id is not None and i != instance_id:
             continue
 
-        print(f"Solving sample {i+1}/{len(mis_dataset)}")
+        print(f"Solving sample {i + 1}/{len(mis_dataset)}")
 
         sample_file_name = mis_dataset.get_file_name_from_sample_idx(i)
 
@@ -53,7 +56,9 @@ def solve_datasets(
 
         # Create MIS instance from batch
         instance = create_mis_instance(batch, device="cpu")
-        print(f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1]//2} edges")
+        print(
+            f"Graph has {instance.n_nodes} nodes and {instance.edge_index.shape[1] // 2} edges"
+        )
 
         # Get adjacency matrix in proper format for maximum_weighted_independent_set
         adj_matrix = get_lil_csr_matrix(instance.adj_matrix_np)
@@ -88,21 +93,32 @@ def solve_datasets(
 
         # write a json file with this information
         with open(f"{output_dir}/gurobi_solve_{dataset_name}_{i}.json", "w") as f:
-            json.dump({
-                "sample_file_name": sample_file_name,
-                "gurobi_cost": mwis_result.f,
-                "runtime": runtime,
-            }, f)
+            json.dump(
+                {
+                    "sample_file_name": sample_file_name,
+                    "gurobi_cost": mwis_result.f,
+                    "runtime": runtime,
+                },
+                f,
+            )
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Solve MIS datasets using Gurobi.")
-    parser.add_argument("--dataset", type=str, default="er_50_100", help="Dataset name.")
-    parser.add_argument("--time_limit", type=float, default=60, help="Time limit for Gurobi.")
-    parser.add_argument("--instance_id", type=int, default=None, help="Instance ID to solve.")
-    parser.add_argument("--output_dir", type=str, default="results", help="Output directory.")
+    parser.add_argument(
+        "--dataset", type=str, default="er_50_100", help="Dataset name."
+    )
+    parser.add_argument(
+        "--time_limit", type=float, default=60, help="Time limit for Gurobi."
+    )
+    parser.add_argument(
+        "--instance_id", type=int, default=None, help="Instance ID to solve."
+    )
+    parser.add_argument(
+        "--output_dir", type=str, default="results", help="Output directory."
+    )
 
     args = parser.parse_args()
     solve_datasets(args.dataset, args.time_limit, args.instance_id, args.output_dir)

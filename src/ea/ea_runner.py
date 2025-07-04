@@ -52,13 +52,17 @@ def get_arg_parser() -> ArgumentParser:
     ea_settings.add_argument("--recombination", type=str, default="classic")
     ea_settings.add_argument("--config_name", type=str, default=None)
     ea_settings.add_argument(
-        "--save_recombination_results", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False
+        "--save_recombination_results",
+        type=lambda x: x.lower() in ["true", "1", "yes", "y"],
+        default=False,
     )
 
     difusco_settings = parser.add_argument_group("difusco_settings")
     difusco_settings.add_argument("--models_path", type=str, default=".")
     difusco_settings.add_argument("--ckpt_path", type=str, default=None)
-    difusco_settings.add_argument("--ckpt_path_difuscombination", type=str, default=None)
+    difusco_settings.add_argument(
+        "--ckpt_path_difuscombination", type=str, default=None
+    )
     difusco_settings.add_argument("--diffusion_type", type=str, default="categorical")
     difusco_settings.add_argument("--diffusion_schedule", type=str, default="linear")
     difusco_settings.add_argument("--inference_schedule", type=str, default="cosine")
@@ -83,7 +87,9 @@ def get_arg_parser() -> ArgumentParser:
     mis_settings.add_argument("--mutation_prob", type=float, default=0.25)
     mis_settings.add_argument("--opt_recomb_time_limit", type=int, default=15)
     mis_settings.add_argument(
-        "--preserve_optimal_recombination", type=lambda x: x.lower() in ["true", "1", "yes", "y"], default=False
+        "--preserve_optimal_recombination",
+        type=lambda x: x.lower() in ["true", "1", "yes", "y"],
+        default=False,
     )
 
     dev = parser.add_argument_group("dev")
@@ -110,8 +116,12 @@ def validate_args(args: Namespace) -> None:
             "random_feasible",
             "difusco_sampling",
         ], "Choose a valid initialization method for mis."
-        assert args.tournament_size > 0, "Tournament size must be greater than 0 for mis."
-        assert args.deselect_prob > 0, "Deselect probability must be greater than 0 for mis."
+        assert args.tournament_size > 0, (
+            "Tournament size must be greater than 0 for mis."
+        )
+        assert args.deselect_prob > 0, (
+            "Deselect probability must be greater than 0 for mis."
+        )
 
     if args.task == "tsp":
         assert args.max_two_opt_it > 0, "max_two_opt_it must be greater than 0 for tsp."
@@ -131,7 +141,9 @@ def validate_args(args: Namespace) -> None:
 
     # Validate wandb logger name. Format example: tsp_diffusion_graph_categorical_tsp50_test
     if args.wandb_logger_name:
-        assert args.wandb_logger_name.startswith(f"{args.task}_ea_"), "Wandb logger name must start with task_ea_"
+        assert args.wandb_logger_name.startswith(f"{args.task}_ea_"), (
+            "Wandb logger name must start with task_ea_"
+        )
 
 
 def parse_args() -> tuple[Namespace, list[str]]:
@@ -173,11 +185,17 @@ class EvolutionaryAlgorithm(Experiment):
         df["parent_1_len"] = df["parent_1"].str.count(",")
         df["parent_2_len"] = df["parent_2"].str.count(",")
 
-        df["parent_1_sorted"] = np.where(df["parent_1_len"] > df["parent_2_len"], df["parent_2"], df["parent_1"])
-        df["parent_2_sorted"] = np.where(df["parent_1_len"] > df["parent_2_len"], df["parent_1"], df["parent_2"])
+        df["parent_1_sorted"] = np.where(
+            df["parent_1_len"] > df["parent_2_len"], df["parent_2"], df["parent_1"]
+        )
+        df["parent_2_sorted"] = np.where(
+            df["parent_1_len"] > df["parent_2_len"], df["parent_1"], df["parent_2"]
+        )
 
         # remove duplicates again
-        df = df[["parent_1_sorted", "parent_2_sorted", "children", "instance_id"]].drop_duplicates()
+        df = df[
+            ["parent_1_sorted", "parent_2_sorted", "children", "instance_id"]
+        ].drop_duplicates()
 
         # remove cases in which parent_1_sorted = children, or parent_2_sorted = children
         df = df[df["parent_1_sorted"] != df["children"]]
@@ -231,7 +249,12 @@ class EvolutionaryAlgorithm(Experiment):
         diff = cost - gt_cost if ea.problem.objective_sense == "min" else gt_cost - cost
         gap = diff / gt_cost
 
-        results = {"cost": cost, "gt_cost": gt_cost, "gap": gap, "runtime": end_time - start_time}
+        results = {
+            "cost": cost,
+            "gt_cost": gt_cost,
+            "gap": gap,
+            "runtime": end_time - start_time,
+        }
 
         if self.config.save_recombination_results:
             df = ea.get_recombination_saved_results()
@@ -256,24 +279,37 @@ class EvolutionaryAlgorithm(Experiment):
             table_name = self._get_results_table_name()
             custom_logger.save_run_results(table_name=table_name)
 
-        return {k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v for k, v in results.items()}
+        return {
+            k: v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v
+            for k, v in results.items()
+        }
 
     def _get_results_table_name(self) -> str:
         directory = os.path.join(self.config.results_path, "ea_results")
         os.makedirs(directory, exist_ok=True)
-        return os.path.join(directory, self.config.wandb_logger_name, f"pop_logs_{self.config.process_idx}.csv")
+        return os.path.join(
+            directory,
+            self.config.wandb_logger_name,
+            f"pop_logs_{self.config.process_idx}.csv",
+        )
 
     def _get_logger_table_name(self, instance_id: int) -> str:
         """Path will be logs_path/ea_logs/wandb_logger_name/id_timestamp.csv"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         ea_logs_dir = os.path.join(self.config.logs_path, "ea_logs")
         os.makedirs(ea_logs_dir, exist_ok=True)
-        table_name = os.path.join(ea_logs_dir, self.config.wandb_logger_name, f"{instance_id}_{timestamp}.csv")
+        table_name = os.path.join(
+            ea_logs_dir, self.config.wandb_logger_name, f"{instance_id}_{timestamp}.csv"
+        )
         os.makedirs(os.path.dirname(table_name), exist_ok=True)
         return table_name
 
     def get_dataloader(self) -> DataLoader:
-        return DataLoader(dataset_factory(self.config, split=self.config.split), batch_size=1, shuffle=False)
+        return DataLoader(
+            dataset_factory(self.config, split=self.config.split),
+            batch_size=1,
+            shuffle=False,
+        )
 
     def get_final_results(self, results: list[dict]) -> dict:
         agg_results = {

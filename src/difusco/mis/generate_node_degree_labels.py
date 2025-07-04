@@ -20,7 +20,9 @@ def parse_arguments() -> argparse.Namespace:
     assert opts.output_dir is not None, "Must provide output_dir"
 
     # Make sure they exist
-    assert os.path.exists(opts.train_graphs_dir), f"Path {opts.train_graphs_dir} does not exist."
+    assert os.path.exists(opts.train_graphs_dir), (
+        f"Path {opts.train_graphs_dir} does not exist."
+    )
     if not os.path.exists(opts.output_dir):
         os.makedirs(opts.output_dir)
     return opts
@@ -45,17 +47,25 @@ def generate_node_degree_labels(opts: argparse.Namespace) -> None:
             edges = edges.T
 
             node_labels = np.zeros(num_nodes, dtype=np.int64)
-            graph_data = GraphData(x=torch.from_numpy(node_labels), edge_index=torch.from_numpy(edges))
+            graph_data = GraphData(
+                x=torch.from_numpy(node_labels), edge_index=torch.from_numpy(edges)
+            )
 
         # Calculate the degree of each node
-        node_degree = degree(graph_data.edge_index[0], num_nodes=num_nodes, dtype=torch.float)
+        node_degree = degree(
+            graph_data.edge_index[0], num_nodes=num_nodes, dtype=torch.float
+        )
         mean_degree = torch.mean(node_degree)
         # Label the nodes with 1 if the degree is above the mean, 0 otherwise
-        node_labels = torch.where(node_degree > mean_degree, torch.tensor(1), torch.tensor(0))
+        node_labels = torch.where(
+            node_degree > mean_degree, torch.tensor(1), torch.tensor(0)
+        )
         # Save the node labels with the same name as the graph
         filename = file.replace(".gpickle", "_unweighted.result")
         # File contains one line per node, with a 0 or 1 indicating the label
-        np.savetxt(os.path.join(opts.output_dir, filename), node_labels.numpy(), fmt="%d")
+        np.savetxt(
+            os.path.join(opts.output_dir, filename), node_labels.numpy(), fmt="%d"
+        )
 
 
 if __name__ == "__main__":

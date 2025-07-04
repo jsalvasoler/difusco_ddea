@@ -111,9 +111,13 @@ def get_dataloader(config: Config, batch_size: int = 1) -> tuple[Config, DataLoa
         return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     if config.task == "tsp":
-        dataset = TSPGraphDataset(data_file=data_file / config.test_split, sparse_factor=config.sparse_factor)
+        dataset = TSPGraphDataset(
+            data_file=data_file / config.test_split, sparse_factor=config.sparse_factor
+        )
     elif config.task == "mis":
-        dataset = MISDataset(data_dir=data_file / config.test_split, data_label_dir=None)
+        dataset = MISDataset(
+            data_dir=data_file / config.test_split, data_label_dir=None
+        )
 
     return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
@@ -130,7 +134,9 @@ def assert_heatmap_properties(heatmaps: torch.Tensor, config: Config) -> None:
             assert heatmaps.shape[2] == 50, "Incorrect number of nodes"
         else:
             # prob over edges
-            assert heatmaps.shape[1] == config.sparse_factor * 500, "Incorrect number of nodes"
+            assert heatmaps.shape[1] == config.sparse_factor * 500, (
+                "Incorrect number of nodes"
+            )
     elif config.task == "mis":
         assert heatmaps.shape[1] == 56, "Incorrect number of nodes"
 
@@ -184,7 +190,9 @@ def test_sampler_mis_sampling(config_mis: Config, cache_dir: bool) -> None:
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
-@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
+@pytest.mark.parametrize(
+    ("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)]
+)
 def test_sampler_mis_recombination(
     parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config
 ) -> None:
@@ -212,8 +220,12 @@ def test_sampler_mis_recombination(
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
-@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)])
-def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int) -> None:
+@pytest.mark.parametrize(
+    ("parallel_sampling", "sequential_sampling"), [(1, 1), (3, 1), (1, 3), (3, 3)]
+)
+def test_sampler_sparse_tsp500(
+    parallel_sampling: int, sequential_sampling: int
+) -> None:
     config = common.update(
         task="tsp",
         test_split="tsp/tsp500_test_concorde.txt",
@@ -237,10 +249,15 @@ def test_sampler_sparse_tsp500(parallel_sampling: int, sequential_sampling: int)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason=CUDA_SKIP_REASON)
-@pytest.mark.parametrize(("parallel_sampling", "sequential_sampling"), [(3, 1), (1, 3), (3, 3)])
+@pytest.mark.parametrize(
+    ("parallel_sampling", "sequential_sampling"), [(3, 1), (1, 3), (3, 3)]
+)
 @pytest.mark.parametrize("override_features", [True, False])
 def test_sampler_mis_recombination_batch(
-    parallel_sampling: int, sequential_sampling: int, config_mis_recombination: Config, override_features: bool
+    parallel_sampling: int,
+    sequential_sampling: int,
+    config_mis_recombination: Config,
+    override_features: bool,
 ) -> None:
     config = config_mis_recombination.update(
         task="mis",
@@ -270,7 +287,9 @@ def test_sampler_mis_recombination_batch(
 
     # custom check to consider the batch size
     assert heatmaps.shape[0] == 2, "Incorrect batch size"
-    assert heatmaps.shape[1] == parallel_sampling * sequential_sampling, "Incorrect number of samples"
+    assert heatmaps.shape[1] == parallel_sampling * sequential_sampling, (
+        "Incorrect number of samples"
+    )
     assert heatmaps.shape[2] == 56, "Incorrect number of nodes"
 
     assert torch.all(heatmaps >= 0), "Heatmap values below 0"

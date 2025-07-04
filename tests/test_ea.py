@@ -4,7 +4,12 @@ import numpy as np
 import pytest
 from config.myconfig import Config
 from ea.ea_runner import get_arg_parser, run_ea
-from ea.ea_utils import dataset_factory, filter_args_by_group, get_results_dict, instance_factory
+from ea.ea_utils import (
+    dataset_factory,
+    filter_args_by_group,
+    get_results_dict,
+    instance_factory,
+)
 from torch_geometric.loader import DataLoader
 
 
@@ -85,7 +90,13 @@ def test_mis_gt_avg_cost_er_test_set() -> None:
 @pytest.mark.parametrize("recombination", ["classic", "optimal", "difuscombination"])
 @pytest.mark.parametrize("initialization", ["random_feasible", "difusco_sampling"])
 @pytest.mark.parametrize("selection_method", ["tournament", "roulette", "best_unique"])
-def test_ea_runs(task: str, recombination: str, initialization: str, selection_method: str, temp_dir: str) -> None:
+def test_ea_runs(
+    task: str,
+    recombination: str,
+    initialization: str,
+    selection_method: str,
+    temp_dir: str,
+) -> None:
     if task == "tsp":
         data_path = "data/tsp/tsp50_test_concorde.txt"
     elif task == "mis":

@@ -81,7 +81,9 @@ def get_arg_parser() -> ArgumentParser:
     return parser
 
 
-def get_feasible_solutions(heatmaps: torch.Tensor, instance: MISInstance | TSPInstance, config: Config) -> torch.Tensor:
+def get_feasible_solutions(
+    heatmaps: torch.Tensor, instance: MISInstance | TSPInstance, config: Config
+) -> torch.Tensor:
     if config.task == "mis":
         return get_feasible_solutions_mis(heatmaps, instance)
     if config.task == "tsp":
@@ -110,7 +112,9 @@ class DifuscoInitializationExperiment(Experiment):
 
         if self.config.save_heatmaps:
             instance_id = sample[0].item()
-            torch.save(heatmaps, f"{self.config.save_heatmaps_path}/heatmaps_{instance_id}.pt")
+            torch.save(
+                heatmaps, f"{self.config.save_heatmaps_path}/heatmaps_{instance_id}.pt"
+            )
             return {}
 
         # Convert heatmaps to solutions and evaluate
@@ -133,7 +137,10 @@ class DifuscoInitializationExperiment(Experiment):
             return {}
 
         def agg_results(results: list[dict], keys: list[str]) -> dict:
-            return {f"avg_{key}": sum(r[key] for r in results) / len(results) for key in keys}
+            return {
+                f"avg_{key}": sum(r[key] for r in results) / len(results)
+                for key in keys
+            }
 
         aggregated_results = agg_results(
             results,
@@ -161,7 +168,9 @@ class DifuscoInitializationExperiment(Experiment):
         return "results/init_experiments.csv"
 
     @staticmethod
-    def _add_config_and_timestamp(results: dict[str, float | int | str], config: Config) -> dict:
+    def _add_config_and_timestamp(
+        results: dict[str, float | int | str], config: Config
+    ) -> dict:
         """Add configuration and timestamp to results."""
         data = {
             "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
@@ -174,16 +183,23 @@ class DifuscoInitializationExperiment(Experiment):
         """Validate the configuration."""
         assert self.config.pop_size > 0, "pop_size must be greater than 0"
         assert (
-            self.config.pop_size == self.config.parallel_sampling * self.config.sequential_sampling
+            self.config.pop_size
+            == self.config.parallel_sampling * self.config.sequential_sampling
         ), "Requirement: pop_size == parallel_sampling * sequential_sampling"
 
         if "categorical" in self.config.ckpt_path:
-            assert self.config.diffusion_type == "categorical", "diffusion_type must be categorical"
+            assert self.config.diffusion_type == "categorical", (
+                "diffusion_type must be categorical"
+            )
         elif "gaussian" in self.config.ckpt_path:
-            assert self.config.diffusion_type == "gaussian", "diffusion_type must be gaussian"
+            assert self.config.diffusion_type == "gaussian", (
+                "diffusion_type must be gaussian"
+            )
 
         if self.config.save_heatmaps:
-            assert self.config.save_heatmaps_path is not None, "save_heatmaps_path must be provided"
+            assert self.config.save_heatmaps_path is not None, (
+                "save_heatmaps_path must be provided"
+            )
             os.makedirs(self.config.save_heatmaps_path, exist_ok=True)
 
 

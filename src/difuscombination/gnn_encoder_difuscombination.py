@@ -5,7 +5,12 @@ from typing import TYPE_CHECKING
 import torch
 from torch import nn
 
-from difusco.gnn_encoder import GNNEncoder, PositionEmbeddingSine, ScalarEmbeddingSine, ScalarEmbeddingSine1D
+from difusco.gnn_encoder import (
+    GNNEncoder,
+    PositionEmbeddingSine,
+    ScalarEmbeddingSine,
+    ScalarEmbeddingSine1D,
+)
 from difusco.nn_utils import timestep_embedding
 
 if TYPE_CHECKING:
@@ -35,14 +40,22 @@ class GNNEncoderDifuscombination(GNNEncoder):
 
         if not self.node_feature_only:
             self.pos_embed = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
-            self.pos_embed_feat0 = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
-            self.pos_embed_feat1 = PositionEmbeddingSine(self.hidden_dim // 2, normalize=True)
+            self.pos_embed_feat0 = PositionEmbeddingSine(
+                self.hidden_dim // 2, normalize=True
+            )
+            self.pos_embed_feat1 = PositionEmbeddingSine(
+                self.hidden_dim // 2, normalize=True
+            )
 
             self.edge_pos_embed = ScalarEmbeddingSine(self.hidden_dim, normalize=False)
         else:
             self.pos_embed = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
-            self.pos_embed_feat0 = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
-            self.pos_embed_feat1 = ScalarEmbeddingSine1D(self.hidden_dim, normalize=False)
+            self.pos_embed_feat0 = ScalarEmbeddingSine1D(
+                self.hidden_dim, normalize=False
+            )
+            self.pos_embed_feat1 = ScalarEmbeddingSine1D(
+                self.hidden_dim, normalize=False
+            )
 
     def forward(
         self,
@@ -54,17 +67,25 @@ class GNNEncoderDifuscombination(GNNEncoder):
     ) -> torch.Tensor:
         if self.node_feature_only:
             if self.sparse:
-                return self.sparse_forward_node_feature_only(x, features, timesteps, edge_index)
+                return self.sparse_forward_node_feature_only(
+                    x, features, timesteps, edge_index
+                )
             error_msg = "Dense node feature only is not supported"
             raise NotImplementedError(error_msg)
         # TODO: implement features for other cases
-        raise NotImplementedError("Features are not supported for non-node feature only cases")
+        raise NotImplementedError(
+            "Features are not supported for non-node feature only cases"
+        )
         if self.sparse:
             return self.sparse_forward(x, graph, timesteps, edge_index)
         return self.dense_forward(x, graph, timesteps, edge_index)
 
     def sparse_forward_node_feature_only(
-        self, x: torch.Tensor, features: torch.Tensor, timesteps: torch.Tensor, edge_index: torch.Tensor
+        self,
+        x: torch.Tensor,
+        features: torch.Tensor,
+        timesteps: torch.Tensor,
+        edge_index: torch.Tensor,
     ) -> torch.Tensor:
         """Assume x is of shape (num_nodes,), features is of shape (num_nodes, 2)"""
         x = self.node_embed(self.pos_embed(x))

@@ -32,29 +32,53 @@ def batched_two_opt_torch(
 
     with torch.inference_mode():
         # Convert to torch tensors if needed
-        cuda_points = points if isinstance(points, torch.Tensor) else torch.from_numpy(points).to(device)
-        cuda_tour = tour if isinstance(tour, torch.Tensor) else torch.from_numpy(tour.copy()).to(device)
+        cuda_points = (
+            points
+            if isinstance(points, torch.Tensor)
+            else torch.from_numpy(points).to(device)
+        )
+        cuda_tour = (
+            tour
+            if isinstance(tour, torch.Tensor)
+            else torch.from_numpy(tour.copy()).to(device)
+        )
 
         # Rest of the function remains the same
         batch_size = cuda_tour.shape[0]
 
         min_change = -1.0
         while min_change < 0.0:
-            points_i = cuda_points[cuda_tour[:, :-1].reshape(-1)].reshape((batch_size, -1, 1, 2))
-            points_j = cuda_points[cuda_tour[:, :-1].reshape(-1)].reshape((batch_size, 1, -1, 2))
-            points_i_plus_1 = cuda_points[cuda_tour[:, 1:].reshape(-1)].reshape((batch_size, -1, 1, 2))
-            points_j_plus_1 = cuda_points[cuda_tour[:, 1:].reshape(-1)].reshape((batch_size, 1, -1, 2))
+            points_i = cuda_points[cuda_tour[:, :-1].reshape(-1)].reshape(
+                (batch_size, -1, 1, 2)
+            )
+            points_j = cuda_points[cuda_tour[:, :-1].reshape(-1)].reshape(
+                (batch_size, 1, -1, 2)
+            )
+            points_i_plus_1 = cuda_points[cuda_tour[:, 1:].reshape(-1)].reshape(
+                (batch_size, -1, 1, 2)
+            )
+            points_j_plus_1 = cuda_points[cuda_tour[:, 1:].reshape(-1)].reshape(
+                (batch_size, 1, -1, 2)
+            )
 
             A_ij = torch.sqrt(torch.sum((points_i - points_j) ** 2, axis=-1))
-            A_i_plus_1_j_plus_1 = torch.sqrt(torch.sum((points_i_plus_1 - points_j_plus_1) ** 2, axis=-1))
-            A_i_i_plus_1 = torch.sqrt(torch.sum((points_i - points_i_plus_1) ** 2, axis=-1))
-            A_j_j_plus_1 = torch.sqrt(torch.sum((points_j - points_j_plus_1) ** 2, axis=-1))
+            A_i_plus_1_j_plus_1 = torch.sqrt(
+                torch.sum((points_i_plus_1 - points_j_plus_1) ** 2, axis=-1)
+            )
+            A_i_i_plus_1 = torch.sqrt(
+                torch.sum((points_i - points_i_plus_1) ** 2, axis=-1)
+            )
+            A_j_j_plus_1 = torch.sqrt(
+                torch.sum((points_j - points_j_plus_1) ** 2, axis=-1)
+            )
 
             change = A_ij + A_i_plus_1_j_plus_1 - A_i_i_plus_1 - A_j_j_plus_1
             valid_change = torch.triu(change, diagonal=2)
 
             min_change = torch.min(valid_change)
-            flatten_argmin_index = torch.argmin(valid_change.reshape(batch_size, -1), dim=-1)
+            flatten_argmin_index = torch.argmin(
+                valid_change.reshape(batch_size, -1), dim=-1
+            )
             min_i = torch.div(flatten_argmin_index, len(points), rounding_mode="floor")
             min_j = torch.remainder(flatten_argmin_index, len(points))
 
@@ -110,7 +134,9 @@ def build_edge_lists(parent1: torch.Tensor, parent2: torch.Tensor) -> torch.Tens
     mask2 = parent2.unsqueeze(-1) == node_indices
 
     # Create edge lists (batch_size, n, 4)
-    edge_lists = torch.zeros((batch_size, n, 4), dtype=torch.long, device=parent1.device)
+    edge_lists = torch.zeros(
+        (batch_size, n, 4), dtype=torch.long, device=parent1.device
+    )
 
     # Gather neighbors for all nodes at once
     edge_lists[:, :, 0] = (mask1 * prev_1.unsqueeze(-1)).sum(dim=1)
@@ -145,20 +171,30 @@ def select_from_edge_lists(
     candidates = edge_lists_copy[torch.arange(batch_size), current_node, :]
 
     # edge_lists_candidates is a tensor of size (batch_size, 4, 4)
-    edge_lists_candidates = edge_lists_copy[torch.arange(batch_size).unsqueeze(-1).expand(-1, 4), candidates, :]
+    edge_lists_candidates = edge_lists_copy[
+        torch.arange(batch_size).unsqueeze(-1).expand(-1, 4), candidates, :
+    ]
 
     # Mask visited nodes with -1
     edge_lists_candidates[:, :, 0] = torch.where(
-        visited.gather(1, edge_lists_candidates[:, :, 0]), -1, edge_lists_candidates[:, :, 0]
+        visited.gather(1, edge_lists_candidates[:, :, 0]),
+        -1,
+        edge_lists_candidates[:, :, 0],
     )
     edge_lists_candidates[:, :, 1] = torch.where(
-        visited.gather(1, edge_lists_candidates[:, :, 1]), -1, edge_lists_candidates[:, :, 1]
+        visited.gather(1, edge_lists_candidates[:, :, 1]),
+        -1,
+        edge_lists_candidates[:, :, 1],
     )
     edge_lists_candidates[:, :, 2] = torch.where(
-        visited.gather(1, edge_lists_candidates[:, :, 2]), -1, edge_lists_candidates[:, :, 2]
+        visited.gather(1, edge_lists_candidates[:, :, 2]),
+        -1,
+        edge_lists_candidates[:, :, 2],
     )
     edge_lists_candidates[:, :, 3] = torch.where(
-        visited.gather(1, edge_lists_candidates[:, :, 3]), -1, edge_lists_candidates[:, :, 3]
+        visited.gather(1, edge_lists_candidates[:, :, 3]),
+        -1,
+        edge_lists_candidates[:, :, 3],
     )
 
     # Count unique elements by summing differences and adding 1 (for the first unique element)
@@ -167,34 +203,46 @@ def select_from_edge_lists(
     unique_counts = diffs.sum(dim=-1) + 1
 
     # Discount one if -1 is present in the row
-    unique_counts = unique_counts - (torch.sum(edge_lists_candidates == -1, dim=-1) > 0).int()
+    unique_counts = (
+        unique_counts - (torch.sum(edge_lists_candidates == -1, dim=-1) > 0).int()
+    )
 
     # binary mask of visited candidates
     visited_candidates = visited.gather(1, candidates)  # shape: (batch_size, 4)
 
     # we set inf = 10 for the counts of the visited candidates, feasible max is 4
     min_unique_count = (
-        torch.where(visited_candidates, 10, unique_counts).min(dim=1, keepdim=True).values
+        torch.where(visited_candidates, 10, unique_counts)
+        .min(dim=1, keepdim=True)
+        .values
     )  # shape: (batch_size, 1)
     real_candidates_mask = (unique_counts == min_unique_count) & (~visited_candidates)
 
     sums = real_candidates_mask.sum(dim=-1, keepdim=True)
     to_draw_randomly = (sums == 0).bool()  # shape: (batch_size, 1)
     sums = torch.where(to_draw_randomly, 1.0, sums)
-    real_candidates_mask = torch.where(to_draw_randomly, torch.ones_like(real_candidates_mask), real_candidates_mask)
+    real_candidates_mask = torch.where(
+        to_draw_randomly, torch.ones_like(real_candidates_mask), real_candidates_mask
+    )
     real_candidates_mask = real_candidates_mask.float().div(sums)
 
-    idx = torch.multinomial(real_candidates_mask.float(), num_samples=1)  # shape: (batch_size, 1)
+    idx = torch.multinomial(
+        real_candidates_mask.float(), num_samples=1
+    )  # shape: (batch_size, 1)
     selected_nodes = candidates.gather(1, idx)
 
     # select the first unvisited node if all candidates are visited
     first_unvisited = (~visited).int().argmax(dim=1)
-    selected_nodes = torch.where(to_draw_randomly, first_unvisited.unsqueeze(-1), selected_nodes)
+    selected_nodes = torch.where(
+        to_draw_randomly, first_unvisited.unsqueeze(-1), selected_nodes
+    )
 
     return selected_nodes.squeeze(1)
 
 
-def edge_recombination_crossover(parent1: torch.Tensor, parent2: torch.Tensor) -> torch.Tensor:
+def edge_recombination_crossover(
+    parent1: torch.Tensor, parent2: torch.Tensor
+) -> torch.Tensor:
     """
     Perform edge recombination crossover (ERC) for a batch of parents in a vectorized manner.
 

@@ -6,7 +6,10 @@ from config.myconfig import Config
 from difuscombination.recombination_experiments import main_recombination_experiments
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available, skipping test that requires GPU")
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available, skipping test that requires GPU",
+)
 def test_recombination_experiments() -> None:
     """Test that recombination experiments can run with minimal configuration."""
 
