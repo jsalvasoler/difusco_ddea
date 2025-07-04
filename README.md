@@ -1,13 +1,12 @@
-# Diffusion-Based Evolutionary Algorithms
+# Denoising Diffusion-Based Evolutionary Algorithms
 
 This repository contains the code of the work described in the following abstract.
 
 **Abstract:** 
-This work explores the integration of denoising diffusion models with evolutionary algorithms (EAs) to enhance machine learning-based combinatorial optimization. While diffusion models have shown promise as generative solvers for NP-hard problems, they often rely on problem-specific heuristics and lack the robust exploration capabilities of traditional search methods. 
-To address these limitations, we propose a novel Diffusion-based Evolutionary Algorithm (DEA) framework. This approach leverages pre-trained diffusion models for both population initialization and recombination, effectively exploiting the multimodal solution space captured by diffusion models within the exploratory structure of an EA. We focus on the Maximum Independent Set (MIS) problem, developing a baseline EA and then introducing diffusion-based initialization and a diffusion recombination operator trained via imitation learning from an optimal recombination demonstrator formulated as an Integer Linear Program.
-Computational experiments on Erdős-Rényi graph datasets of varying sizes demonstrate that DEA significantly outperforms standalone Difusco, a state-of-the-art diffusion-based solver for combinatorial optimization, achieving improved solution quality and better out-of-distribution generalization to larger graph instances. 
-Notably, DEA outperforms the MIP solver Gurobi on larger instances when considering the same time limit, while still falling short of highly specialized classical solvers like KaMIS.
-Our ablation studies highlight the crucial contributions of both diffusion-based initialization and recombination to the DEA framework's success. This work provides empirical evidence for the synergistic potential of combining diffusion models and EAs, offering a promising direction for developing more robust and effective machine learning approaches to complex combinatorial optimization problems and paving the way for future research into hybrid ML-metaheuristic methods.
+Denoising diffusion models (DDMs) offer a promising generative approach for combinatorial optimization, yet they often lack the robust exploration capabilities of traditional metaheuristics like evolutionary algorithms (EAs).
+We propose a Denoising Diffusion-based Evolutionary Algorithm (DDEA) framework that synergistically integrates these paradigms. It utilizes pre-trained DDMs for both high-quality and diverse population initialization and a novel diffusion-based recombination operator, trained via imitation learning against an optimal demonstrator.
+Evaluating DDEA on the Maximum Independent Set problem on Erdős-Rényi graphs, we demonstrate notable improvements over DIFUSCO, a leading DDM solver. DDEA consistently outperforms it given the same time budget, and surpasses Gurobi on larger graphs under the same time limit, with DDEA's solution sizes being 3.9\% and 7.5\% larger on the ER-300-400 and ER-700-800 datasets, respectively. In out-of-distribution experiments, DDEA provides solutions of 11.6\% higher quality than DIFUSCO under the same time limit. Ablation studies confirm that both diffusion initialization and recombination are crucial.
+Our work highlights the potential of hybridizing DDMs and EAs, offering a promising direction for the development of powerful machine learning solvers for complex combinatorial optimization problems.
 
 **Short abstract paper**: available [here](https://jsalvasoler.vercel.app/dea_short_abstract.pdf).
 
